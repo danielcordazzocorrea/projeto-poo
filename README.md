@@ -1,49 +1,55 @@
-# Corretora POO — backend em TypeScript
+# Corretora POO — Supabase
 
-API local de demonstração com classes para cliente, conta, ativo, posição e movimentação. Preços e depósitos são simulados. Os dados da API atual ficam em memória e somem ao desligar o servidor.
+Backend de demonstração em TypeScript para Supabase Edge Functions. Usa Supabase Auth para identificar usuários, Postgres para guardar contas e operações, e classes de domínio para validar e apresentar os dados. **Dinheiro e cotações são simulados.**
 
-## Supabase
+## Estrutura
 
-A migração inicial está em `supabase/migrations/20261109000000_estrutura_inicial.sql`. Ela cria as tabelas `contas`, `ativos`, `posicoes` e `movimentacoes`, políticas de leitura por usuário e a função `abrir_conta()` para o usuário autenticado. As tabelas não aceitam escrita direta pelo cliente.
+- `supabase/functions/corretora/index.ts`: entrada HTTP da Edge Function, com autenticação obrigatória.
+- `supabase/functions/_shared/dominio.ts`: classes `Conta`, `Ativo`, `Posicao`, `Movimentacao`, `Dinheiro` e `Quantidade`.
+- `supabase/functions/_shared/servico.ts`: classe `Corretora` e contrato do repositório.
+- `supabase/functions/_shared/repositorio-supabase.ts`: consultas e chamadas RPC com o cliente Supabase do usuário.
+- `supabase/migrations/`: tabelas, RLS e operações transacionais de abertura de conta, depósito, compra e venda.
 
-A migração ainda precisa ser aplicada ao projeto Supabase. Até integrar Auth e persistência à API, o servidor local continua usando `RepositorioEmMemoria`.
+Não há mais servidor Node local nem cadastro de usuário próprio. Cadastro e login são responsabilidade do Supabase Auth. A Edge Function aceita apenas usuário autenticado; as operações SQL identificam a conta por `auth.uid()` e não recebem um `conta_id` escolhido pelo cliente.
 
-As tarefas sugeridas para cinco pessoas estão em `docs/plano-equipe.md`.
+## Preparar e executar
 
-## Executar
-
-Requer Node.js 22 ou superior:
+Instale a [CLI do Supabase](https://supabase.com/docs/guides/local-development/cli/getting-started) e tenha Docker disponível para usar a pilha local. Este repositório já contém `supabase/config.toml` e as migrações.
 
 ```powershell
 npm install
-npm run dev
+npx supabase start
+npx supabase db reset
+npx supabase functions serve corretora
 ```
 
-A API fica em `http://127.0.0.1:8000`.
-
-## Rotas
-
-| Método | Rota | JSON de entrada |
-| --- | --- | --- |
-| `GET` | `/ativos` | — |
-| `POST` | `/clientes` | `{"nome":"Ana"}` |
-| `POST` | `/contas` | `{"cliente_id":"<id do cliente>"}` |
-| `GET` | `/contas/<id>` | — |
-| `POST` | `/contas/<id>/depositos` | `{"valor":"100.00"}` |
-| `POST` | `/contas/<id>/compras` | `{"codigo_ativo":"ACAO1","quantidade":"2"}` |
-| `POST` | `/contas/<id>/vendas` | `{"codigo_ativo":"ACAO1","quantidade":"1"}` |
-
-Exemplo no PowerShell, com o servidor aberto em outro terminal:
+Para conectar a um projeto hospedado, primeiro faça login na CLI e vincule o *project ref*:
 
 ```powershell
-$cliente = Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/clientes -ContentType 'application/json' -Body '{"nome":"Ana"}'
-$conta = Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/contas -ContentType 'application/json' -Body (ConvertTo-Json @{ cliente_id = $cliente.id })
-Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:8000/contas/$($conta.id)/depositos" -ContentType 'application/json' -Body '{"valor":"100.00"}'
-Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:8000/contas/$($conta.id)/compras" -ContentType 'application/json' -Body '{"codigo_ativo":"ACAO1","quantidade":"2"}'
-Invoke-RestMethod -Uri "http://127.0.0.1:8000/contas/$($conta.id)"
+npx supabase login
+npx supabase link --project-ref SEU_PROJECT_REF
+npx supabase db push
+npx supabase functions deploy corretora
 ```
 
-Valores monetários e quantidades são enviados como texto decimal para preservar a precisão. Compras exigem saldo suficiente; vendas exigem posição suficiente.
+`db push` aplica as migrações no projeto vinculado; `functions deploy` publica a Edge Function. Revise o projeto de destino antes de executar esses comandos. O `project_id` em `config.toml` é apenas o nome da pilha local, não o *project ref* hospedado.
+
+Este repositório ainda não está vinculado a um projeto hospedado; nenhuma migração ou função foi implantada no Supabase remoto.
+
+## API
+
+O caminho base é `/functions/v1/corretora`. Envie o JWT de sessão do Supabase Auth no cabeçalho `Authorization: Bearer <token>` e a chave publicável no cabeçalho `apikey` (o SDK `supabase.functions.invoke` cuida disso).
+
+| Método | Caminho | JSON de entrada |
+| --- | --- | --- |
+| `GET` | `/ativos` | — |
+| `POST` | `/conta` | `{}` |
+| `GET` | `/conta` | — |
+| `POST` | `/depositos` | `{"valor":"100.00"}` |
+| `POST` | `/compras` | `{"codigo_ativo":"ACAO1","quantidade":"2"}` |
+| `POST` | `/vendas` | `{"codigo_ativo":"ACAO1","quantidade":"1"}` |
+
+Valores monetários e quantidades são texto decimal. A resposta da conta traz saldo, posições e as 100 movimentações mais recentes. Os preços `ACAO1` e `USD` são fixos e fictícios. O depósito adiciona saldo **simulado**, sem integração de pagamentos.
 
 ## Testes
 
@@ -51,7 +57,8 @@ Valores monetários e quantidades são enviados como texto decimal para preserva
 npm test
 ```
 
-## Próxima etapa
+Os testes do Node verificam as classes de domínio e o serviço. Um teste completo das Edge Functions, RLS e transações SQL exige a pilha Supabase local ou um projeto de testes.
 
-Substituir `RepositorioEmMemoria` por persistência no Supabase e adicionar autenticação antes de expor a API ou ligar um frontend. Compra e venda deverão persistir saldo, posição e movimentação em uma única transação no banco.
+## Equipe
 
+As tarefas sugeridas para cinco pessoas estão em `docs/plano-equipe.md`.

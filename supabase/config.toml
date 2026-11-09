@@ -1,0 +1,6 @@
+project_id = "corretora-poo"
+
+[functions.corretora]
+# A função valida o JWT do usuário com withSupabase({ auth: 'user' }).
+# Com chaves publicáveis novas, a validação legada do gateway fica desligada.
+verify_jwt = false

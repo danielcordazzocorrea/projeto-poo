@@ -5,9 +5,8 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
-    "start": "node dist/server.js",
-    "dev": "npm run build && npm start",
-    "test": "npm run build && node --test --experimental-test-isolation=none dist/tests/*.test.js"
+    "dev": "npx supabase functions serve corretora",
+    "test": "npm run build && node --test --experimental-test-isolation=none dist/tests/dominio.test.js"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
