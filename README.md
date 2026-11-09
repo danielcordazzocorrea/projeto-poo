@@ -1,6 +1,14 @@
 # Corretora POO — backend em TypeScript
 
-API local de demonstração com classes para cliente, conta, ativo, posição e movimentação. Preços e depósitos são simulados. Os dados ficam em memória e somem ao desligar o servidor.
+API local de demonstração com classes para cliente, conta, ativo, posição e movimentação. Preços e depósitos são simulados. Os dados da API atual ficam em memória e somem ao desligar o servidor.
+
+## Supabase
+
+A migração inicial está em `supabase/migrations/20261109000000_estrutura_inicial.sql`. Ela cria as tabelas `contas`, `ativos`, `posicoes` e `movimentacoes`, políticas de leitura por usuário e a função `abrir_conta()` para o usuário autenticado. As tabelas não aceitam escrita direta pelo cliente.
+
+A migração ainda precisa ser aplicada ao projeto Supabase. Até integrar Auth e persistência à API, o servidor local continua usando `RepositorioEmMemoria`.
+
+As tarefas sugeridas para cinco pessoas estão em `docs/plano-equipe.md`.
 
 ## Executar
 
