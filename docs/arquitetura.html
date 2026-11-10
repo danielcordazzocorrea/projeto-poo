@@ -79,7 +79,7 @@
     .poo-row { border-top: 1px solid var(--line); padding-top: 13px; display: grid; grid-template-columns: 150px 1fr; gap: 15px; }
     .poo-row strong { color: #24395a; font-size: 14px; }
     .poo-row span { color: var(--muted); font-size: 14px; }
-    .database { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 22px; }
+    .database { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-top: 22px; }
     .db-card { border: 1px solid var(--line); border-radius: 14px; padding: 18px; background: white; min-width: 0; }
     .db-card:first-child { background: #f3f6ff; border-color: #cbd5ff; }
     .db-card h3 { font-size: 16px; margin-bottom: 5px; }
@@ -87,6 +87,20 @@
     .db-card code { display: inline-block; color: #35559a; margin-top: 11px; overflow-wrap: anywhere; }
     .relationship { margin: 15px 0 0; color: var(--muted); font-size: 13px; }
     .rpc-note { margin: 22px 0 0; background: #f0f4fd; border-radius: 12px; padding: 17px 19px; font-size: 14px; color: #3a5172; }
+    .detail-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 18px; }
+    .detail-card { border: 1px solid var(--line); border-radius: 14px; padding: 18px; background: #fff; min-width: 0; }
+    .detail-card h3 { font-size: 16px; }
+    .detail-card p { color: var(--muted); font-size: 14px; margin-bottom: 0; }
+    .detail-card code, .inline-code { overflow-wrap: anywhere; color: #3153a0; }
+    .callout { border-left: 4px solid var(--blue); background: var(--blue-soft); padding: 16px 20px; border-radius: 0 12px 12px 0; color: #2d456a; margin: 20px 0 0; }
+    .table-scroll { overflow-x: auto; margin-top: 20px; }
+    table { width: 100%; border-collapse: collapse; text-align: left; min-width: 600px; }
+    th, td { border-bottom: 1px solid var(--line); padding: 11px 12px; vertical-align: top; font-size: 14px; }
+    th { color: #314b72; background: #f6f8fc; }
+    td { color: #4a5d75; }
+    td code { color: #3153a0; }
+    .ordered { margin: 16px 0 0; padding-left: 22px; color: #45556b; }
+    .ordered li { padding: 6px 0; }
     .state-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
     .state-list { margin: 14px 0 0; padding: 0; list-style: none; }
     .state-list li { border-top: 1px solid var(--line); padding: 11px 0; display: flex; align-items: start; gap: 10px; color: #46576d; font-size: 14px; }
@@ -103,7 +117,7 @@
       .hero { padding-top: 50px; }
       .flow { grid-template-columns: repeat(2, 1fr); }
       .flow-item::before, .flow-item::after { display: none; }
-      .database { grid-template-columns: repeat(2, 1fr); }
+      .database, .detail-grid { grid-template-columns: repeat(2, 1fr); }
     }
     @media (max-width: 620px) {
       .wrap { width: min(100% - 28px, 1160px); }
@@ -114,7 +128,7 @@
       .lead { font-size: 17px; }
       .section { padding: 24px 0 30px; }
       .section-heading { display: block; margin-bottom: 20px; }
-      .flow, .database, .state-grid, .file-list { grid-template-columns: 1fr; }
+      .flow, .database, .detail-grid, .state-grid, .file-list { grid-template-columns: 1fr; }
       .architecture, .panel { padding: 19px; }
       .poo-row { grid-template-columns: 1fr; gap: 2px; }
     }
@@ -126,7 +140,7 @@
     <div class="wrap topbar-inner">
       <div class="brand"><span class="brand-mark" aria-hidden="true">C</span> Corretora POO · Mapa do sistema</div>
       <nav aria-label="Seções da página">
-        <a href="#arquitetura">Arquitetura</a><a href="#operacoes">Operações</a><a href="#dados">Dados</a><a href="#estado">Estado atual</a>
+        <a href="#arquitetura">Arquitetura</a><a href="#cadastro">Cadastro</a><a href="#operacoes">Operações</a><a href="#seguranca">Segurança</a><a href="#estado">Estado atual</a>
       </nav>
     </div>
   </header>
@@ -135,39 +149,58 @@
     <section class="wrap hero" aria-labelledby="titulo">
       <div>
         <h1 id="titulo">Como a corretora funciona hoje</h1>
-        <p class="lead">O usuário se autentica no Supabase, chama uma Edge Function em TypeScript e a operação é registrada no Postgres. As classes de POO organizam os dados e o fluxo.</p>
+        <p class="lead">Um mapa do que já funciona: cadastro, login, conta individual, API, classes POO e banco no Supabase. O frontend atual mostra o saldo; depósito, compra e venda já existem na API.</p>
         <div class="hero-actions"><a class="button primary" href="#arquitetura">Ver o caminho dos dados</a><a class="button secondary" href="#estado">O que falta?</a></div>
       </div>
       <aside class="summary" aria-label="Resumo do estado do projeto">
         <strong>Resumo rápido</strong>
-        <span class="status ready">Implementado no repositório</span>
-        <p>Edge Function, classes, repositório Supabase, 4 tabelas e funções SQL para depósito, compra e venda.</p>
-        <span class="status pending">Ainda não implantado</span>
-        <p>O frontend básico existe; as migrações e a função ainda precisam ser aplicadas ao projeto Supabase hospedado.</p>
+        <span class="status ready">Backend publicado</span>
+        <p>Projeto Supabase <code>pzaakefnbhwlhatgzgea</code>: tabelas, regras de acesso, cadastro automático, operações SQL e Edge Function <code>corretora</code> ativos.</p>
+        <span class="status pending">Frontend local</span>
+        <p>A tela roda com Vite em <code>localhost:5173</code> durante o desenvolvimento. Ainda não há hospedagem pública do frontend.</p>
       </aside>
     </section>
 
     <section id="arquitetura" class="section wrap" aria-labelledby="arquitetura-titulo">
-      <div class="section-heading"><div><div class="section-number">01 / VISÃO GERAL</div><h2 id="arquitetura-titulo">Cinco passos, uma requisição</h2></div><p>A seta mostra por onde o pedido passa. Cada caixa tem uma responsabilidade; nenhuma precisa fazer o trabalho de todas as outras.</p></div>
+      <div class="section-heading"><div><div class="section-number">01 / VISÃO GERAL</div><h2 id="arquitetura-titulo">Do navegador ao banco</h2></div><p>O cadastro segue pelo Auth e pelo gatilho do banco. Depois do login, as consultas e operações seguem pela Edge Function.</p></div>
       <div class="architecture">
         <div class="flow" role="list" aria-label="Fluxo da requisição">
-          <article class="flow-item" role="listitem"><span class="node-index">01</span><h3>Usuário + Auth</h3><p>O Supabase Auth identifica quem está fazendo a chamada e fornece o token de sessão.</p></article>
+          <article class="flow-item" role="listitem"><span class="node-index">01</span><h3>Frontend + Auth</h3><p>A tela usa Supabase Auth para cadastro e login. A sessão fornece o token do usuário.</p></article>
           <article class="flow-item" role="listitem"><span class="node-index">02</span><h3>Edge Function</h3><p>Recebe a rota, exige autenticação, lê os dados e devolve JSON com o resultado ou erro.</p></article>
           <article class="flow-item" role="listitem"><span class="node-index">03</span><h3>Corretora</h3><p>O serviço valida a operação e coordena os objetos e o acesso aos dados.</p></article>
           <article class="flow-item" role="listitem"><span class="node-index">04</span><h3>Repositório</h3><p>Converte a ação em consulta Supabase ou chamada RPC e monta a resposta.</p></article>
           <article class="flow-item" role="listitem"><span class="node-index">05</span><h3>Postgres</h3><p>Guarda as tabelas, limita a leitura por usuário e aplica operações transacionais.</p></article>
         </div>
-        <p class="flow-caption">A resposta volta pelo caminho inverso até o frontend. A tela básica de cadastro e consulta já está no repositório.</p>
+        <p class="flow-caption">A resposta volta pelo caminho inverso. A tela atual apresenta e-mail, ID da conta e saldo; as outras rotas ainda não têm controles visuais.</p>
+      </div>
+    </section>
+
+    <section id="cadastro" class="section wrap" aria-labelledby="cadastro-titulo">
+      <div class="section-heading"><div><div class="section-number">02 / CADASTRO E SESSÃO</div><h2 id="cadastro-titulo">Abrir conta é criar o cadastro</h2></div><p>O usuário faz uma ação na tela. O Supabase Auth e o gatilho do Postgres cuidam das duas partes do cadastro.</p></div>
+      <div class="panel">
+        <div class="detail-grid">
+          <div class="detail-card"><h3>1. Enviar cadastro</h3><p><code>frontend/main.ts</code> chama <code>supabase.auth.signUp</code> com e-mail e senha. A senha é tratada pelo Supabase Auth, não pela tabela <code>contas</code>.</p></div>
+          <div class="detail-card"><h3>2. Criar a conta</h3><p>Quando nasce uma linha em <code>auth.users</code>, o trigger <code>criar_conta_depois_do_cadastro</code> insere uma linha em <code>public.contas</code> com saldo zero.</p></div>
+          <div class="detail-card"><h3>3. Confirmar e entrar</h3><p>Se a confirmação de e-mail estiver ativada, o usuário confirma o endereço. Depois entra com <code>signInWithPassword</code> e recebe uma sessão.</p></div>
+        </div>
+        <p class="callout"><strong>Duas identidades ligadas por um ID:</strong> <code>auth.users.id = contas.usuario_id</code>. O campo <code>usuario_id</code> é único: cada usuário pode ter apenas uma conta da corretora.</p>
+        <div class="detail-grid">
+          <div class="detail-card"><h3>Após o login</h3><p>O frontend envia o token da sessão no cabeçalho <code>Authorization: Bearer</code> e a chave publicável no cabeçalho <code>apikey</code>.</p></div>
+          <div class="detail-card"><h3>Consulta da conta</h3><p><code>GET /functions/v1/corretora/conta</code> retorna saldo, posições e até 100 movimentações recentes. Hoje a tela exibe apenas saldo e ID.</p></div>
+          <div class="detail-card"><h3>Usuários antigos</h3><p>Se um usuário anterior ao trigger não tiver conta, o frontend usa <code>POST /conta</code> como recuperação. A migração também tentou criar as contas que faltavam.</p></div>
+        </div>
       </div>
     </section>
 
     <section id="operacoes" class="section wrap" aria-labelledby="operacoes-titulo">
-      <div class="section-heading"><div><div class="section-number">02 / NA PRÁTICA</div><h2 id="operacoes-titulo">Acompanhe uma operação</h2></div><p>Escolha uma ação. O painel mostra a rota, o que cada camada faz e qual resultado é esperado.</p></div>
+      <div class="section-heading"><div><div class="section-number">03 / NA PRÁTICA</div><h2 id="operacoes-titulo">Acompanhe uma operação</h2></div><p>Escolha uma ação. O painel mostra a rota, o que cada camada faz e qual resultado é esperado.</p></div>
       <div class="split">
         <div class="panel">
           <h3>Fluxo selecionado</h3>
           <div class="tabs" role="tablist" aria-label="Selecione uma operação">
             <button class="tab" role="tab" id="tab-abrir" aria-controls="detalhe" aria-selected="false" data-op="abrir">Cadastrar</button>
+            <button class="tab" role="tab" id="tab-login" aria-controls="detalhe" aria-selected="false" data-op="login">Entrar</button>
+            <button class="tab" role="tab" id="tab-consulta" aria-controls="detalhe" aria-selected="false" data-op="consulta">Consultar</button>
             <button class="tab" role="tab" id="tab-deposito" aria-controls="detalhe" aria-selected="false" data-op="deposito">Depositar</button>
             <button class="tab" role="tab" id="tab-compra" aria-controls="detalhe" aria-selected="true" data-op="compra">Comprar</button>
             <button class="tab" role="tab" id="tab-venda" aria-controls="detalhe" aria-selected="false" data-op="venda">Vender</button>
@@ -183,43 +216,76 @@
           <p>A Edge Function é a entrada HTTP. As classes dão nomes e responsabilidades aos conceitos do sistema.</p>
           <div class="poo-list">
             <div class="poo-row"><strong>Dinheiro e Quantidade</strong><span>Validam texto decimal e usam inteiros para evitar perda de precisão.</span></div>
-            <div class="poo-row"><strong>Conta, Ativo e Posição</strong><span>Representam a carteira e transformam dados do banco em uma resposta clara.</span></div>
-            <div class="poo-row"><strong>Corretora</strong><span>Coordena cada caso de uso e depende da interface <code>RepositorioCorretora</code>.</span></div>
+            <div class="poo-row"><strong>Conta, Ativo, Posição e Movimentação</strong><span>Representam os conceitos da carteira e produzem o JSON da resposta.</span></div>
+            <div class="poo-row"><strong>Corretora</strong><span>Coordena cada caso de uso. Recebe uma implementação da interface <code>RepositorioCorretora</code> no construtor.</span></div>
             <div class="poo-row"><strong>RepositorioSupabase</strong><span>Implementa a interface e sabe consultar tabelas e chamar funções SQL.</span></div>
           </div>
-          <p class="rpc-note">A regra crítica também existe no banco: compra e venda verificam saldo ou quantidade e gravam tudo na mesma transação. Isso mantém os dados consistentes mesmo com chamadas simultâneas.</p>
+          <p class="rpc-note"><strong>Conceitos POO:</strong> encapsulamento nas validações de <code>Dinheiro</code> e <code>Quantidade</code>; composição em <code>Conta</code>, que contém posições e movimentações; abstração e injeção de dependência na interface do repositório. O projeto não precisa de herança para aplicar POO.</p>
         </div>
+      </div>
+      <div class="panel" style="margin-top:20px">
+        <h3>Rotas disponíveis na Edge Function</h3>
+        <p>Todas exigem uma sessão autenticada. A resposta é JSON. Os valores de dinheiro e quantidade são enviados como texto decimal.</p>
+        <div class="table-scroll"><table><thead><tr><th>Método</th><th>Rota após <code>/corretora</code></th><th>Entrada</th><th>Função</th></tr></thead><tbody>
+          <tr><td>GET</td><td><code>/ativos</code></td><td>—</td><td>Lista o catálogo fictício.</td></tr>
+          <tr><td>GET</td><td><code>/conta</code></td><td>—</td><td>Consulta a própria conta.</td></tr>
+          <tr><td>POST</td><td><code>/conta</code></td><td>—</td><td>Recupera conta de usuário antigo.</td></tr>
+          <tr><td>POST</td><td><code>/depositos</code></td><td><code>{"valor":"100.00"}</code></td><td>Adiciona saldo simulado.</td></tr>
+          <tr><td>POST</td><td><code>/compras</code></td><td><code>{"codigo_ativo":"ACAO1","quantidade":"2"}</code></td><td>Compra ativo.</td></tr>
+          <tr><td>POST</td><td><code>/vendas</code></td><td><code>{"codigo_ativo":"ACAO1","quantidade":"1"}</code></td><td>Vende ativo.</td></tr>
+        </tbody></table></div>
+        <p class="rpc-note">Cada RPC de depósito, compra ou venda roda como uma transação no Postgres. Se faltar saldo, ativo ou quantidade, a operação falha sem deixar uma alteração parcial.</p>
       </div>
     </section>
 
     <section id="dados" class="section wrap" aria-labelledby="dados-titulo">
-      <div class="section-heading"><div><div class="section-number">03 / BANCO DE DADOS</div><h2 id="dados-titulo">O que fica salvo</h2></div><p>O Supabase Auth guarda o login. As quatro tabelas da corretora guardam o saldo, os ativos e o histórico.</p></div>
+      <div class="section-heading"><div><div class="section-number">04 / BANCO DE DADOS</div><h2 id="dados-titulo">O que fica salvo</h2></div><p>O Supabase Auth guarda o login. As quatro tabelas públicas da corretora guardam o catálogo, saldo, carteira e histórico.</p></div>
       <div class="panel">
         <div class="database">
           <div class="db-card"><h3>auth.users</h3><p>Usuário e autenticação, gerenciados pelo Supabase.</p><code>id → contas.usuario_id</code></div>
           <div class="db-card"><h3>contas</h3><p>Uma conta por usuário, com saldo em centavos.</p><code>id · usuario_id · saldo_centavos</code></div>
+          <div class="db-card"><h3>ativos</h3><p>Catálogo compartilhado de ativos e preços fictícios.</p><code>codigo · tipo · preco_centavos</code></div>
           <div class="db-card"><h3>posicoes</h3><p>Quanto a conta possui de cada ativo.</p><code>conta_id · ativo_codigo · quantidade_micros</code></div>
-          <div class="db-card"><h3>movimentacoes</h3><p>Registro de depósito, compra e venda.</p><code>conta_id · tipo · valor_centavos</code></div>
+          <div class="db-card"><h3>movimentacoes</h3><p>Histórico de depósito, compra e venda.</p><code>conta_id · tipo · valor_centavos</code></div>
         </div>
-        <p class="relationship"><strong>ativos</strong> é o catálogo compartilhado: código, nome, tipo e preço fictício. <strong>RLS</strong> limita a leitura de contas, posições e movimentações ao usuário dono da conta.</p>
+        <p class="relationship"><strong>Quatro tabelas públicas:</strong> <code>contas</code>, <code>ativos</code>, <code>posicoes</code> e <code>movimentacoes</code>. <strong>RLS</strong> limita a leitura das informações pessoais ao dono da conta; o catálogo de ativos é compartilhado entre usuários autenticados.</p>
         <p class="rpc-note">O cadastro cria a conta automaticamente por um trigger em <code>auth.users</code>. A Edge Function chama <code>depositar</code>, <code>comprar</code> e <code>vender</code> por RPC. A função <code>abrir_conta</code> continua disponível para recuperar usuários antigos sem conta.</p>
+        <div class="detail-grid">
+          <div class="detail-card"><h3>Dinheiro</h3><p><code>saldo_centavos</code>, <code>preco_centavos</code> e <code>valor_centavos</code> são inteiros. Exemplo: R$ 25,00 é <code>2500</code> no banco.</p></div>
+          <div class="detail-card"><h3>Quantidade</h3><p><code>quantidade_micros</code> guarda até seis casas decimais. Uma unidade é <code>1000000</code> micros.</p></div>
+          <div class="detail-card"><h3>Relações</h3><p><code>contas.usuario_id</code> aponta para <code>auth.users.id</code>; posições e movimentações apontam para <code>contas.id</code>.</p></div>
+        </div>
       </div>
     </section>
 
-    <section id="estado" class="section wrap" aria-labelledby="estado-titulo">
-      <div class="section-heading"><div><div class="section-number">04 / SITUAÇÃO ATUAL</div><h2 id="estado-titulo">Código pronto × próximo passo</h2></div><p>Esta página descreve o repositório. Ela não é o aplicativo da corretora e não consulta dados reais.</p></div>
-      <div class="state-grid">
-        <div class="panel"><span class="status ready">Feito no código</span><ul class="state-list"><li>Frontend básico para cadastro, login e consulta da conta.</li><li>Edge Function TypeScript com autenticação exigida.</li><li>Classes de domínio e serviço organizados por responsabilidade.</li><li>Migrações das tabelas, RLS, cadastro automático e operações.</li></ul></div>
-        <div class="panel"><span class="status pending">Ainda falta</span><ul class="state-list pending-list"><li>Configurar a chave publicável no frontend.</li><li>Aplicar as migrações e implantar a Edge Function.</li><li>Testar login, RLS e operações com dois usuários reais.</li><li>Publicar o frontend.</li></ul></div>
+    <section id="seguranca" class="section wrap" aria-labelledby="seguranca-titulo">
+      <div class="section-heading"><div><div class="section-number">05 / ISOLAMENTO</div><h2 id="seguranca-titulo">Por que cada usuário vê sua conta</h2></div><p>A separação existe no banco e nas operações, não só na aparência da tela.</p></div>
+      <div class="detail-grid">
+        <div class="detail-card"><h3>Autenticação</h3><p>A Edge Function usa <code>withSupabase({ auth: 'user' })</code>. Sem sessão válida, a API não entrega a conta; uma chamada sem login foi verificada com resposta HTTP 401.</p></div>
+        <div class="detail-card"><h3>Leitura com RLS</h3><p>A política de <code>contas</code> exige <code>usuario_id = auth.uid()</code>. As políticas de posições e movimentações verificam se a conta pertence ao mesmo usuário.</p></div>
+        <div class="detail-card"><h3>Escrita pelas RPCs</h3><p>O cliente tem apenas permissão de leitura nas tabelas. As funções <code>depositar</code>, <code>comprar</code> e <code>vender</code> escolhem a conta a partir de <code>auth.uid()</code>, sem aceitar um ID de conta enviado pelo usuário.</p></div>
       </div>
+      <p class="callout"><strong>Limite da verificação atual:</strong> as políticas e permissões foram conferidas no projeto remoto, mas ainda falta um teste completo com duas contas reais tentando acessar os dados uma da outra.</p>
+    </section>
+
+    <section id="estado" class="section wrap" aria-labelledby="estado-titulo">
+      <div class="section-heading"><div><div class="section-number">06 / SITUAÇÃO ATUAL</div><h2 id="estado-titulo">O que já roda e o que falta</h2></div><p>Esta página é documentação estática. O aplicativo de cadastro e login é o <code>index.html</code> da raiz do projeto.</p></div>
+      <div class="state-grid">
+        <div class="panel"><span class="status ready">Feito</span><ul class="state-list"><li>Frontend local com cadastro, login, logout e consulta do saldo.</li><li>Chave publicável configurada no <code>.env.local</code> deste ambiente; arquivo ignorado pelo Git.</li><li>Edge Function TypeScript publicada no projeto Supabase da corretora.</li><li>Tabelas, RLS, trigger de conta automática e operações SQL aplicados no projeto remoto.</li><li>Compilação e testes de domínio/serviço passaram.</li></ul></div>
+        <div class="panel"><span class="status pending">Ainda falta</span><ul class="state-list pending-list"><li>Testar cadastro, login e isolamento com duas contas reais.</li><li>Criar telas para ver posições, histórico e catálogo e para operar depósito, compra e venda.</li><li>Hospedar o frontend em um endereço público.</li><li>Configurar envio de e-mail próprio para uso além de testes.</li><li>Reconciliar o histórico de migrações antes de usar <code>supabase db push</code> nesse projeto existente.</li></ul></div>
+      </div>
+      <p class="callout"><strong>Como rodar a interface:</strong> na raiz do projeto, execute <code>npm run dev</code> e abra o endereço mostrado pelo Vite, geralmente <code>http://localhost:5173/</code>. O backend já está hospedado no Supabase. Os saldos, ativos e depósitos são simulados; não há dinheiro real nem cotações ao vivo.</p>
       <div class="file-list" aria-label="Arquivos principais do projeto">
+        <a class="file-link" href="../index.html"><code>index.html</code><span>Entrada do frontend Vite</span></a>
         <a class="file-link" href="../supabase/functions/corretora/index.ts"><code>functions/corretora/index.ts</code><span>Rotas HTTP e autenticação</span></a>
         <a class="file-link" href="../supabase/functions/_shared/dominio.ts"><code>_shared/dominio.ts</code><span>Objetos de domínio</span></a>
         <a class="file-link" href="../supabase/functions/_shared/servico.ts"><code>_shared/servico.ts</code><span>Casos de uso e interface</span></a>
         <a class="file-link" href="../supabase/functions/_shared/repositorio-supabase.ts"><code>_shared/repositorio-supabase.ts</code><span>Acesso ao Supabase</span></a>
         <a class="file-link" href="../supabase/migrations/20261109000000_estrutura_inicial.sql"><code>migrations/estrutura_inicial.sql</code><span>Tabelas e regras de leitura</span></a>
         <a class="file-link" href="../supabase/migrations/20261109010000_operacoes_atomicas.sql"><code>migrations/operacoes_atomicas.sql</code><span>Depósito, compra e venda no banco</span></a>
+        <a class="file-link" href="../supabase/migrations/20261110000000_conta_automatica.sql"><code>migrations/conta_automatica.sql</code><span>Gatilho que abre a conta no cadastro</span></a>
         <a class="file-link" href="../frontend/main.ts"><code>frontend/main.ts</code><span>Cadastro, login e consulta da conta</span></a>
+        <a class="file-link" href="../README.md"><code>README.md</code><span>Comandos, API e cuidados com migrações</span></a>
       </div>
     </section>
   </main>
@@ -234,6 +300,18 @@
         'Se a confirmação de e-mail estiver ativa, o usuário confirma antes de entrar.',
         'Após o login, o frontend consulta a conta pela Edge Function.'
       ], resultado: 'Resultado: cadastro e conta da corretora são uma ação só para o usuário. A senha fica no Supabase Auth.' },
+      login: { metodo: 'POST', rota: '/auth/v1/token', passos: [
+        'O frontend chama signInWithPassword com e-mail e senha.',
+        'O Supabase Auth verifica as credenciais e devolve uma sessão.',
+        'O frontend usa o token da sessão para consultar a própria conta.',
+        'Ao sair, signOut encerra a sessão do aplicativo.'
+      ], resultado: 'Resultado: o usuário entra sem receber um novo e-mail a cada login. A confirmação de e-mail é uma etapa do cadastro quando ativada.' },
+      consulta: { metodo: 'GET', rota: '/functions/v1/corretora/conta', passos: [
+        'O frontend envia a chave publicável e o token do usuário.',
+        'A Edge Function exige usuário autenticado e chama Corretora.consultarConta().',
+        'O repositório consulta conta, posições, movimentações e ativos.',
+        'As políticas RLS mostram apenas os dados pertencentes ao usuário da sessão.'
+      ], resultado: 'Resultado: a API devolve a conta completa em JSON. A tela atual mostra o saldo e o ID da conta.' },
       deposito: { metodo: 'POST', rota: '/functions/v1/corretora/depositos', passos: [
         'A entrada contém valor em texto, por exemplo "100.00".',
         'Dinheiro valida e converte o valor para 10.000 centavos.',
