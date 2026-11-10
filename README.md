@@ -24,6 +24,8 @@ npm run dev
 
 Abra o endereço informado pelo Vite. O cadastro usa e-mail e senha. Se a confirmação de e-mail estiver ativada, o usuário confirma o e-mail antes de entrar; configure a URL local do frontend em **Authentication → URL Configuration → Redirect URLs** no painel do Supabase. Após o login, a tela consulta a conta automaticamente.
 
+Para permitir cadastro sem e-mail de confirmação no projeto hospedado, abra **Authentication → Sign In / Providers → Email** no painel do Supabase e desative **Confirm Email**. Essa é uma configuração do Supabase Auth, não uma migração SQL. Com ela desligada, o cadastro devolve uma sessão e o frontend abre a conta imediatamente. O endereço informado pelo usuário fica sem verificação.
+
 ## Preparar e executar
 
 Instale a [CLI do Supabase](https://supabase.com/docs/guides/local-development/cli/getting-started) e tenha Docker disponível para usar a pilha local. Este repositório já contém `supabase/config.toml` e as migrações.

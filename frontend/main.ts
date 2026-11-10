@@ -18,7 +18,7 @@ app.innerHTML = `
       <h1 id="titulo">Sua conta começa aqui.</h1>
       <p>Crie seu cadastro ou entre para consultar sua conta. Este projeto usa valores e ativos simulados.</p>
       <div class="flow" aria-label="Como funciona">
-        <span>01 · Cadastro</span><span>02 · Confirmação do e-mail</span><span>03 · Conta disponível</span>
+        <span>01 · Cadastro</span><span>02 · Conta criada</span><span>03 · Acesso à corretora</span>
       </div>
     </section>
     <section class="card" aria-label="Acesso à corretora">
