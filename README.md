@@ -76,3 +76,9 @@ Os testes do Node verificam as classes de domínio e o serviço. Um teste comple
 ## Equipe
 
 As tarefas sugeridas para cinco pessoas estão em `docs/plano-equipe.md`.
+
+## Entender a POO
+
+Leia `docs/guia-poo.md` na ordem indicada. Os arquivos `dominio.ts`,
+`servico.ts` e `repositorio-supabase.ts` têm comentários explicando as linhas
+de lógica e a relação entre classes, serviço e banco.
