@@ -5,11 +5,18 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
-    "dev": "npx supabase functions serve corretora",
+    "dev": "vite",
+    "dev:edge": "npx supabase functions serve corretora",
+    "build:front": "tsc -p tsconfig.frontend.json && vite build --outDir web-dist",
     "test": "npm run build && node --test --experimental-test-isolation=none dist/tests/dominio.test.js"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
-    "typescript": "^5.0.0"
+    "supabase": "^3.1.0",
+    "typescript": "^5.0.0",
+    "vite": "^7.3.7"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.116.0"
   }
 }

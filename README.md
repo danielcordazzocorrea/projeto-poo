@@ -1,6 +1,6 @@
 # Corretora POO — Supabase
 
-Backend de demonstração em TypeScript para Supabase Edge Functions. Usa Supabase Auth para identificar usuários, Postgres para guardar contas e operações, e classes de domínio para validar e apresentar os dados. **Dinheiro e cotações são simulados.**
+Projeto de demonstração em TypeScript com frontend básico e Supabase Edge Functions. Usa Supabase Auth para identificar usuários, Postgres para guardar contas e operações, e classes de domínio para validar e apresentar os dados. **Dinheiro e cotações são simulados.**
 
 ## Estrutura
 
@@ -8,9 +8,21 @@ Backend de demonstração em TypeScript para Supabase Edge Functions. Usa Supaba
 - `supabase/functions/_shared/dominio.ts`: classes `Conta`, `Ativo`, `Posicao`, `Movimentacao`, `Dinheiro` e `Quantidade`.
 - `supabase/functions/_shared/servico.ts`: classe `Corretora` e contrato do repositório.
 - `supabase/functions/_shared/repositorio-supabase.ts`: consultas e chamadas RPC com o cliente Supabase do usuário.
-- `supabase/migrations/`: tabelas, RLS e operações transacionais de abertura de conta, depósito, compra e venda.
+- `supabase/migrations/`: tabelas, RLS, conta criada automaticamente no cadastro e operações transacionais.
+- `frontend/`: tela de cadastro, login e consulta da conta.
 
-Não há mais servidor Node local nem cadastro de usuário próprio. Cadastro e login são responsabilidade do Supabase Auth. A Edge Function aceita apenas usuário autenticado; as operações SQL identificam a conta por `auth.uid()` e não recebem um `conta_id` escolhido pelo cliente.
+O cadastro usa Supabase Auth e também cria a conta da corretora com saldo zero por um trigger do banco. A Edge Function aceita apenas usuário autenticado; as operações SQL identificam a conta por `auth.uid()` e não recebem um `conta_id` escolhido pelo cliente.
+
+## Frontend básico
+
+Crie `.env.local` a partir de `.env.example` e preencha `VITE_SUPABASE_PUBLISHABLE_KEY` com a chave **publicável** (`sb_publishable_...`) do projeto `pzaakefnbhwlhatgzgea`. Neste ambiente de desenvolvimento o arquivo já foi configurado. Nunca coloque uma chave `secret` ou `service_role` no frontend.
+
+```powershell
+npm install
+npm run dev
+```
+
+Abra o endereço informado pelo Vite. O cadastro usa e-mail e senha. Se a confirmação de e-mail estiver ativada, o usuário confirma o e-mail antes de entrar; configure a URL local do frontend em **Authentication → URL Configuration → Redirect URLs** no painel do Supabase. Após o login, a tela consulta a conta automaticamente.
 
 ## Preparar e executar
 
@@ -20,10 +32,10 @@ Instale a [CLI do Supabase](https://supabase.com/docs/guides/local-development/c
 npm install
 npx supabase start
 npx supabase db reset
-npx supabase functions serve corretora
+npm run dev:edge
 ```
 
-Para conectar a um projeto hospedado, primeiro faça login na CLI e vincule o *project ref*:
+Para conectar a um novo projeto hospedado, primeiro faça login na CLI e vincule o *project ref*:
 
 ```powershell
 npx supabase login
@@ -34,7 +46,7 @@ npx supabase functions deploy corretora
 
 `db push` aplica as migrações no projeto vinculado; `functions deploy` publica a Edge Function. Revise o projeto de destino antes de executar esses comandos. O `project_id` em `config.toml` é apenas o nome da pilha local, não o *project ref* hospedado.
 
-Este repositório ainda não está vinculado a um projeto hospedado; nenhuma migração ou função foi implantada no Supabase remoto.
+O projeto hospedado `pzaakefnbhwlhatgzgea` já tem as tabelas iniciais, as operações, o gatilho de cadastro e a Edge Function `corretora` implantados. As tabelas iniciais foram criadas antes do registro de migrações no Supabase. Portanto, **não execute `db push` nesse projeto existente** sem antes reconciliar o histórico de migrações, pois a migração inicial tentará criar tabelas que já existem. A CLI local também não está vinculada a esse projeto.
 
 ## API
 
@@ -43,7 +55,7 @@ O caminho base é `/functions/v1/corretora`. Envie o JWT de sessão do Supabase 
 | Método | Caminho | JSON de entrada |
 | --- | --- | --- |
 | `GET` | `/ativos` | — |
-| `POST` | `/conta` | `{}` |
+| `POST` | `/conta` | `{}` (recuperação de usuário antigo sem conta) |
 | `GET` | `/conta` | — |
 | `POST` | `/depositos` | `{"valor":"100.00"}` |
 | `POST` | `/compras` | `{"codigo_ativo":"ACAO1","quantidade":"2"}` |

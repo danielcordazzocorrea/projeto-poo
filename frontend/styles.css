@@ -1,0 +1,71 @@
+:root {
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: #142238;
+  background: #f3f6fb;
+  font-synthesis: none;
+}
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; }
+button, input { font: inherit; }
+button { cursor: pointer; }
+[hidden] { display: none !important; }
+.shell {
+  width: min(1060px, calc(100% - 40px));
+  min-height: calc(100vh - 62px);
+  margin: auto;
+  display: grid;
+  grid-template-columns: 1.05fr .95fr;
+  gap: 72px;
+  align-items: center;
+  padding: 64px 0;
+}
+.intro { padding-bottom: 14px; }
+.brand { display: flex; align-items: center; gap: 11px; font-size: 15px; font-weight: 800; color: #263c63; margin-bottom: 62px; }
+.brand-icon { width: 33px; height: 33px; border-radius: 10px; background: #2956df; color: white; display: grid; place-items: center; font-size: 18px; }
+h1 { font-size: clamp(42px, 5vw, 66px); line-height: 1.06; letter-spacing: -.055em; margin: 0 0 22px; max-width: 600px; }
+h2 { font-size: 28px; letter-spacing: -.035em; margin: 0 0 9px; }
+.intro p { max-width: 520px; font-size: 18px; line-height: 1.65; color: #54667f; margin: 0; }
+.flow { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 43px; }
+.flow span { border: 1px solid #d6dfec; background: white; border-radius: 100px; padding: 7px 11px; font-size: 12px; font-weight: 700; color: #496079; }
+.card { background: white; border: 1px solid #e0e7f1; border-radius: 22px; padding: 34px; box-shadow: 0 24px 68px rgba(32, 55, 99, .1); min-height: 434px; }
+.tabs { display: flex; gap: 18px; border-bottom: 1px solid #e3e9f1; margin-bottom: 29px; }
+.tab { border: 0; border-bottom: 3px solid transparent; background: none; color: #738198; padding: 0 4px 13px; font-size: 14px; font-weight: 700; }
+.tab.active { border-color: #315be8; color: #1c3fbb; }
+.tab:focus-visible, button:focus-visible, input:focus-visible { outline: 3px solid #8eacff; outline-offset: 3px; }
+.helper { color: #65748a; font-size: 14px; line-height: 1.55; margin: 0 0 24px; }
+form { display: grid; gap: 8px; }
+label { font-size: 13px; font-weight: 750; color: #33465e; margin-top: 7px; }
+input { width: 100%; height: 45px; border: 1px solid #cfd9e6; border-radius: 9px; padding: 0 13px; color: #172741; background: white; }
+input::placeholder { color: #9ca8b7; }
+.primary { height: 47px; margin-top: 16px; border: 0; border-radius: 9px; background: #315be8; color: white; font-weight: 750; }
+.primary:hover:not(:disabled) { background: #2449bd; }
+button:disabled { opacity: .55; cursor: not-allowed; }
+.notice { border-radius: 9px; background: #eaf1ff; color: #31518a; padding: 12px 14px; font-size: 13px; line-height: 1.45; margin: 19px 0 0; }
+.notice[data-type="erro"] { background: #fff0ed; color: #a63b2f; }
+.notice[data-type="ok"] { background: #e5f5ef; color: #146b50; }
+.account-heading { display: flex; align-items: center; gap: 8px; color: #138064; font-size: 13px; font-weight: 800; margin-bottom: 20px; }
+.account-icon { width: 22px; height: 22px; display: grid; place-items: center; background: #ddf5e9; border-radius: 50%; }
+.balance { background: #f2f5fb; border: 1px solid #e3eaf3; border-radius: 13px; padding: 22px; display: grid; gap: 5px; margin-top: 22px; }
+.balance span { font-size: 12px; color: #697c93; font-weight: 700; }
+.balance strong { font-size: 31px; letter-spacing: -.04em; }
+.account-id { color: #728196; font: 12px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace; overflow-wrap: anywhere; margin: 17px 0; }
+.actions { display: flex; align-items: center; gap: 13px; flex-wrap: wrap; margin-top: 28px; }
+.secondary { border: 1px solid #cfd9e6; background: white; color: #284467; border-radius: 9px; padding: 10px 14px; font-size: 13px; font-weight: 750; }
+.text-button { border: 0; background: none; color: #60728a; padding: 10px; font-size: 13px; font-weight: 700; }
+footer { text-align: center; color: #7b8aa0; font-size: 12px; padding: 20px; }
+@media (max-width: 830px) {
+  .shell { grid-template-columns: 1fr; gap: 30px; align-items: start; max-width: 590px; padding: 32px 0 40px; }
+  .intro { padding: 0; }
+  .brand { margin-bottom: 35px; }
+  .flow { margin-top: 24px; }
+  .card { min-height: auto; }
+}
+@media (max-width: 520px) {
+  .shell { width: min(100% - 28px, 590px); }
+  .card { padding: 23px; border-radius: 17px; }
+  h1 { font-size: 43px; }
+  .intro p { font-size: 16px; }
+  .flow { gap: 6px; }
+  .flow span { font-size: 11px; }
+  footer { padding: 10px 20px 24px; }
+}
