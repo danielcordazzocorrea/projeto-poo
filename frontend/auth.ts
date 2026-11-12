@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
-export const CONFIGURATION_NOTICE = 'O cadastro e o login estão indisponíveis: falta configurar a conexão com o Supabase.';
+export const CONFIGURATION_NOTICE = 'O cadastro e o login estão indisponíveis: falta configurar a conexão com o Supabase';
 
 export async function submitCredentials(
   client: SupabaseClient | null,
