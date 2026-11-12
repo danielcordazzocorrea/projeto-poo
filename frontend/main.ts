@@ -4,5 +4,5 @@ import './styles.css';
 import App from './app';
 
 const element = document.querySelector<HTMLDivElement>('#app');
-if (!element) throw new Error('Elemento #app não encontrado.');
+if (!element) throw new Error('Elemento #app não encontrado');
 createRoot(element).render(createElement(StrictMode, null, createElement(App)));

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { createClient, type Session, type SupabaseClient } from '@supabase/supabase-js';
 import { AccountHome } from './account-home';
-import { SmokeLogin, type SmokeLoginProvider } from '@/components/ui/smoke-login';
+import { SmokeLogin } from '@/components/ui/smoke-login';
 import { CONFIGURATION_NOTICE, submitCredentials } from './auth';
 import { readSavedTheme, THEME_STORAGE_KEY, type Theme } from '@/lib/theme';
 
@@ -46,7 +46,7 @@ export default function App() {
         if (typeof detail === 'string') return detail;
       }
     } catch { /* The API may return an empty response. */ }
-    return `Erro HTTP ${response.status}.`;
+    return `Erro HTTP ${response.status}`;
   }
   async function requestAccount(method: 'GET' | 'POST', token: string): Promise<Response> {
     return fetch(`${url}/functions/v1/corretora/conta`, { method, headers: { apikey: chave, Authorization: `Bearer ${token}` } });
@@ -66,29 +66,27 @@ export default function App() {
     try {
       const nextSession = await submitCredentials(supabase, mode, values, window.location.origin);
       if (nextSession) setSession(nextSession);
-      else setNotice({ text: 'Cadastro enviado. Confira sua caixa de entrada para confirmar o e-mail e depois entrar.', kind: 'ok' });
+      else setNotice({ text: 'Cadastro enviado — confira sua caixa de entrada para confirmar o e-mail antes de entrar', kind: 'ok' });
     } catch (error) {
-      setNotice({ text: error instanceof Error ? error.message : 'Não foi possível concluir o envio. Tente novamente.', kind: 'erro' });
+      setNotice({ text: error instanceof Error ? error.message : 'Não foi possível concluir o envio — tente novamente', kind: 'erro' });
     }
   }
-  async function provider(providerName: SmokeLoginProvider): Promise<void> { setNotice({ text: `A autenticação com ${providerName === 'apple' ? 'Apple' : 'Google'} ainda não está configurada neste projeto.`, kind: 'info' }); }
-  async function logout(): Promise<void> { if (!supabase) return; const { error } = await supabase.auth.signOut(); setNotice(error ? { text: error.message, kind: 'erro' } : { text: 'Você saiu da sua conta.', kind: 'ok' }); }
+  async function logout(): Promise<void> { if (!supabase) return; const { error } = await supabase.auth.signOut(); setNotice(error ? { text: error.message, kind: 'erro' } : { text: 'Você saiu da sua conta', kind: 'ok' }); }
 
   if (session) return <AccountHome key={session.user.id} theme={theme} session={session} conta={conta} loading={loadingAccount} notice={notice} onRefresh={() => void loadAccount(session)} onLogout={() => void logout()} />;
   const signingUp = mode === 'signup';
   return <SmokeLogin
     theme={theme}
     onThemeChange={setTheme}
-    brand="Corretora POO"
-    title={signingUp ? 'Crie sua conta' : 'Boas-vindas de volta'}
-    subtitle={signingUp ? 'Seu cadastro cria uma conta simulada com saldo zero.' : 'Entre para consultar sua conta e seus ativos simulados.'}
+    brand="tivvo"
+    title={signingUp ? <>Comece pela ti<span className="text-[var(--accent)]">vv</span>o</> : <>Que bom ter você na ti<span className="text-[var(--accent)]">vv</span>o</>}
+    subtitle={signingUp ? 'Crie sua conta para explorar investimentos simulados com saldo inicial zero' : 'Acesse sua conta para acompanhar saldo e investimentos simulados'}
     submitLabel={signingUp ? 'Criar conta' : 'Entrar'}
     mode={mode}
     disabled={!configurado}
     notice={!configurado ? { text: CONFIGURATION_NOTICE, kind: 'info' } : notice}
     onSubmit={authenticate}
-    onProviderSignIn={provider}
     onSignUpClick={() => { setMode(signingUp ? 'login' : 'signup'); setNotice(null); }}
-    footer="Projeto acadêmico · Ambiente de demonstração"
+    footer="tivvo · Ambiente de demonstração · Valores e investimentos simulados"
   />;
 }
