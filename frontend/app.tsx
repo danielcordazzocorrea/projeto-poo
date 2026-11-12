@@ -9,7 +9,7 @@ type Conta = { id: string; saldo_brl: string };
 type Notice = { text: string; kind: 'ok' | 'erro' | 'info' } | null;
 
 const url = import.meta.env.VITE_SUPABASE_URL?.trim() || 'https://pzaakefnbhwlhatgzgea.supabase.co';
-const chave = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim() || '';
+const chave = (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || '').trim();
 const configurado = chave.startsWith('sb_publishable_') && !chave.includes('COLE_A_CHAVE');
 const supabase: SupabaseClient | null = configurado ? createClient(url, chave) : null;
 
