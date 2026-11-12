@@ -8,7 +8,7 @@
     "dev": "vite",
     "dev:edge": "npx supabase functions serve corretora",
     "build:front": "tsc -p tsconfig.frontend.json && vite build --outDir web-dist",
-    "test": "npm run build && node --test --experimental-test-isolation=none dist/tests/dominio.test.js"
+    "test": "npm run build && node --test --experimental-test-isolation=none dist/tests/*.test.js"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.5",

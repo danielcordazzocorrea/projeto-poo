@@ -13,21 +13,26 @@ import {
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { ArrowRight, Eye, EyeOff, LoaderCircle, Moon, Sun } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import type { Theme } from '@/lib/theme';
 
 export type SmokeLoginProvider = 'apple' | 'google';
-type Theme = 'light' | 'dark';
 
 export type SmokeLoginProps = {
   brand?: string;
   title?: string;
   subtitle?: string;
   submitLabel?: string;
+  mode?: 'login' | 'signup';
+  disabled?: boolean;
+  notice?: { text: string; kind: 'ok' | 'erro' | 'info' } | null;
   onSubmit?: (values: { email: string; password: string }) => void | Promise<void>;
   onProviderSignIn?: (provider: SmokeLoginProvider) => void | Promise<void>;
   forgotPasswordHref?: string;
   signUpHref?: string;
   onSignUpClick?: () => void;
   defaultTheme?: Theme;
+  theme?: Theme;
+  onThemeChange?: (theme: Theme) => void;
   className?: string;
   footer?: ReactNode;
 };
@@ -41,9 +46,16 @@ const THEMES: Record<Theme, Record<string, string>> = {
 export function SmokeLogin({
   brand = 'Foomster', title = 'Welcome back', subtitle = 'Sign in to pick up where you left off.',
   submitLabel = 'Sign in', onSubmit = () => wait(700), onProviderSignIn = () => wait(700),
+  mode = 'login', disabled = false, notice,
   forgotPasswordHref = '#', signUpHref = '#', onSignUpClick, defaultTheme = 'dark', className, footer,
+  theme: controlledTheme, onThemeChange,
 }: SmokeLoginProps) {
-  const [theme, setTheme] = useState<Theme>(defaultTheme);
+  const [localTheme, setLocalTheme] = useState<Theme>(defaultTheme);
+  const theme = controlledTheme ?? localTheme;
+  const changeTheme = (nextTheme: Theme) => {
+    if (controlledTheme === undefined) setLocalTheme(nextTheme);
+    onThemeChange?.(nextTheme);
+  };
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState<null | 'form' | SmokeLoginProvider>(null);
   const reducedMotion = useReducedMotion();
@@ -55,7 +67,7 @@ export function SmokeLogin({
   });
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (busy) return;
+    if (busy || disabled) return;
     const data = new FormData(event.currentTarget);
     setBusy('form');
     try { await onSubmit({ email: String(data.get('email')), password: String(data.get('password')) }); }
@@ -68,7 +80,7 @@ export function SmokeLogin({
   };
 
   return (
-    <main style={THEMES[theme] as CSSProperties} className={cn('grid min-h-dvh w-full grid-cols-1 gap-3 overflow-x-hidden bg-[var(--bg)] p-3 font-sans text-[var(--ink)] transition-colors duration-700 lg:grid-cols-[1.08fr_1fr]', className)}>
+    <main data-theme={theme} style={{ ...THEMES[theme], colorScheme: theme } as CSSProperties} className={cn('grid min-h-dvh w-full grid-cols-1 gap-3 overflow-x-hidden bg-[var(--bg)] p-3 font-sans text-[var(--ink)] transition-colors duration-700 lg:grid-cols-[1.08fr_1fr]', className)}>
       <section className="relative min-h-[40vh] lg:min-h-0">
         <div aria-hidden className="absolute inset-0 rotate-[-1.4deg] rounded-[28px] bg-[var(--sheet)]" />
         <div aria-hidden className="absolute inset-0 rotate-[0.9deg] rounded-[28px] bg-[var(--paper)] shadow-[0_8px_24px_-12px_rgb(0_0_0/0.18)]" />
@@ -83,7 +95,7 @@ export function SmokeLogin({
       </section>
 
       <section className="relative flex items-center justify-center px-5 py-16 sm:px-10">
-        <ThemeSwitch theme={theme} onToggle={() => setTheme(dark ? 'light' : 'dark')} />
+        <ThemeSwitch theme={theme} onToggle={() => changeTheme(dark ? 'light' : 'dark')} />
         <div className="w-full max-w-[360px]">
           <motion.h1 {...rise(2)} className="text-[34px] font-semibold leading-none tracking-[-0.045em]">{title}</motion.h1>
           <motion.p {...rise(3)} className="mt-3 text-[15px] text-[var(--muted)]">{subtitle}</motion.p>
@@ -94,15 +106,16 @@ export function SmokeLogin({
             </motion.div>
             <motion.div {...rise(5)}>
               <div className="flex items-baseline justify-between"><Label htmlFor="password">Senha</Label><a href={forgotPasswordHref} className="text-[12px] text-[var(--muted)] hover:text-[var(--ink)]">Esqueceu?</a></div>
-              <div className="relative"><input id="password" name="password" type={showPassword ? 'text' : 'password'} required minLength={6} autoComplete="current-password" placeholder="••••••••" className={cn(fieldClass, 'pr-12')} />
+              <div className="relative"><input id="password" name="password" type={showPassword ? 'text' : 'password'} required minLength={6} autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} placeholder={mode === 'signup' ? 'Mínimo de 6 caracteres' : '••••••••'} className={cn(fieldClass, 'pr-12')} />
                 <button type="button" onClick={() => setShowPassword(value => !value)} aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'} className="absolute right-1.5 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-[10px] text-[var(--muted)] hover:text-[var(--ink)] focus-visible:outline-2 focus-visible:outline-[var(--accent)]">{showPassword ? <EyeOff className="size-[18px]" /> : <Eye className="size-[18px]" />}</button>
               </div>
             </motion.div>
-            <motion.div {...rise(6)} className="pt-2"><button type="submit" disabled={Boolean(busy)} className="group flex h-12 w-full items-center justify-center gap-2 rounded-[14px] bg-[var(--btn)] text-[15px] font-medium text-[var(--btn-ink)] shadow-[0_10px_24px_-12px_rgb(0_0_0/0.5)] transition hover:brightness-110 active:scale-[0.985] disabled:opacity-75 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]">{busy === 'form' ? <LoaderCircle className="size-[18px] animate-spin" /> : <>{submitLabel}<ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" /></>}</button></motion.div>
+            <motion.div {...rise(6)} className="pt-2"><button type="submit" disabled={disabled || Boolean(busy)} aria-busy={busy === 'form'} aria-describedby={notice ? 'auth-notice' : undefined} className="group flex h-12 w-full items-center justify-center gap-2 rounded-[14px] bg-[var(--btn)] text-[15px] font-medium text-[var(--btn-ink)] shadow-[0_10px_24px_-12px_rgb(0_0_0/0.5)] transition hover:brightness-110 active:scale-[0.985] disabled:opacity-75 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]">{busy === 'form' ? <><LoaderCircle aria-hidden className="size-[18px] animate-spin" />{mode === 'signup' ? 'Criando conta...' : 'Entrando...'}</> : <>{submitLabel}<ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" /></>}</button></motion.div>
+            {notice && <p id="auth-notice" role={notice.kind === 'erro' ? 'alert' : 'status'} className="rounded-xl border border-[var(--line)] bg-[var(--field)] p-3 text-sm text-[var(--ink)]">{notice.text}</p>}
           </form>
           <motion.div {...rise(7)} className="my-7 flex items-center gap-3 text-[12px] text-[var(--muted)]"><span className="h-px flex-1 bg-[var(--line)]" />ou<span className="h-px flex-1 bg-[var(--line)]" /></motion.div>
           <motion.div {...rise(8)} className="grid grid-cols-2 gap-3"><ProviderButton onClick={() => provider('apple')} busy={busy === 'apple'} disabled={Boolean(busy)}>Apple</ProviderButton><ProviderButton onClick={() => provider('google')} busy={busy === 'google'} disabled={Boolean(busy)}><GoogleMark />Google</ProviderButton></motion.div>
-          <motion.p {...rise(9)} className="mt-9 text-center text-[13px] text-[var(--muted)]">Ainda não tem conta? <a href={signUpHref} onClick={event => { if (onSignUpClick) { event.preventDefault(); onSignUpClick(); } }} className="font-medium text-[var(--ink)] underline-offset-4 hover:underline">Crie uma conta</a></motion.p>
+          <motion.p {...rise(9)} className="mt-9 text-center text-[13px] text-[var(--muted)]">{mode === 'signup' ? 'Já tem uma conta? ' : 'Ainda não tem conta? '}{onSignUpClick ? <button type="button" disabled={Boolean(busy)} onClick={onSignUpClick} className="font-medium text-[var(--ink)] underline-offset-4 hover:underline disabled:opacity-50">{mode === 'signup' ? 'Entrar' : 'Crie uma conta'}</button> : <a href={signUpHref} className="font-medium text-[var(--ink)] underline-offset-4 hover:underline">Crie uma conta</a>}</motion.p>
           {footer && <motion.div {...rise(10)} className="mt-10 text-center text-[12px] text-[var(--muted)]">{footer}</motion.div>}
         </div>
       </section>

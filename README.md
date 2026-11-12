@@ -15,7 +15,7 @@ O cadastro usa Supabase Auth e também cria a conta da corretora com saldo zero 
 
 ## Frontend básico
 
-Crie `.env.local` a partir de `.env.example` e preencha `VITE_SUPABASE_PUBLISHABLE_KEY` com a chave **publicável** (`sb_publishable_...`) do projeto `pzaakefnbhwlhatgzgea`. Neste ambiente de desenvolvimento o arquivo já foi configurado. Nunca coloque uma chave `secret` ou `service_role` no frontend.
+Crie `.env.local` a partir de `.env.example` e preencha `VITE_SUPABASE_PUBLISHABLE_KEY` com a chave **publicável** (`sb_publishable_...`) do projeto `pzaakefnbhwlhatgzgea`. O arquivo local não é incluído no Git: cada ambiente precisa da própria configuração. Nunca coloque uma chave `secret` ou `service_role` no frontend. Reinicie o Vite após configurar; no ambiente publicado, configure as variáveis antes de gerar um novo build.
 
 ```powershell
 npm install
