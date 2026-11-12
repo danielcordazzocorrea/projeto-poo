@@ -12,7 +12,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { ArrowRight, Eye, EyeOff, LoaderCircle, Moon, Sun } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Theme } from '@/lib/theme';
-import { ShaderBackground, type ShaderColor } from '@/components/ui/dark-mono';
+import InteractiveNeuralVortex, { type VortexPalette } from '@/components/ui/interactive-neural-vortex-background';
 
 export type SmokeLoginProvider = 'apple' | 'google';
 
@@ -41,9 +41,9 @@ const THEMES: Record<Theme, Record<string, string>> = {
   light: { '--bg': '#efede7', '--paper': '#f7f6f2', '--sheet': '#e6e3db', '--ink': '#141513', '--muted': '#6f716b', '--line': '#dcd9d0', '--field': '#fbfaf7', '--accent': '#3f8f00', '--btn': '#141513', '--btn-ink': '#f7f6f2' },
   dark: { '--bg': '#0c0d0c', '--paper': '#121412', '--sheet': '#1a1c1a', '--ink': '#ecede8', '--muted': '#8d908a', '--line': '#262925', '--field': '#161816', '--accent': '#9dff3a', '--btn': '#9dff3a', '--btn-ink': '#0c0d0c' },
 };
-const SHADER_COLORS: Record<Theme, readonly ShaderColor[]> = {
-  light: [[0.97, 0.965, 0.95], [0.75, 0.88, 0.62], [0.49, 0.72, 0.35], [0.86, 0.92, 0.78], [0.97, 0.965, 0.95]],
-  dark: [[0.07, 0.08, 0.07], [0.25, 0.43, 0.2], [0.61, 1, 0.23], [0.32, 0.57, 0.22], [0.07, 0.08, 0.07]],
+const VORTEX_PALETTES: Record<Theme, VortexPalette> = {
+  light: { background: [0.97, 0.965, 0.95], primary: [0.72, 0.84, 0.6], secondary: [0.32, 0.57, 0.16], accent: [0.07, 0.18, 0.05] },
+  dark: { background: [0.07, 0.08, 0.07], primary: [0.12, 0.31, 0.11], secondary: [0.61, 1, 0.23], accent: [0.03, 0.16, 0.04] },
 };
 
 export function SmokeLogin({
@@ -88,7 +88,7 @@ export function SmokeLogin({
         <div aria-hidden className="absolute inset-0 rotate-[-1.4deg] rounded-[28px] bg-[var(--sheet)]" />
         <div aria-hidden className="absolute inset-0 rotate-[0.9deg] rounded-[28px] bg-[var(--paper)] shadow-[0_8px_24px_-12px_rgb(0_0_0/0.18)]" />
         <div className="relative h-full overflow-hidden rounded-[28px] bg-[var(--paper)] shadow-[0_24px_48px_-24px_rgb(0_0_0/0.35)] transition-colors duration-700">
-          <ShaderBackground className="absolute inset-0" colors={SHADER_COLORS[theme]} />
+          <InteractiveNeuralVortex className="absolute inset-0" palette={VORTEX_PALETTES[theme]} />
           <div aria-hidden className="pointer-events-none absolute inset-0" style={{ background: dark ? 'linear-gradient(to top, rgba(12,13,12,.82), transparent 46%)' : 'linear-gradient(to top, rgba(247,246,242,.82), transparent 46%)' }} />
           <motion.div {...rise(0)} className="absolute left-6 top-6 text-[15px] font-semibold tracking-[-0.02em]">{brand}</motion.div>
           <motion.div {...rise(1)} className="absolute inset-x-6 bottom-6 hidden max-w-[22rem] sm:block">
