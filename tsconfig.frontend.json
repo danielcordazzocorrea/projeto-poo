@@ -5,10 +5,15 @@
     "module": "ESNext",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"]
+    },
     "strict": true,
     "noEmit": true,
     "skipLibCheck": true,
     "types": ["vite/client"]
   },
-  "include": ["frontend/**/*.ts"]
+  "include": ["frontend/**/*.ts", "frontend/**/*.tsx", "components/**/*.ts", "components/**/*.tsx", "lib/**/*.ts"]
 }
