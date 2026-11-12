@@ -144,7 +144,6 @@ export default function InteractiveNeuralVortex({ className, palette = DEFAULT_P
     gl.uniform3fv(uniforms.accent, palette.accent);
 
     const pointer = { x: 0.5, y: 0.5, targetX: 0.5, targetY: 0.5 };
-    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const started = performance.now();
     let frame = 0;
     let visible = document.visibilityState === 'visible';
@@ -164,7 +163,10 @@ export default function InteractiveNeuralVortex({ className, palette = DEFAULT_P
     };
     const onPointerMove = (event: PointerEvent) => {
       const bounds = canvas.getBoundingClientRect();
-      if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) return;
+      if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) {
+        onPointerLeave();
+        return;
+      }
       pointer.targetX = (event.clientX - bounds.left) / bounds.width;
       pointer.targetY = 1 - (event.clientY - bounds.top) / bounds.height;
     };
@@ -172,20 +174,16 @@ export default function InteractiveNeuralVortex({ className, palette = DEFAULT_P
       pointer.targetX = 0.5;
       pointer.targetY = 0.5;
     };
-    const onScroll = () => {
-      if (reducedMotion) render(performance.now());
-    };
-
     const render = (now: number) => {
       frame = 0;
       if (disposed || !visible || !inView) return;
       pointer.x += (pointer.targetX - pointer.x) * 0.2;
       pointer.y += (pointer.targetY - pointer.y) * 0.2;
-      gl.uniform1f(uniforms.time, reducedMotion ? 0 : now - started);
+      gl.uniform1f(uniforms.time, (now - started) * 1.5);
       gl.uniform2f(uniforms.pointer, pointer.x, pointer.y);
       gl.uniform1f(uniforms.scroll, window.scrollY / (2 * window.innerHeight));
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-      if (!reducedMotion) schedule();
+      schedule();
     };
     const schedule = () => {
       if (!disposed && visible && inView && frame === 0) frame = requestAnimationFrame(render);
@@ -205,11 +203,8 @@ export default function InteractiveNeuralVortex({ className, palette = DEFAULT_P
     intersectionObserver.observe(canvas);
     document.addEventListener('visibilitychange', onVisibilityChange);
     window.addEventListener('resize', resize);
-    window.addEventListener('scroll', onScroll, { passive: true });
-    if (!reducedMotion) {
-      window.addEventListener('pointermove', onPointerMove, { passive: true });
-      window.addEventListener('blur', onPointerLeave);
-    }
+    window.addEventListener('pointermove', onPointerMove, { passive: true });
+    window.addEventListener('blur', onPointerLeave);
     resize();
     schedule();
 
@@ -220,7 +215,6 @@ export default function InteractiveNeuralVortex({ className, palette = DEFAULT_P
       intersectionObserver.disconnect();
       document.removeEventListener('visibilitychange', onVisibilityChange);
       window.removeEventListener('resize', resize);
-      window.removeEventListener('scroll', onScroll);
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('blur', onPointerLeave);
       gl.deleteBuffer(buffer);
