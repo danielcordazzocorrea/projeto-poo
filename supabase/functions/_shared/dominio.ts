@@ -80,6 +80,58 @@ export class Dinheiro {
   formatar(): string { return formatarDecimal(this.centavos, 2); }
 }
 
+export type TipoMoeda = 'BRL' | 'USD' | 'BTC';
+
+export function validarTipoMoeda(valor: unknown): TipoMoeda {
+  if (valor !== 'BRL' && valor !== 'USD' && valor !== 'BTC') {
+    throw new RegraDeNegocio('Tipo de moeda deve ser BRL, USD ou BTC.');
+  }
+  return valor;
+}
+
+// Objeto de valor: a cotação é o preço SIMULADO de uma unidade em centavos de real.
+export class Moeda {
+  readonly casasDecimais: number;
+  constructor(readonly tipo: TipoMoeda, readonly cotacaoBrlCentavos: bigint) {
+    validarTipoMoeda(tipo);
+    if (cotacaoBrlCentavos <= 0n || cotacaoBrlCentavos > MAXIMO_SEGURO) {
+      throw new RegraDeNegocio('Cotação inválida.');
+    }
+    if (tipo === 'BRL' && cotacaoBrlCentavos !== 100n) {
+      throw new RegraDeNegocio('Uma unidade de BRL deve valer 100 centavos de real.');
+    }
+    this.casasDecimais = tipo === 'BTC' ? 8 : 2;
+  }
+  paraJson() {
+    return { tipo_moeda: this.tipo, casas_decimais: this.casasDecimais,
+      cotacao_brl: formatarDecimal(this.cotacaoBrlCentavos, 2), simulada: true };
+  }
+}
+
+// Composição: um saldo sempre associa o número de unidades à sua moeda.
+export class SaldoMoeda {
+  constructor(readonly moeda: Moeda, readonly unidades: bigint) {
+    if (unidades < 0n || unidades > MAXIMO_SEGURO) {
+      throw new RegraDeNegocio('Saldo em moeda fora do limite permitido.');
+    }
+  }
+  paraJson() {
+    return { tipo_moeda: this.moeda.tipo,
+      saldo: formatarDecimal(this.unidades, this.moeda.casasDecimais) };
+  }
+}
+
+// Serviço de domínio: encapsula a conversão sem HTTP, banco ou ponto flutuante.
+export class ConversorMoeda {
+  converterReais(valor: Dinheiro, destino: Moeda): SaldoMoeda {
+    const escala = 10n ** BigInt(destino.casasDecimais);
+    const unidades = valor.centavos * escala / destino.cotacaoBrlCentavos;
+    // Arredonda para baixo; nunca cria uma unidade que o remetente não pagou.
+    if (unidades === 0n) throw new RegraDeNegocio('Valor inferior à menor unidade da moeda de destino.');
+    return new SaldoMoeda(destino, unidades);
+  }
+}
+
 // Objeto de valor: representa quantidades com até seis casas decimais.
 export class Quantidade {
   // Uma unidade equivale a 1.000.000 de micros.
@@ -127,7 +179,8 @@ export class Posicao {
 }
 
 // Tipos permitidos no histórico de operações.
-export type TipoMovimentacao = 'DEPOSITO' | 'COMPRA' | 'VENDA' | 'PIX_ENVIADO' | 'PIX_RECEBIDO';
+export type TipoMovimentacao = 'DEPOSITO' | 'COMPRA' | 'VENDA' | 'PIX_ENVIADO' | 'PIX_RECEBIDO'
+  | 'TRANSFERENCIA_ENVIADA' | 'TRANSFERENCIA_RECEBIDA';
 
 // Uma movimentação registra uma operação já concluída.
 export class Movimentacao {
@@ -143,6 +196,7 @@ export class Movimentacao {
     // Depósitos e Pix não têm ativo nem quantidade, por isso estes campos aceitam null.
     readonly codigoAtivo: string | null,
     readonly quantidade: Quantidade | null,
+    readonly transferenciaId: string | null = null,
   ) {}
   // Monta a forma pública da movimentação para a API.
   paraJson() {
@@ -156,6 +210,7 @@ export class Movimentacao {
       codigo_ativo: this.codigoAtivo,
       // `?.` só chama formatar quando há quantidade; `??` devolve null se não há.
       quantidade: this.quantidade?.formatar() ?? null,
+      transferencia_id: this.transferenciaId,
     };
   }
 }
@@ -175,6 +230,8 @@ export class Conta {
     readonly posicoes: Posicao[],
     // Histórico: até 100 movimentações carregadas pelo repositório.
     readonly movimentacoes: Movimentacao[],
+    readonly tipoMoeda: TipoMoeda = 'BRL',
+    readonly saldosMoedas: SaldoMoeda[] = [],
   ) {}
   // Serializa a conta e todos os objetos que ela contém.
   paraJson() {
@@ -183,6 +240,8 @@ export class Conta {
       usuario_id: this.usuarioId,
       // O cliente recebe "50.00", não o bigint 5000n.
       saldo_brl: this.saldo.formatar(),
+      tipo_moeda: this.tipoMoeda,
+      saldos_moedas: this.saldosMoedas.map(saldo => saldo.paraJson()),
       chave_pix: this.chavePix,
       // `map` transforma cada objeto Posicao em JSON.
       posicoes: this.posicoes.map(p => p.paraJson()),

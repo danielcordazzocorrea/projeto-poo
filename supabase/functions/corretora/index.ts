@@ -26,6 +26,20 @@ Deno.serve(withSupabase({ auth: 'user' }, async (req, ctx) => {
     if (req.method === 'GET' && caminho === '/ativos') {
       return json(200, await corretora.listarAtivos());
     }
+    if (req.method === 'GET' && caminho === '/moedas') {
+      return json(200, await corretora.listarMoedas());
+    }
+    if (req.method === 'POST' && caminho === '/conversoes/simulacao') {
+      const dados = await lerJson(req);
+      return json(200, await corretora.simularConversao(dados.valor, dados.tipo_moeda));
+    }
+    if (req.method === 'PATCH' && caminho === '/conta/moeda') {
+      return json(200, await corretora.definirMoedaRecebimento((await lerJson(req)).tipo_moeda));
+    }
+    if (req.method === 'POST' && caminho === '/transferencias') {
+      const dados = await lerJson(req);
+      return json(200, await corretora.transferirComConversao(dados.chave_destino, dados.valor));
+    }
     if (req.method === 'POST' && caminho === '/conta') {
       return json(201, await corretora.abrirConta());
     }

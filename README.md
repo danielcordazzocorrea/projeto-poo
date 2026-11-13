@@ -68,6 +68,10 @@ Valores monetários e quantidades são texto decimal. A resposta da conta traz s
 
 ## Testes
 
+O backend também oferece recebimento em BRL, USD ou BTC com conversão simulada.
+Veja [classes, exemplos de API e migração do banco](docs/moedas.md). A nova
+migração precisa ser aplicada antes de publicar a função atualizada.
+
 ```powershell
 npm test
 ```

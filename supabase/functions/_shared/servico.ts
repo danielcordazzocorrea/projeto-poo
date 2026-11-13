@@ -1,5 +1,5 @@
 // O serviço recebe objetos e validações definidos no domínio.
-import { Ativo, Conta, Dinheiro, Quantidade, RegraDeNegocio } from './dominio.ts';
+import { Ativo, Conta, ConversorMoeda, Dinheiro, Moeda, SaldoMoeda, Quantidade, RegraDeNegocio, validarTipoMoeda, type TipoMoeda } from './dominio.ts';
 
 /** Contrato: descreve as operações de dados sem citar Supabase ou SQL. */
 export interface RepositorioCorretora {
@@ -18,6 +18,9 @@ export interface RepositorioCorretora {
   vender(codigo: string, micros: bigint): Promise<void>;
   // Transfere saldo para a conta encontrada pela chave Pix.
   transferirPix(chaveDestino: string, centavos: bigint): Promise<void>;
+  listarMoedas(): Promise<Moeda[]>;
+  definirMoedaRecebimento(tipo: TipoMoeda): Promise<void>;
+  transferirComConversao(chaveDestino: string, centavos: bigint): Promise<SaldoMoeda>;
 }
 
 // Serviço de aplicação: coordena os casos de uso da corretora.
@@ -61,6 +64,30 @@ export class Corretora {
       Dinheiro.positivo(valor).centavos,
     );
     return this.consultarConta();
+  }
+
+  async listarMoedas() { return (await this.repositorio.listarMoedas()).map(m => m.paraJson()); }
+
+  async simularConversao(valor: unknown, tipo: unknown) {
+    const destino = validarTipoMoeda(tipo);
+    const dinheiro = Dinheiro.positivo(valor);
+    const moeda = (await this.repositorio.listarMoedas()).find(m => m.tipo === destino);
+    if (!moeda) throw new RegraDeNegocio('Moeda indisponível.');
+    return { ...new ConversorMoeda().converterReais(dinheiro, moeda).paraJson(), simulada: true };
+  }
+
+  async definirMoedaRecebimento(tipo: unknown) {
+    await this.repositorio.definirMoedaRecebimento(validarTipoMoeda(tipo));
+    return this.consultarConta();
+  }
+
+  async transferirComConversao(chaveDestino: unknown, valor: unknown) {
+    // O banco consulta a preferência do destinatário e converte atomicamente.
+    // O remetente não escolhe a cotação nem o valor a ser creditado.
+    const recebido = await this.repositorio.transferirComConversao(
+      this.validarChavePix(chaveDestino), Dinheiro.positivo(valor).centavos,
+    );
+    return { recebimento: recebido.paraJson(), conta: await this.consultarConta() };
   }
 
   // `private` limita este detalhe de validação ao interior da classe Corretora.
