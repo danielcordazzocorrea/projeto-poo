@@ -10,7 +10,7 @@ function clientWithFetch(fetch: typeof globalThis.fetch) {
   });
 }
 
-test('cadastro envia e-mail e senha ao endpoint signup do Supabase', async () => {
+test('cadastro envia primeiro nome, e-mail e senha ao Supabase', async () => {
   let requests = 0;
   const client = clientWithFetch(async (input, init) => {
     requests++;
@@ -21,10 +21,11 @@ test('cadastro envia e-mail e senha ao endpoint signup do Supabase', async () =>
     const body = JSON.parse(String(init?.body));
     assert.equal(body.email, 'aluno@example.com');
     assert.equal(body.password, 'senha-de-teste');
+    assert.equal(body.data.first_name, 'João');
     return Response.json({ user: { id: 'user-test', email: body.email }, session: null });
   });
   const session = await submitCredentials(client, 'signup', {
-    email: ' aluno@example.com ', password: 'senha-de-teste',
+    email: ' aluno@example.com ', password: 'senha-de-teste', firstName: ' João ',
   }, 'https://corretora.example');
   assert.equal(requests, 1);
   assert.equal(session, null, 'a confirmação por e-mail não precisa retornar uma sessão');
@@ -36,7 +37,7 @@ test('cadastro retorna a sessão quando a confirmação de e-mail está desativa
     expires_in: 3600, token_type: 'bearer', user: { id: 'user-test' },
   }));
   const session = await submitCredentials(client, 'signup', {
-    email: 'aluno@example.com', password: 'senha-de-teste',
+    email: 'aluno@example.com', password: 'senha-de-teste', firstName: 'João',
   }, 'https://corretora.example');
   assert.equal(session?.user.id, 'user-test');
 });
@@ -52,8 +53,17 @@ test('erro do Supabase é propagado para ser exibido no formulário', async () =
     msg: 'Signups not allowed for this instance',
   }, { status: 422 }));
   await assert.rejects(submitCredentials(client, 'signup', {
-    email: 'aluno@example.com', password: 'senha-de-teste',
+    email: 'aluno@example.com', password: 'senha-de-teste', firstName: 'João',
   }, 'https://corretora.example'), /Signups not allowed/);
+});
+
+test('cadastro rejeita nome ausente ou apenas espaços sem enviar ao Supabase', async () => {
+  const client = clientWithFetch(async () => { assert.fail('Não deveria enviar o cadastro sem nome'); });
+  for (const firstName of [undefined, '   ']) {
+    await assert.rejects(submitCredentials(client, 'signup', {
+      email: 'aluno@example.com', password: 'senha-de-teste', firstName,
+    }, 'https://corretora.example'), /Informe seu primeiro nome/);
+  }
 });
 
 test('login continua usando o endpoint de senha, sem criar outro usuário', async () => {
@@ -65,5 +75,5 @@ test('login continua usando o endpoint de senha, sem criar outro usuário', asyn
   });
   await assert.rejects(submitCredentials(client, 'login', {
     email: 'aluno@example.com', password: 'senha-de-teste',
-  }, 'https://corretora.example'), /Invalid login credentials/);
+  }, 'https://corretora.example'), /E-mail ou senha incorretos/);
 });

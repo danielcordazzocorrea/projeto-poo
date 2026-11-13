@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import type { Theme } from '@/lib/theme';
-import { ArrowLeft, ArrowUpRight, ChartNoAxesCombined, Check, Eye, EyeOff, Landmark, LogOut, RefreshCw, ScanLine, UserRound } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, ChartNoAxesCombined, Check, Eye, EyeOff, Landmark, LogOut, Moon, Sun, RefreshCw, ScanLine, UserRound } from 'lucide-react';
 
 type Area = 'home' | 'investments' | 'pix' | 'profile';
 type AccountHomeProps = {
   theme: Theme;
+  onThemeChange: (theme: Theme) => void;
   session: Session;
   conta: { id: string; saldo_brl: string } | null;
   loading: boolean;
@@ -20,7 +21,7 @@ const destinations = [
   { id: 'profile', title: 'Dados da conta', description: 'Consulte seu cadastro, e-mail e informações da sua conta em um só lugar', action: 'Ver meus dados', icon: UserRound },
 ] as const;
 
-export function AccountHome({ theme, session, conta, loading, notice, onRefresh, onLogout }: AccountHomeProps) {
+export function AccountHome({ theme, onThemeChange, session, conta, loading, notice, onRefresh, onLogout }: AccountHomeProps) {
   const [area, setArea] = useState<Area>('home');
   const [balanceVisible, setBalanceVisible] = useState(true);
   const heading = useRef<HTMLHeadingElement>(null);
@@ -33,13 +34,28 @@ export function AccountHome({ theme, session, conta, loading, notice, onRefresh,
   const created = new Date(session.user.created_at);
   const createdLabel = Number.isNaN(created.getTime()) ? 'Não informado' : created.toLocaleDateString('pt-BR');
   const selected = destinations.find(item => item.id === area);
+  const savedName: unknown = session.user.user_metadata?.first_name;
+  const firstName = typeof savedName === 'string' ? savedName.trim().split(/\s+/)[0] : '';
 
   return <div className="account-app" data-theme={theme} style={{ colorScheme: theme }}>
     <a className="account-skip" href="#account-content">Ir para o conteúdo</a>
     <header className="account-topbar">
       <div className="account-container account-topbar-inner">
         <button className="account-brand" type="button" onClick={() => setArea('home')} aria-label="tivvo — início"><span className="account-brand-symbol"><Landmark size={22} aria-hidden /></span><span>ti<span className="account-brand-accent">vv</span>o</span></button>
-        <div className="account-user"><span className="account-user-email">{session.user.email ?? 'Minha conta'}</span><button className="account-logout" type="button" onClick={onLogout}><LogOut size={17} aria-hidden />Sair</button></div>
+        <div className="account-user">
+          <span className="account-user-email">{session.user.email ?? 'Minha conta'}</span>
+          <button
+            className="account-theme-toggle"
+            type="button"
+            onClick={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')}
+            aria-label={theme === 'dark' ? 'Alternar para modo claro' : 'Alternar para modo escuro'}
+            title={theme === 'dark' ? 'Alternar para modo claro' : 'Alternar para modo escuro'}
+          >
+            {theme === 'dark' ? <Moon size={17} aria-hidden /> : <Sun size={17} aria-hidden />}
+            <span>{theme === 'dark' ? 'Escuro' : 'Claro'}</span>
+          </button>
+          <button className="account-logout" type="button" onClick={onLogout}><LogOut size={17} aria-hidden />Sair</button>
+        </div>
       </div>
     </header>
 
@@ -48,7 +64,7 @@ export function AccountHome({ theme, session, conta, loading, notice, onRefresh,
 
       {area === 'home' ? <>
         <section className="account-overview" aria-labelledby="home-title">
-          <div className="account-greeting"><span className="account-tag"><span />Sua conta, conectada</span><h1 id="home-title" ref={heading} tabIndex={-1}>Tudo começa<br />pela sua conta</h1><p>Escolha o que você quer fazer hoje</p></div>
+          <div className="account-greeting"><span className="account-tag"><span />Sua conta, conectada</span><h1 id="home-title" ref={heading} tabIndex={-1}>{firstName ? `Olá, ${firstName}!` : 'Olá!'}</h1><p>Escolha o que você quer fazer hoje</p></div>
           <div className="account-balance" aria-busy={loading}>
             <div className="account-balance-label"><span>Saldo disponível simulado</span><button type="button" onClick={() => setBalanceVisible(value => !value)} aria-label={balanceVisible ? 'Ocultar saldo' : 'Mostrar saldo'} aria-pressed={!balanceVisible}>{balanceVisible ? <Eye size={19} /> : <EyeOff size={19} />}</button></div>
             <p className="account-balance-value" aria-live="polite">{!balanceVisible ? '••••••' : loading ? 'Carregando…' : balance}</p>
