@@ -4,7 +4,8 @@ import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import {
   Ativo, Conta, Dinheiro, FalhaDePersistencia, Movimentacao,
   NaoEncontrado, Posicao, Quantidade, RegraDeNegocio,
-  type TipoAtivo, type TipoMovimentacao,
+  Moeda, SaldoMoeda, inteiroDoBanco, validarTipoMoeda,
+  type TipoAtivo, type TipoMovimentacao, type TipoMoeda,
 } from './dominio.ts';
 // A classe abaixo promete cumprir o contrato que o serviço espera.
 import type { RepositorioCorretora } from './servico.ts';
@@ -59,28 +60,31 @@ export class RepositorioSupabase implements RepositorioCorretora {
   async consultarConta(): Promise<Conta> {
     // A política RLS do banco limita o SELECT à conta do usuário da sessão.
     const { data: conta, error: erroConta } = await this.banco.from('contas')
-      .select('id,usuario_id,saldo_centavos').maybeSingle();
+      .select('id,usuario_id,saldo_centavos,tipo_moeda').maybeSingle();
     verificarErro(erroConta);
     // A ausência da conta é diferente de falha de comunicação com o banco.
     if (!conta) throw new NaoEncontrado('Conta não encontrada. Abra uma conta primeiro.');
 
     // Faz quatro leituras independentes em paralelo para reduzir a espera.
-    const [resultadoPosicoes, resultadoMovimentos, ativos, resultadoChavePix] = await Promise.all([
+    const [resultadoPosicoes, resultadoMovimentos, ativos, resultadoChavePix, moedas, resultadoSaldos] = await Promise.all([
       // Lê as quantidades dos ativos pertencentes à conta encontrada.
       this.banco.from('posicoes').select('ativo_codigo,quantidade_micros').eq('conta_id', conta.id),
       // Lê no máximo as 100 movimentações mais recentes da mesma conta.
       this.banco.from('movimentacoes')
-        .select('id,tipo,valor_centavos,ativo_codigo,quantidade_micros,criada_em')
+        .select('id,tipo,valor_centavos,ativo_codigo,quantidade_micros,criada_em,transferencia_id')
         .eq('conta_id', conta.id).order('criada_em', { ascending: false }).limit(100),
       // Busca os dados completos dos ativos usados para montar as posições.
       this.listarAtivos(),
       // A RLS permite ler somente a chave pertencente ao usuário da sessão.
       this.banco.from('chaves_pix').select('chave').maybeSingle(),
+      this.listarMoedas(),
+      this.banco.from('saldos_moedas').select('tipo_moeda,unidades').eq('conta_id', conta.id),
     ]);
     // Cada consulta pode falhar separadamente; as duas respostas SQL são conferidas.
     verificarErro(resultadoPosicoes.error);
     verificarErro(resultadoMovimentos.error);
     verificarErro(resultadoChavePix.error);
+    verificarErro(resultadoSaldos.error);
     if (!resultadoChavePix.data?.chave) {
       throw new FalhaDePersistencia('Chave Pix não encontrada para esta conta.');
     }
@@ -103,6 +107,7 @@ export class RepositorioSupabase implements RepositorioCorretora {
       row.ativo_codigo,
       // Depósitos têm quantidade nula; compras e vendas têm quantidade.
       row.quantidade_micros === null ? null : Quantidade.doBanco(row.quantidade_micros),
+      row.transferencia_id,
     ));
     // Composição: Conta recebe seu saldo, suas posições e suas movimentações.
     return new Conta(
@@ -112,6 +117,10 @@ export class RepositorioSupabase implements RepositorioCorretora {
       resultadoChavePix.data.chave,
       posicoes,
       movimentos,
+      validarTipoMoeda(conta.tipo_moeda),
+      moedas.map(moeda => new SaldoMoeda(moeda, moeda.tipo === 'BRL'
+        ? inteiroDoBanco(conta.saldo_centavos, 'saldo em reais')
+        : inteiroDoBanco(resultadoSaldos.data?.find(s => s.tipo_moeda === moeda.tipo)?.unidades ?? 0, 'saldo em moeda'))),
     );
   }
 
@@ -150,5 +159,29 @@ export class RepositorioSupabase implements RepositorioCorretora {
       p_valor_centavos: Number(centavos),
     });
     verificarErro(error);
+  }
+
+  async listarMoedas(): Promise<Moeda[]> {
+    const { data, error } = await this.banco.from('moedas')
+      .select('tipo_moeda,cotacao_brl_centavos').order('tipo_moeda');
+    verificarErro(error);
+    return (data ?? []).map(row => new Moeda(validarTipoMoeda(row.tipo_moeda),
+      inteiroDoBanco(row.cotacao_brl_centavos, 'cotação')));
+  }
+
+  async definirMoedaRecebimento(tipo: TipoMoeda): Promise<void> {
+    const { error } = await this.banco.rpc('definir_moeda_recebimento', { p_tipo_moeda: tipo });
+    verificarErro(error);
+  }
+
+  async transferirComConversao(chaveDestino: string, centavos: bigint): Promise<SaldoMoeda> {
+    const { data, error } = await this.banco.rpc('transferir_com_conversao', {
+      p_chave_destino: chaveDestino, p_valor_centavos: Number(centavos),
+    });
+    verificarErro(error);
+    if (!data) throw new FalhaDePersistencia('Transferência sem comprovante.');
+    return new SaldoMoeda(new Moeda(validarTipoMoeda(data.tipo_moeda),
+      inteiroDoBanco(data.cotacao_brl_centavos, 'cotação da transferência')),
+      inteiroDoBanco(data.unidades_recebidas, 'valor recebido'));
   }
 }

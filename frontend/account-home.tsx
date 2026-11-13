@@ -1,24 +1,30 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import type { Theme } from '@/lib/theme';
-import { ArrowLeft, ArrowUpRight, ChartNoAxesCombined, Check, Eye, EyeOff, Landmark, LogOut, Moon, Sun, RefreshCw, UserRound } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, ArrowRightLeft, ChartNoAxesCombined, Check, Eye, EyeOff, Landmark, LogOut, Moon, Sun, RefreshCw, UserRound } from 'lucide-react';
+import { CurrencyArea } from './currency-area';
+import { formatarMoeda, NOMES_MOEDAS, type Conta, type SaldoMoeda, type TipoMoeda } from './moedas';
 
-type Area = 'home' | 'investments' | 'pix' | 'profile';
+type Area = 'home' | 'investments' | 'pix' | 'profile' | 'currencies';
 type AccountHomeProps = {
   theme: Theme;
   onThemeChange: (theme: Theme) => void;
   session: Session;
-  conta: { id: string; saldo_brl: string } | null;
+  conta: Conta | null;
   loading: boolean;
   notice: { text: string; kind: 'ok' | 'erro' | 'info' } | null;
   onRefresh: () => void;
   onPixTransfer: (chaveDestino: string, valor: string) => Promise<void>;
+  onSaveCurrency: (moeda: TipoMoeda) => Promise<void>;
+  onSimulateCurrency: (valor: string, moeda: TipoMoeda) => Promise<SaldoMoeda>;
+  onCurrencyTransfer: (chaveDestino: string, valor: string) => Promise<SaldoMoeda>;
   onLogout: () => void;
 };
 
 const destinations = [
   { id: 'investments', title: 'Investimentos', description: 'Seu espaço para acompanhar ativos e construir sua carteira simulada', action: 'Explorar investimentos' },
-  { id: 'pix', title: 'Pix', description: 'Um lugar para suas transferências e chaves — estamos preparando essa área', action: 'Conhecer a área Pix' },
+  { id: 'pix', title: 'Pix', description: 'Envie reais para outra conta tivvo usando uma chave de e-mail', action: 'Enviar Pix' },
+  { id: 'currencies', title: 'Moedas', description: 'Consulte seus saldos, simule câmbio e envie com conversão para dólar ou bitcoin', action: 'Gerenciar moedas' },
   { id: 'profile', title: 'Dados da conta', description: 'Consulte seu cadastro, e-mail e informações da sua conta em um só lugar', action: 'Ver meus dados' },
 ] as const;
 
@@ -32,7 +38,7 @@ function PixLogo() {
   return <img className="account-pix-logo" src="/pix-logo.svg" alt="" />;
 }
 
-export function AccountHome({ theme, onThemeChange, session, conta, loading, notice, onRefresh, onPixTransfer, onLogout }: AccountHomeProps) {
+export function AccountHome({ theme, onThemeChange, session, conta, loading, notice, onRefresh, onPixTransfer, onSaveCurrency, onSimulateCurrency, onCurrencyTransfer, onLogout }: AccountHomeProps) {
   const [area, setArea] = useState<Area>('home');
   const [balanceVisible, setBalanceVisible] = useState(true);
   const [pixKey, setPixKey] = useState('');
@@ -44,7 +50,7 @@ export function AccountHome({ theme, onThemeChange, session, conta, loading, not
     if (previousArea.current !== area) heading.current?.focus();
     previousArea.current = area;
   }, [area]);
-  const balance = conta ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(conta.saldo_brl)) : 'Indisponível';
+  const balance = conta ? formatarMoeda(conta.saldo_brl, 'BRL') : 'Indisponível';
   const created = new Date(session.user.created_at);
   const createdLabel = Number.isNaN(created.getTime()) ? 'Não informado' : created.toLocaleDateString('pt-BR');
   const selected = destinations.find(item => item.id === area);
@@ -100,17 +106,30 @@ export function AccountHome({ theme, onThemeChange, session, conta, loading, not
             <button className="account-refresh" type="button" onClick={onRefresh} disabled={loading}><RefreshCw size={14} className={loading ? 'account-spin' : ''} aria-hidden />{loading ? 'Atualizando saldo' : 'Atualizar saldo'}</button>
           </div>
         </section>
+        <section className="account-wallets" aria-label="Saldos por moeda" aria-busy={loading}>
+          {(['BRL', 'USD', 'BTC'] as const).map(tipo => {
+            const saldo = tipo === 'BRL' ? conta?.saldo_brl : conta?.saldos_moedas?.find(s => s.tipo_moeda === tipo)?.saldo;
+            return <div className="account-wallet" key={tipo}>
+              <span>{NOMES_MOEDAS[tipo]} <small>{tipo}</small></span>
+              <strong>{!balanceVisible ? '••••••' : loading ? 'Carregando…' : saldo === undefined ? 'Indisponível' : formatarMoeda(saldo, tipo)}</strong>
+              {conta?.tipo_moeda === tipo && <span className="account-wallet-preferred">Moeda de recebimento</span>}
+            </div>;
+          })}
+        </section>
         <section className="account-options" aria-labelledby="options-title">
           <div className="account-section-heading"><h2 id="options-title">Sua conta, por aqui</h2><span>O que você precisa, em um lugar</span></div>
           <div className="account-destinations">{destinations.map(({ id, title, description, action }) => <button key={id} type="button" className={`account-destination account-destination-${id}`} onClick={() => setArea(id)}>
-            <span className="account-destination-top"><span className="account-option-icon">{id === 'pix' ? <PixLogo /> : id === 'investments' ? <ChartNoAxesCombined size={26} strokeWidth={1.6} aria-hidden /> : <UserRound size={26} strokeWidth={1.6} aria-hidden />}</span><ArrowUpRight size={20} aria-hidden /></span>
+            <span className="account-destination-top"><span className="account-option-icon">{id === 'pix' ? <PixLogo /> : id === 'currencies' ? <ArrowRightLeft size={26} strokeWidth={1.6} aria-hidden /> : id === 'investments' ? <ChartNoAxesCombined size={26} strokeWidth={1.6} aria-hidden /> : <UserRound size={26} strokeWidth={1.6} aria-hidden />}</span><ArrowUpRight size={20} aria-hidden /></span>
             <h3>{title}</h3><p>{description}</p><span className="account-destination-action">{action}</span>
           </button>)}</div>
         </section>
       </> : <section className="account-detail" aria-labelledby="area-title">
         <button className="account-back" type="button" onClick={() => setArea('home')}><ArrowLeft size={17} aria-hidden />Voltar ao início</button>
         <h1 id="area-title" ref={heading} tabIndex={-1}>{selected?.title}</h1>
-        {area === 'profile' ? <>
+        {area === 'currencies' ? <>
+          <button type="button" className="account-detail-refresh" onClick={onRefresh} disabled={loading}><RefreshCw size={16} className={loading ? 'account-spin' : ''} aria-hidden />Atualizar saldos e moeda</button>
+          <CurrencyArea conta={conta} loading={loading} onSave={onSaveCurrency} onSimulate={onSimulateCurrency} onTransfer={onCurrencyTransfer} />
+        </> : area === 'profile' ? <>
           <p className="account-detail-intro">Confira seus dados de cadastro e as informações da sua conta tivvo</p>
           <dl className="account-data">
             <div><dt>Nome completo</dt><dd>{fullName}</dd></div>

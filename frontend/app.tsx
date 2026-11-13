@@ -4,8 +4,8 @@ import { AccountHome } from './account-home';
 import { SmokeLogin } from '@/components/ui/smoke-login';
 import { CONFIGURATION_NOTICE, submitCredentials } from './auth';
 import { readSavedTheme, THEME_STORAGE_KEY, type Theme } from '@/lib/theme';
+import { ApiMoedas, type Conta, type TipoMoeda, type SaldoMoeda } from './moedas';
 
-type Conta = { id: string; saldo_brl: string };
 type Notice = { text: string; kind: 'ok' | 'erro' | 'info' } | null;
 
 const url = import.meta.env.VITE_SUPABASE_URL?.trim() || 'https://pzaakefnbhwlhatgzgea.supabase.co';
@@ -51,6 +51,23 @@ export default function App() {
   async function requestAccount(method: 'GET' | 'POST', token: string): Promise<Response> {
     return fetch(`${url}/functions/v1/corretora/conta`, { method, headers: { apikey: chave, Authorization: `Bearer ${token}` } });
   }
+  function apiMoedas() {
+    if (!session) throw new Error('Entre na sua conta para continuar.');
+    return new ApiMoedas(url, chave, session.access_token);
+  }
+  async function saveCurrency(tipo: TipoMoeda): Promise<void> {
+    setLoadingAccount(true); setNotice(null);
+    try { setConta(await apiMoedas().definirMoeda(tipo)); }
+    finally { setLoadingAccount(false); }
+  }
+  async function transferCurrency(chaveDestino: string, valor: string): Promise<SaldoMoeda> {
+    setLoadingAccount(true); setNotice(null);
+    try {
+      const resultado = await apiMoedas().transferir(chaveDestino, valor);
+      setConta(resultado.conta);
+      return resultado.recebimento;
+    } finally { setLoadingAccount(false); }
+  }
   async function transferPix(chaveDestino: string, valor: string): Promise<void> {
     if (!session) return;
     setLoadingAccount(true); setNotice(null);
@@ -91,7 +108,7 @@ export default function App() {
   }
   async function logout(): Promise<void> { if (!supabase) return; const { error } = await supabase.auth.signOut(); setNotice(error ? { text: error.message, kind: 'erro' } : { text: 'Você saiu da sua conta', kind: 'ok' }); }
 
-  if (session) return <AccountHome key={session.user.id} theme={theme} onThemeChange={setTheme} session={session} conta={conta} loading={loadingAccount} notice={notice} onRefresh={() => void loadAccount(session)} onPixTransfer={transferPix} onLogout={() => void logout()} />;
+  if (session) return <AccountHome key={session.user.id} theme={theme} onThemeChange={setTheme} session={session} conta={conta} loading={loadingAccount} notice={notice} onRefresh={() => void loadAccount(session)} onPixTransfer={transferPix} onSaveCurrency={saveCurrency} onSimulateCurrency={(valor, tipo) => apiMoedas().simular(valor, tipo)} onCurrencyTransfer={transferCurrency} onLogout={() => void logout()} />;
   const signingUp = mode === 'signup';
   return <SmokeLogin
     theme={theme}
