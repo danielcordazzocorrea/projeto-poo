@@ -79,7 +79,7 @@ export default function App() {
     } catch (error) { setNotice({ text: `Login realizado, mas não foi possível carregar a conta: ${error instanceof Error ? error.message : 'erro inesperado'}`, kind: 'erro' }); }
     finally { setLoadingAccount(false); }
   }
-  async function authenticate(values: { email: string; password: string; firstName?: string }): Promise<void> {
+  async function authenticate(values: { email: string; password: string; firstName?: string; lastName?: string; birthDate?: string; passwordConfirmation?: string }): Promise<void> {
     setNotice(null);
     try {
       const nextSession = await submitCredentials(supabase, mode, values, window.location.origin);

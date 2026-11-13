@@ -22,7 +22,7 @@ export type SmokeLoginProps = {
   mode?: 'login' | 'signup';
   disabled?: boolean;
   notice?: { text: string; kind: 'ok' | 'erro' | 'info' } | null;
-  onSubmit?: (values: { email: string; password: string; firstName?: string }) => void | Promise<void>;
+  onSubmit?: (values: { email: string; password: string; firstName?: string; lastName?: string; birthDate?: string; passwordConfirmation?: string }) => void | Promise<void>;
   forgotPasswordHref?: string;
   signUpHref?: string;
   onSignUpClick?: () => void;
@@ -33,6 +33,18 @@ export type SmokeLoginProps = {
 };
 
 const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+const birthDateError = (value: string) => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return 'Data de nascimento inválida.';
+  const [year, month, day] = value.split('-').map(Number);
+  if (year === undefined || month === undefined || day === undefined) return 'Data de nascimento inválida.';
+  const birthDate = new Date(year, month - 1, day);
+  const today = new Date();
+  if (birthDate.getFullYear() !== year || birthDate.getMonth() !== month - 1 || birthDate.getDate() !== day || birthDate > today) return 'Data de nascimento inválida.';
+  const hadBirthday = today.getMonth() + 1 > month || (today.getMonth() + 1 === month && today.getDate() >= day);
+  const age = today.getFullYear() - year - (hadBirthday ? 0 : 1);
+  if (age < 18) return 'Data de nascimento inválida, menor de 18 anos.';
+  return age >= 120 ? 'Data de nascimento inválida.' : '';
+};
 const THEMES: Record<Theme, Record<string, string>> = {
   light: { '--bg': '#efede7', '--paper': '#f7f6f2', '--sheet': '#e6e3db', '--ink': '#141513', '--muted': '#6f716b', '--line': '#dcd9d0', '--field': '#fbfaf7', '--accent': '#3f8f00', '--btn': '#141513', '--btn-ink': '#f7f6f2' },
   dark: { '--bg': '#0c0d0c', '--paper': '#121412', '--sheet': '#1a1c1a', '--ink': '#ecede8', '--muted': '#8d908a', '--line': '#262925', '--field': '#161816', '--accent': '#9dff3a', '--btn': '#9dff3a', '--btn-ink': '#0c0d0c' },
@@ -48,6 +60,7 @@ export function SmokeLogin({
   const theme = controlledTheme ?? defaultTheme;
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const reducedMotion = useReducedMotion();
   const rise = (index: number) => ({
     initial: reducedMotion ? { opacity: 0 } : { opacity: 0, y: 10, filter: 'blur(10px)' },
@@ -58,8 +71,23 @@ export function SmokeLogin({
     event.preventDefault();
     if (busy || disabled) return;
     const data = new FormData(event.currentTarget);
+    const birthDateField = event.currentTarget.elements.namedItem('birthDate');
+    if (mode === 'signup' && birthDateField instanceof HTMLInputElement) {
+      const error = birthDateError(birthDateField.value);
+      if (error) {
+        setFormError(error);
+        return;
+      }
+    }
+    const password = String(data.get('password'));
+    const passwordConfirmation = String(data.get('passwordConfirmation') ?? '');
+    if (mode === 'signup' && password !== passwordConfirmation) {
+      setFormError('As senhas não conferem.');
+      return;
+    }
+    setFormError(null);
     setBusy(true);
-    try { await onSubmit({ email: String(data.get('email')), password: String(data.get('password')), ...(mode === 'signup' ? { firstName: String(data.get('firstName') ?? '').trim() } : {}) }); }
+    try { await onSubmit({ email: String(data.get('email')), password, ...(mode === 'signup' ? { firstName: String(data.get('firstName') ?? '').trim(), lastName: String(data.get('lastName') ?? '').trim(), birthDate: String(data.get('birthDate') ?? ''), passwordConfirmation } : {}) }); }
     finally { setBusy(false); }
   };
 
@@ -87,20 +115,30 @@ export function SmokeLogin({
         <div className="w-full">
           <motion.h1 {...rise(2)} className="text-[30px] font-semibold leading-none tracking-[-0.045em] sm:text-[34px]">{title}</motion.h1>
           {subtitle && <motion.p {...rise(3)} className="mt-2 text-[14px] text-[var(--muted)] sm:text-[15px]">{subtitle}</motion.p>}
-          <form onSubmit={handleSubmit} className="mt-6 space-y-3">
-            {mode === 'signup' && <motion.div {...rise(4)} key="first-name">
-              <Label htmlFor="first-name">Primeiro nome</Label>
-              <input
-                id="first-name"
-                name="firstName"
-                type="text"
-                required
-                maxLength={80}
-                autoComplete="given-name"
-                placeholder="Como você se chama?"
-                onChange={event => event.currentTarget.setCustomValidity(event.currentTarget.value.trim() ? '' : 'Informe seu primeiro nome')}
-                className={fieldClass}
-              />
+          <form onSubmit={handleSubmit} onInput={() => setFormError(null)} className="mt-6 space-y-3">
+            {mode === 'signup' && <motion.div {...rise(4)} key="name" className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="first-name">Primeiro nome</Label>
+                <input
+                  id="first-name"
+                  name="firstName"
+                  type="text"
+                  required
+                  maxLength={80}
+                  autoComplete="given-name"
+                  placeholder="Primeiro nome"
+                  onChange={event => event.currentTarget.setCustomValidity(event.currentTarget.value.trim() ? '' : 'Informe seu primeiro nome.')}
+                  className={fieldClass}
+                />
+              </div>
+              <div>
+                <Label htmlFor="last-name">Sobrenome</Label>
+                <input id="last-name" name="lastName" type="text" required maxLength={80} autoComplete="family-name" placeholder="Sobrenome" className={fieldClass} />
+              </div>
+            </motion.div>}
+            {mode === 'signup' && <motion.div {...rise(5)} key="birth-date">
+              <Label htmlFor="birth-date">Data de nascimento</Label>
+              <input id="birth-date" name="birthDate" type="date" required autoComplete="bday" className={fieldClass} />
             </motion.div>}
             <motion.div {...rise(4)}>
               <Label htmlFor="email">E-mail</Label>
@@ -112,8 +150,21 @@ export function SmokeLogin({
                 <button type="button" onClick={() => setShowPassword(value => !value)} aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'} className="absolute right-1.5 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-[10px] text-[var(--muted)] hover:text-[var(--ink)] focus-visible:outline-2 focus-visible:outline-[var(--accent)]">{showPassword ? <EyeOff className="size-[18px]" /> : <Eye className="size-[18px]" />}</button>
               </div>
             </motion.div>
-            <motion.div {...rise(6)} className="pt-1"><button type="submit" disabled={disabled || busy} aria-busy={busy} aria-describedby={notice ? 'auth-notice' : undefined} className="group flex h-11 w-full items-center justify-center gap-2 rounded-[14px] bg-[var(--btn)] text-[15px] font-medium text-[var(--btn-ink)] shadow-[0_10px_24px_-12px_rgb(0_0_0/0.5)] transition hover:brightness-110 active:scale-[0.985] disabled:opacity-75 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]">{busy ? <><LoaderCircle aria-hidden className="size-[18px] animate-spin" />{mode === 'signup' ? 'Criando conta...' : 'Entrando...'}</> : <>{submitLabel}<ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" /></>}</button></motion.div>
-            {notice && <p id="auth-notice" role={notice.kind === 'erro' ? 'alert' : 'status'} className="rounded-xl border border-[var(--line)] bg-[var(--field)] p-3 text-sm text-[var(--ink)]">{notice.text}</p>}
+            {mode === 'signup' && <motion.div {...rise(6)} key="password-confirmation">
+              <Label htmlFor="password-confirmation">Confirme sua senha</Label>
+              <input
+                id="password-confirmation"
+                name="passwordConfirmation"
+                type={showPassword ? 'text' : 'password'}
+                required
+                minLength={6}
+                autoComplete="new-password"
+                placeholder="Digite a senha novamente"
+                className={fieldClass}
+              />
+            </motion.div>}
+            <motion.div {...rise(6)} className="pt-1"><button type="submit" disabled={disabled || busy} aria-busy={busy} aria-describedby={notice || formError ? 'auth-notice' : undefined} className="group flex h-11 w-full items-center justify-center gap-2 rounded-[14px] bg-[var(--btn)] text-[15px] font-medium text-[var(--btn-ink)] shadow-[0_10px_24px_-12px_rgb(0_0_0/0.5)] transition hover:brightness-110 active:scale-[0.985] disabled:opacity-75 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]">{busy ? <><LoaderCircle aria-hidden className="size-[18px] animate-spin" />{mode === 'signup' ? 'Criando conta...' : 'Entrando...'}</> : <>{submitLabel}<ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" /></>}</button></motion.div>
+            {(formError || notice) && <p id="auth-notice" role={formError || notice?.kind === 'erro' ? 'alert' : 'status'} className="rounded-xl border border-[var(--line)] bg-[var(--field)] p-3 text-sm text-[var(--ink)]">{formError ?? notice?.text}</p>}
           </form>
           <motion.p {...rise(7)} className="mt-6 text-center text-[13px] text-[var(--muted)]">{mode === 'signup' ? 'Já tem uma conta? ' : 'Ainda não tem conta? '}{onSignUpClick ? <button type="button" disabled={busy} onClick={onSignUpClick} className="font-medium text-[var(--ink)] underline-offset-4 hover:underline disabled:opacity-50">{mode === 'signup' ? 'Entrar' : 'Crie uma conta'}</button> : <a href={signUpHref} className="font-medium text-[var(--ink)] underline-offset-4 hover:underline">Crie uma conta</a>}</motion.p>
           {footer && <motion.div {...rise(8)} className="mt-6 text-center text-[12px] text-[var(--muted)]">{footer}</motion.div>}
