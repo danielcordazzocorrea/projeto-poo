@@ -22,12 +22,10 @@ test('cadastro envia primeiro nome, e-mail e senha ao Supabase', async () => {
     assert.equal(body.email, 'aluno@example.com');
     assert.equal(body.password, 'senha-de-teste');
     assert.equal(body.data.first_name, 'João');
-    assert.equal(body.data.last_name, 'Silva');
-    assert.equal(body.data.birth_date, '2000-01-20');
     return Response.json({ user: { id: 'user-test', email: body.email }, session: null });
   });
   const session = await submitCredentials(client, 'signup', {
-    email: ' aluno@example.com ', password: 'senha-de-teste', firstName: ' João ', lastName: ' Silva ', birthDate: '2000-01-20', passwordConfirmation: 'senha-de-teste',
+    email: ' aluno@example.com ', password: 'senha-de-teste', firstName: ' João ',
   }, 'https://corretora.example');
   assert.equal(requests, 1);
   assert.equal(session, null, 'a confirmação por e-mail não precisa retornar uma sessão');
@@ -39,7 +37,7 @@ test('cadastro retorna a sessão quando a confirmação de e-mail está desativa
     expires_in: 3600, token_type: 'bearer', user: { id: 'user-test' },
   }));
   const session = await submitCredentials(client, 'signup', {
-    email: 'aluno@example.com', password: 'senha-de-teste', firstName: 'João', lastName: 'Silva', birthDate: '2000-01-20', passwordConfirmation: 'senha-de-teste',
+    email: 'aluno@example.com', password: 'senha-de-teste', firstName: 'João',
   }, 'https://corretora.example');
   assert.equal(session?.user.id, 'user-test');
 });
@@ -55,7 +53,7 @@ test('erro do Supabase é propagado para ser exibido no formulário', async () =
     msg: 'Signups not allowed for this instance',
   }, { status: 422 }));
   await assert.rejects(submitCredentials(client, 'signup', {
-    email: 'aluno@example.com', password: 'senha-de-teste', firstName: 'João', lastName: 'Silva', birthDate: '2000-01-20', passwordConfirmation: 'senha-de-teste',
+    email: 'aluno@example.com', password: 'senha-de-teste', firstName: 'João',
   }, 'https://corretora.example'), /Signups not allowed/);
 });
 
@@ -63,7 +61,7 @@ test('cadastro rejeita nome ausente ou apenas espaços sem enviar ao Supabase', 
   const client = clientWithFetch(async () => { assert.fail('Não deveria enviar o cadastro sem nome'); });
   for (const firstName of [undefined, '   ']) {
     await assert.rejects(submitCredentials(client, 'signup', {
-      email: 'aluno@example.com', password: 'senha-de-teste', firstName, lastName: 'Silva', birthDate: '2000-01-20', passwordConfirmation: 'senha-de-teste',
+      email: 'aluno@example.com', password: 'senha-de-teste', firstName,
     }, 'https://corretora.example'), /Informe seu primeiro nome/);
   }
 });
@@ -78,29 +76,4 @@ test('login continua usando o endpoint de senha, sem criar outro usuário', asyn
   await assert.rejects(submitCredentials(client, 'login', {
     email: 'aluno@example.com', password: 'senha-de-teste',
   }, 'https://corretora.example'), /E-mail ou senha incorretos/);
-});
-
-test('cadastro exige data válida e confirmação igual à senha', async () => {
-  const client = clientWithFetch(async () => { assert.fail('Não deveria enviar cadastro inválido'); });
-  await assert.rejects(submitCredentials(client, 'signup', {
-    email: 'aluno@example.com', password: 'senha-de-teste', passwordConfirmation: 'outra-senha', firstName: 'João', lastName: 'Silva', birthDate: '2000-01-20',
-  }, 'https://corretora.example'), /As senhas não conferem/);
-  await assert.rejects(submitCredentials(client, 'signup', {
-    email: 'aluno@example.com', password: 'senha-de-teste', passwordConfirmation: 'senha-de-teste', firstName: 'João', lastName: 'Silva', birthDate: '2000-02-31',
-  }, 'https://corretora.example'), /Data de nascimento inválida\./);
-});
-
-test('cadastro só aceita idade entre 18 e 119 anos', async () => {
-  const client = clientWithFetch(async () => { assert.fail('Não deveria enviar cadastro fora da faixa etária'); });
-  const today = new Date();
-  const month = String(today.getMonth() + 1).padStart(2, '0');
-  const day = String(today.getDate()).padStart(2, '0');
-  for (const [year, expectedMessage] of [
-    [today.getFullYear() - 17, /Data de nascimento inválida, menor de 18 anos\./],
-    [today.getFullYear() - 120, /Data de nascimento inválida\./],
-  ] as const) {
-    await assert.rejects(submitCredentials(client, 'signup', {
-      email: 'aluno@example.com', password: 'senha-de-teste', passwordConfirmation: 'senha-de-teste', firstName: 'João', lastName: 'Silva', birthDate: `${year}-${month}-${day}`,
-    }, 'https://corretora.example'), expectedMessage);
-  }
 });

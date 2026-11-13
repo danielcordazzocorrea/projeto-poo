@@ -85,8 +85,7 @@ button:not(:disabled) { cursor: pointer; }
 .account-destination:hover { border-color: #719a7a; background: #fafff7; }
 .account-destination-top { display: flex; justify-content: space-between; align-items: center; color: #5e7165; margin-bottom: 28px; }
 .account-option-icon { display: grid; place-items: center; width: 52px; height: 52px; background: #eef4e9; color: #34583b; border-radius: 16px; }
-.account-destination-pix .account-option-icon { background: #e7f3ef; }
-.account-pix-logo { width: 29px; height: 29px; }
+.account-destination-pix .account-option-icon { background: #e7f3ef; color: #285e53; }
 .account-destination-profile .account-option-icon { background: #eff0f6; color: #515976; }
 .account-destination h3 { font-size: 22px; letter-spacing: -.6px; font-weight: 600; }
 .account-destination p { margin-block: 10px 28px; color: var(--account-muted); font-size: 14px; line-height: 1.65; }
@@ -131,7 +130,7 @@ button:not(:disabled) { cursor: pointer; }
 .account-app[data-theme="dark"] .account-destination:hover { background: #1c2b20; border-color: #719a7a; }
 .account-app[data-theme="dark"] .account-destination-top { color: var(--account-muted); }
 .account-app[data-theme="dark"] :is(.account-option-icon, .account-coming-icon) { background: #253726; color: #b8ef91; }
-.account-app[data-theme="dark"] .account-destination-pix .account-option-icon { background: #203c35; }
+.account-app[data-theme="dark"] .account-destination-pix .account-option-icon { background: #203c35; color: #a2dfce; }
 .account-app[data-theme="dark"] .account-destination-profile .account-option-icon { background: #2c3043; color: #c5cefa; }
 .account-app[data-theme="dark"] .account-notice { background: #34271d; border-color: #8c6749; color: #f2d1af; }
 .account-app[data-theme="dark"] .account-detail-refresh { background: #9dff3a; color: #0c0d0c; }

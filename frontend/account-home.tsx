@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import type { Theme } from '@/lib/theme';
-import { ArrowLeft, ArrowUpRight, ChartNoAxesCombined, Check, Eye, EyeOff, Landmark, LogOut, Moon, Sun, RefreshCw, UserRound } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, ChartNoAxesCombined, Check, Eye, EyeOff, Landmark, LogOut, Moon, Sun, RefreshCw, ScanLine, UserRound } from 'lucide-react';
 
 type Area = 'home' | 'investments' | 'pix' | 'profile';
 type AccountHomeProps = {
@@ -17,20 +17,10 @@ type AccountHomeProps = {
 };
 
 const destinations = [
-  { id: 'investments', title: 'Investimentos', description: 'Seu espaço para acompanhar ativos e construir sua carteira simulada', action: 'Explorar investimentos' },
-  { id: 'pix', title: 'Pix', description: 'Um lugar para suas transferências e chaves — estamos preparando essa área', action: 'Conhecer a área Pix' },
-  { id: 'profile', title: 'Dados da conta', description: 'Consulte seu cadastro, e-mail e informações da sua conta em um só lugar', action: 'Ver meus dados' },
+  { id: 'investments', title: 'Investimentos', description: 'Seu espaço para acompanhar ativos e construir sua carteira simulada', action: 'Explorar investimentos', icon: ChartNoAxesCombined },
+  { id: 'pix', title: 'Pix', description: 'Um lugar para suas transferências e chaves — estamos preparando essa área', action: 'Conhecer a área Pix', icon: ScanLine },
+  { id: 'profile', title: 'Dados da conta', description: 'Consulte seu cadastro, e-mail e informações da sua conta em um só lugar', action: 'Ver meus dados', icon: UserRound },
 ] as const;
-
-function formatDateBr(value: unknown): string {
-  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return 'Não informado';
-  const [year, month, day] = value.split('-');
-  return `${day}/${month}/${year}`;
-}
-
-function PixLogo() {
-  return <img className="account-pix-logo" src="/pix-logo.svg" alt="" />;
-}
 
 export function AccountHome({ theme, onThemeChange, session, conta, loading, notice, onRefresh, onPixTransfer, onLogout }: AccountHomeProps) {
   const [area, setArea] = useState<Area>('home');
@@ -50,10 +40,6 @@ export function AccountHome({ theme, onThemeChange, session, conta, loading, not
   const selected = destinations.find(item => item.id === area);
   const savedName: unknown = session.user.user_metadata?.first_name;
   const firstName = typeof savedName === 'string' ? savedName.trim().split(/\s+/)[0] : '';
-  const savedLastName: unknown = session.user.user_metadata?.last_name;
-  const lastName = typeof savedLastName === 'string' ? savedLastName.trim() : '';
-  const fullName = [firstName, lastName].filter(Boolean).join(' ') || 'Não informado';
-  const birthDate = formatDateBr(session.user.user_metadata?.birth_date);
 
   async function submitPix(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -102,8 +88,8 @@ export function AccountHome({ theme, onThemeChange, session, conta, loading, not
         </section>
         <section className="account-options" aria-labelledby="options-title">
           <div className="account-section-heading"><h2 id="options-title">Sua conta, por aqui</h2><span>O que você precisa, em um lugar</span></div>
-          <div className="account-destinations">{destinations.map(({ id, title, description, action }) => <button key={id} type="button" className={`account-destination account-destination-${id}`} onClick={() => setArea(id)}>
-            <span className="account-destination-top"><span className="account-option-icon">{id === 'pix' ? <PixLogo /> : id === 'investments' ? <ChartNoAxesCombined size={26} strokeWidth={1.6} aria-hidden /> : <UserRound size={26} strokeWidth={1.6} aria-hidden />}</span><ArrowUpRight size={20} aria-hidden /></span>
+          <div className="account-destinations">{destinations.map(({ id, title, description, action, icon: Icon }) => <button key={id} type="button" className={`account-destination account-destination-${id}`} onClick={() => setArea(id)}>
+            <span className="account-destination-top"><span className="account-option-icon"><Icon size={26} strokeWidth={1.6} aria-hidden /></span><ArrowUpRight size={20} aria-hidden /></span>
             <h3>{title}</h3><p>{description}</p><span className="account-destination-action">{action}</span>
           </button>)}</div>
         </section>
@@ -113,9 +99,8 @@ export function AccountHome({ theme, onThemeChange, session, conta, loading, not
         {area === 'profile' ? <>
           <p className="account-detail-intro">Confira seus dados de cadastro e as informações da sua conta tivvo</p>
           <dl className="account-data">
-            <div><dt>Nome completo</dt><dd>{fullName}</dd></div>
-            <div><dt>Data de nascimento</dt><dd>{birthDate}</dd></div>
             <div><dt>E-mail</dt><dd>{session.user.email ?? 'Não informado'}</dd></div>
+            <div><dt>Identificador da conta</dt><dd>{loading ? 'Carregando…' : conta?.id ?? 'Conta indisponível — tente atualizar os dados'}</dd></div>
             <div><dt>Data de cadastro</dt><dd>{createdLabel}</dd></div>
             <div><dt>Verificação do e-mail</dt><dd>{session.user.email_confirmed_at ? <span className="account-verified"><Check size={16} aria-hidden />Confirmado</span> : 'Pendente'}</dd></div>
           </dl>
