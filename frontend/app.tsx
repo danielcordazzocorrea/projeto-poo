@@ -51,6 +51,24 @@ export default function App() {
   async function requestAccount(method: 'GET' | 'POST', token: string): Promise<Response> {
     return fetch(`${url}/functions/v1/corretora/conta`, { method, headers: { apikey: chave, Authorization: `Bearer ${token}` } });
   }
+  async function transferPix(chaveDestino: string, valor: string): Promise<void> {
+    if (!session) return;
+    setLoadingAccount(true); setNotice(null);
+    try {
+      const response = await fetch(`${url}/functions/v1/corretora/pix/transferencias`, {
+        method: 'POST',
+        headers: { apikey: chave, Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chave_destino: chaveDestino, valor }),
+      });
+      if (!response.ok) throw new Error(await readError(response));
+      setConta(await response.json() as Conta);
+      setNotice({ text: 'Pix enviado com sucesso.', kind: 'ok' });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'erro inesperado';
+      setNotice({ text: `Não foi possível enviar o Pix: ${message}`, kind: 'erro' });
+      throw error;
+    } finally { setLoadingAccount(false); }
+  }
   async function loadAccount(currentSession: Session): Promise<void> {
     setLoadingAccount(true); setNotice(null);
     try {
@@ -73,7 +91,7 @@ export default function App() {
   }
   async function logout(): Promise<void> { if (!supabase) return; const { error } = await supabase.auth.signOut(); setNotice(error ? { text: error.message, kind: 'erro' } : { text: 'Você saiu da sua conta', kind: 'ok' }); }
 
-  if (session) return <AccountHome key={session.user.id} theme={theme} onThemeChange={setTheme} session={session} conta={conta} loading={loadingAccount} notice={notice} onRefresh={() => void loadAccount(session)} onLogout={() => void logout()} />;
+  if (session) return <AccountHome key={session.user.id} theme={theme} onThemeChange={setTheme} session={session} conta={conta} loading={loadingAccount} notice={notice} onRefresh={() => void loadAccount(session)} onPixTransfer={transferPix} onLogout={() => void logout()} />;
   const signingUp = mode === 'signup';
   return <SmokeLogin
     theme={theme}

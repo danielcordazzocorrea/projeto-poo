@@ -64,8 +64,8 @@ export class RepositorioSupabase implements RepositorioCorretora {
     // A ausência da conta é diferente de falha de comunicação com o banco.
     if (!conta) throw new NaoEncontrado('Conta não encontrada. Abra uma conta primeiro.');
 
-    // Faz três leituras independentes em paralelo para reduzir a espera.
-    const [resultadoPosicoes, resultadoMovimentos, ativos] = await Promise.all([
+    // Faz quatro leituras independentes em paralelo para reduzir a espera.
+    const [resultadoPosicoes, resultadoMovimentos, ativos, resultadoChavePix] = await Promise.all([
       // Lê as quantidades dos ativos pertencentes à conta encontrada.
       this.banco.from('posicoes').select('ativo_codigo,quantidade_micros').eq('conta_id', conta.id),
       // Lê no máximo as 100 movimentações mais recentes da mesma conta.
@@ -74,10 +74,16 @@ export class RepositorioSupabase implements RepositorioCorretora {
         .eq('conta_id', conta.id).order('criada_em', { ascending: false }).limit(100),
       // Busca os dados completos dos ativos usados para montar as posições.
       this.listarAtivos(),
+      // A RLS permite ler somente a chave pertencente ao usuário da sessão.
+      this.banco.from('chaves_pix').select('chave').maybeSingle(),
     ]);
     // Cada consulta pode falhar separadamente; as duas respostas SQL são conferidas.
     verificarErro(resultadoPosicoes.error);
     verificarErro(resultadoMovimentos.error);
+    verificarErro(resultadoChavePix.error);
+    if (!resultadoChavePix.data?.chave) {
+      throw new FalhaDePersistencia('Chave Pix não encontrada para esta conta.');
+    }
     // Map permite achar um Ativo pelo código sem percorrer a lista toda vez.
     const ativosPorCodigo = new Map(ativos.map(ativo => [ativo.codigo, ativo]));
     // Transforma cada linha de `posicoes` em um objeto Posicao.
@@ -99,7 +105,14 @@ export class RepositorioSupabase implements RepositorioCorretora {
       row.quantidade_micros === null ? null : Quantidade.doBanco(row.quantidade_micros),
     ));
     // Composição: Conta recebe seu saldo, suas posições e suas movimentações.
-    return new Conta(conta.id, conta.usuario_id, Dinheiro.doBanco(conta.saldo_centavos), posicoes, movimentos);
+    return new Conta(
+      conta.id,
+      conta.usuario_id,
+      Dinheiro.doBanco(conta.saldo_centavos),
+      resultadoChavePix.data.chave,
+      posicoes,
+      movimentos,
+    );
   }
 
   // Envia o depósito ao banco; a função SQL atualiza saldo e histórico junto.
@@ -127,6 +140,14 @@ export class RepositorioSupabase implements RepositorioCorretora {
       // A função SQL escolhe a conta usando auth.uid(), não um ID enviado aqui.
       p_ativo_codigo: codigo,
       p_quantidade_micros: Number(micros),
+    });
+    verificarErro(error);
+  }
+
+  async transferirPix(chaveDestino: string, centavos: bigint): Promise<void> {
+    const { error } = await this.banco.rpc('transferir_pix', {
+      p_chave_destino: chaveDestino,
+      p_valor_centavos: Number(centavos),
     });
     verificarErro(error);
   }

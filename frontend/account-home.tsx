@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import type { Theme } from '@/lib/theme';
 import { ArrowLeft, ArrowUpRight, ChartNoAxesCombined, Check, Eye, EyeOff, Landmark, LogOut, Moon, Sun, RefreshCw, ScanLine, UserRound } from 'lucide-react';
@@ -12,6 +12,7 @@ type AccountHomeProps = {
   loading: boolean;
   notice: { text: string; kind: 'ok' | 'erro' | 'info' } | null;
   onRefresh: () => void;
+  onPixTransfer: (chaveDestino: string, valor: string) => Promise<void>;
   onLogout: () => void;
 };
 
@@ -21,9 +22,12 @@ const destinations = [
   { id: 'profile', title: 'Dados da conta', description: 'Consulte seu cadastro, e-mail e informações da sua conta em um só lugar', action: 'Ver meus dados', icon: UserRound },
 ] as const;
 
-export function AccountHome({ theme, onThemeChange, session, conta, loading, notice, onRefresh, onLogout }: AccountHomeProps) {
+export function AccountHome({ theme, onThemeChange, session, conta, loading, notice, onRefresh, onPixTransfer, onLogout }: AccountHomeProps) {
   const [area, setArea] = useState<Area>('home');
   const [balanceVisible, setBalanceVisible] = useState(true);
+  const [pixKey, setPixKey] = useState('');
+  const [pixValue, setPixValue] = useState('');
+  const [sendingPix, setSendingPix] = useState(false);
   const heading = useRef<HTMLHeadingElement>(null);
   const previousArea = useRef(area);
   useEffect(() => {
@@ -36,6 +40,17 @@ export function AccountHome({ theme, onThemeChange, session, conta, loading, not
   const selected = destinations.find(item => item.id === area);
   const savedName: unknown = session.user.user_metadata?.first_name;
   const firstName = typeof savedName === 'string' ? savedName.trim().split(/\s+/)[0] : '';
+
+  async function submitPix(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    setSendingPix(true);
+    try {
+      await onPixTransfer(pixKey, pixValue);
+      setPixKey('');
+      setPixValue('');
+    } catch { /* A mensagem de erro é exibida pelo aviso compartilhado da conta. */ }
+    finally { setSendingPix(false); }
+  }
 
   return <div className="account-app" data-theme={theme} style={{ colorScheme: theme }}>
     <a className="account-skip" href="#account-content">Ir para o conteúdo</a>
@@ -90,11 +105,22 @@ export function AccountHome({ theme, onThemeChange, session, conta, loading, not
             <div><dt>Verificação do e-mail</dt><dd>{session.user.email_confirmed_at ? <span className="account-verified"><Check size={16} aria-hidden />Confirmado</span> : 'Pendente'}</dd></div>
           </dl>
           <button type="button" className="account-detail-refresh" onClick={onRefresh} disabled={loading}><RefreshCw size={16} className={loading ? 'account-spin' : ''} aria-hidden />{loading ? 'Atualizando…' : 'Atualizar dados'}</button>
-        </> : <div className="account-coming-soon">
-          <span className="account-coming-icon">{area === 'pix' ? <ScanLine size={40} strokeWidth={1.4} aria-hidden /> : <ChartNoAxesCombined size={40} strokeWidth={1.4} aria-hidden />}</span>
+        </> : area === 'pix' ? <div className="account-pix">
+          <p className="account-detail-intro">Envie saldo simulado para outra conta tivvo usando a chave Pix de e-mail.</p>
+          <form className="account-pix-form" onSubmit={event => void submitPix(event)}>
+            <h2>Enviar Pix</h2>
+            <label htmlFor="pix-key">Chave Pix de destino <span>(e-mail)</span></label>
+            <input id="pix-key" type="email" value={pixKey} onChange={event => setPixKey(event.target.value)} placeholder="pessoa@exemplo.com" autoComplete="email" required disabled={sendingPix || loading} />
+            <label htmlFor="pix-value">Valor</label>
+            <div className="account-pix-value"><span>R$</span><input id="pix-value" type="text" inputMode="decimal" value={pixValue} onChange={event => setPixValue(event.target.value.replace(',', '.'))} placeholder="0,00" required disabled={sendingPix || loading} /></div>
+            <button type="submit" className="account-pix-submit" disabled={sendingPix || loading}>{sendingPix ? 'Enviando Pix…' : 'Enviar Pix'}</button>
+          </form>
+          <p className="account-pix-note">O envio é imediato neste ambiente de demonstração. Confira a chave e o valor antes de confirmar.</p>
+        </div> : <div className="account-coming-soon">
+          <span className="account-coming-icon"><ChartNoAxesCombined size={40} strokeWidth={1.4} aria-hidden /></span>
           <span className="account-soon-label">Em breve</span>
-          <h2>{area === 'pix' ? 'Seu Pix terá lugar aqui' : 'O próximo passo para sua carteira'}</h2>
-          <p>{area === 'pix' ? 'Esta área está em preparação — ainda não é possível cadastrar chaves, enviar ou receber Pix' : 'Estamos preparando a consulta de ativos e a gestão da sua carteira — as operações de investimento ainda não estão disponíveis nesta tela'}</p>
+          <h2>O próximo passo para sua carteira</h2>
+          <p>Estamos preparando a consulta de ativos e a gestão da sua carteira — as operações de investimento ainda não estão disponíveis nesta tela</p>
         </div>}
       </section>}
 

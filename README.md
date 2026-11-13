@@ -11,7 +11,7 @@ Projeto de demonstração em TypeScript com frontend básico e Supabase Edge Fun
 - `supabase/migrations/`: tabelas, RLS, conta criada automaticamente no cadastro e operações transacionais.
 - `frontend/`: tela de cadastro, login e consulta da conta.
 
-O cadastro usa Supabase Auth e também cria a conta da corretora com saldo zero por um trigger do banco. A Edge Function aceita apenas usuário autenticado; as operações SQL identificam a conta por `auth.uid()` e não recebem um `conta_id` escolhido pelo cliente.
+O cadastro usa Supabase Auth e também cria a conta da corretora com saldo zero por um trigger do banco. A Edge Function aceita apenas usuário autenticado; as operações SQL identificam a conta por `auth.uid()` e não recebem um `conta_id` escolhido pelo cliente. Cada usuário também recebe seu e-mail normalizado como chave Pix para transferências simuladas entre contas tivvo.
 
 ## Frontend básico
 
@@ -62,8 +62,9 @@ O caminho base é `/functions/v1/corretora`. Envie o JWT de sessão do Supabase 
 | `POST` | `/depositos` | `{"valor":"100.00"}` |
 | `POST` | `/compras` | `{"codigo_ativo":"ACAO1","quantidade":"2"}` |
 | `POST` | `/vendas` | `{"codigo_ativo":"ACAO1","quantidade":"1"}` |
+| `POST` | `/pix/transferencias` | `{"chave_destino":"pessoa@exemplo.com","valor":"25.00"}` |
 
-Valores monetários e quantidades são texto decimal. A resposta da conta traz saldo, posições e as 100 movimentações mais recentes. Os preços `ACAO1` e `USD` são fixos e fictícios. O depósito adiciona saldo **simulado**, sem integração de pagamentos.
+Valores monetários e quantidades são texto decimal. A resposta da conta traz saldo, sua `chave_pix`, posições e as 100 movimentações mais recentes. Os preços `ACAO1` e `USD` são fixos e fictícios. O depósito adiciona saldo **simulado**, sem integração de pagamentos. O Pix simulado encontra a conta destinatária pela chave, rejeita a própria chave e saldo insuficiente, e grava o débito e o crédito na mesma transação do Postgres.
 
 ## Testes
 
