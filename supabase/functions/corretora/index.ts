@@ -43,10 +43,6 @@ Deno.serve(withSupabase({ auth: 'user' }, async (req, ctx) => {
       const dados = await lerJson(req);
       return json(200, await corretora.vender(dados.codigo_ativo, dados.quantidade));
     }
-    if (req.method === 'POST' && caminho === '/pix/transferencias') {
-      const dados = await lerJson(req);
-      return json(200, await corretora.transferirPix(dados.chave_destino, dados.valor));
-    }
     return json(404, { erro: 'Rota não encontrada.' });
   } catch (erro) {
     if (erro instanceof NaoEncontrado) return json(404, { erro: erro.message });

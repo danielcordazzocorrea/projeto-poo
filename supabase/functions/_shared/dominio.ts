@@ -127,7 +127,7 @@ export class Posicao {
 }
 
 // Tipos permitidos no histórico de operações.
-export type TipoMovimentacao = 'DEPOSITO' | 'COMPRA' | 'VENDA' | 'PIX_ENVIADO' | 'PIX_RECEBIDO';
+export type TipoMovimentacao = 'DEPOSITO' | 'COMPRA' | 'VENDA';
 
 // Uma movimentação registra uma operação já concluída.
 export class Movimentacao {
@@ -140,7 +140,7 @@ export class Movimentacao {
     readonly valor: Dinheiro,
     // Data e hora recebidas do banco.
     readonly criadaEm: string,
-    // Depósitos e Pix não têm ativo nem quantidade, por isso estes campos aceitam null.
+    // Depósitos não têm ativo nem quantidade, por isso estes campos aceitam null.
     readonly codigoAtivo: string | null,
     readonly quantidade: Quantidade | null,
   ) {}
@@ -169,8 +169,6 @@ export class Conta {
     readonly usuarioId: string,
     // Saldo atual representado pelo objeto de valor Dinheiro.
     readonly saldo: Dinheiro,
-    // A chave Pix é o e-mail normalizado do usuário, criado junto com a conta.
-    readonly chavePix: string,
     // Carteira: lista das posições atuais em ativos.
     readonly posicoes: Posicao[],
     // Histórico: até 100 movimentações carregadas pelo repositório.
@@ -183,7 +181,6 @@ export class Conta {
       usuario_id: this.usuarioId,
       // O cliente recebe "50.00", não o bigint 5000n.
       saldo_brl: this.saldo.formatar(),
-      chave_pix: this.chavePix,
       // `map` transforma cada objeto Posicao em JSON.
       posicoes: this.posicoes.map(p => p.paraJson()),
       // Faz o mesmo para cada Movimentacao.

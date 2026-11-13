@@ -103,20 +103,6 @@ button:not(:disabled) { cursor: pointer; }
 .account-data dd { overflow-wrap: anywhere; }
 .account-verified { display: inline-flex; align-items: center; gap: 6px; }
 .account-detail-refresh { display: inline-flex; align-items: center; gap: 8px; margin-top: 28px; padding: 12px 18px; border-radius: 10px; background: #14291e; color: white; font-size: 13px; }
-.account-pix { max-width: 620px; }
-.account-pix-form { display: grid; gap: 9px; margin-top: 28px; }
-.account-pix-form h2 { margin-bottom: 8px; font-size: 20px; font-weight: 600; letter-spacing: -.4px; }
-.account-pix-form label { font-size: 13px; font-weight: 600; }
-.account-pix-form label span { color: var(--account-muted); font-weight: 400; }
-.account-pix-form input { width: 100%; min-height: 46px; border: 1px solid var(--account-line); border-radius: 10px; padding: 10px 12px; background: transparent; color: var(--account-ink); }
-.account-pix-form input:focus { border-color: #4c9330; outline: 0; }
-.account-pix-value { display: flex; align-items: center; border: 1px solid var(--account-line); border-radius: 10px; padding-left: 12px; }
-.account-pix-value:focus-within { border-color: #4c9330; }
-.account-pix-value span { color: var(--account-muted); font-size: 14px; }
-.account-pix-value input { border: 0; }
-.account-pix-value input:focus { border-color: transparent; }
-.account-pix-submit { justify-self: start; margin-top: 10px; padding: 13px 20px; border-radius: 10px; background: #14291e; color: white; font-size: 14px; font-weight: 600; }
-.account-pix-note { margin-top: 18px; color: var(--account-muted); font-size: 12px; line-height: 1.6; }
 .account-coming-soon { padding: 44px 12px 52px; max-width: 500px; margin: auto; text-align: center; }
 .account-coming-icon { display: grid; place-items: center; width: 84px; height: 84px; margin: 0 auto 24px; border-radius: 26px; color: #34583b; background: #eef4e9; }
 .account-soon-label { font-size: 12px; color: var(--account-muted); }
@@ -134,7 +120,6 @@ button:not(:disabled) { cursor: pointer; }
 .account-app[data-theme="dark"] .account-destination-profile .account-option-icon { background: #2c3043; color: #c5cefa; }
 .account-app[data-theme="dark"] .account-notice { background: #34271d; border-color: #8c6749; color: #f2d1af; }
 .account-app[data-theme="dark"] .account-detail-refresh { background: #9dff3a; color: #0c0d0c; }
-.account-app[data-theme="dark"] .account-pix-submit { background: #9dff3a; color: #0c0d0c; }
 @keyframes account-spin { to { transform: rotate(360deg); } }
 .account-spin { animation: account-spin 1.2s linear infinite; }
 @media (max-width: 800px) {

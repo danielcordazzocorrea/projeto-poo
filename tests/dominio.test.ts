@@ -17,7 +17,7 @@ test('valores monetários e quantidades conservam a precisão', () => {
 
 test('serviço valida entradas e delega operações ao repositório', async () => {
   const chamadas: unknown[][] = [];
-  const conta = new Conta('conta-1', 'usuario-1', Dinheiro.doBanco(5000), 'usuario@example.com', [], []);
+  const conta = new Conta('conta-1', 'usuario-1', Dinheiro.doBanco(5000), [], []);
   const repositorio: RepositorioCorretora = {
     listarAtivos: async () => [new Ativo('ACAO1', 'Ação', 'ACAO', Dinheiro.doBanco(2500))],
     abrirConta: async () => { chamadas.push(['abrir']); },
@@ -25,7 +25,6 @@ test('serviço valida entradas e delega operações ao repositório', async () =
     depositar: async centavos => { chamadas.push(['depositar', centavos]); },
     comprar: async (codigo, micros) => { chamadas.push(['comprar', codigo, micros]); },
     vender: async (codigo, micros) => { chamadas.push(['vender', codigo, micros]); },
-    transferirPix: async (chave, centavos) => { chamadas.push(['pix', chave, centavos]); },
   };
   const corretora = new Corretora(repositorio);
   assert.equal((await corretora.consultarConta()).saldo_brl, '50.00');
@@ -34,13 +33,10 @@ test('serviço valida entradas e delega operações ao repositório', async () =
   await corretora.depositar('10.05');
   await corretora.comprar('ACAO1', '0.5');
   await corretora.vender('ACAO1', '0.25');
-  await corretora.transferirPix(' Destinatario@Example.com ', '15.25');
   assert.deepEqual(chamadas, [
     ['abrir'], ['depositar', 1005n], ['comprar', 'ACAO1', 500000n],
     ['vender', 'ACAO1', 250000n],
-    ['pix', 'destinatario@example.com', 1525n],
   ]);
   await assert.rejects(corretora.comprar('inválido', '1'), RegraDeNegocio);
-  await assert.rejects(corretora.transferirPix('  ', '1'), RegraDeNegocio);
-  assert.equal(chamadas.length, 5);
+  assert.equal(chamadas.length, 4);
 });
