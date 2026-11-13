@@ -1,4 +1,4 @@
-/** A split authentication screen with a WebGL shader panel. */
+/** Authentication screen with a full-page shader and a dark form panel. */
 'use client';
 
 import {
@@ -7,11 +7,12 @@ import {
   type FormEvent,
   type ReactNode,
 } from 'react';
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import { ArrowRight, Eye, EyeOff, LoaderCircle, Moon, Sun } from 'lucide-react';
+import { motion, useReducedMotion } from 'motion/react';
+import { ArrowRight, Eye, EyeOff, LoaderCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Theme } from '@/lib/theme';
 import AnoAI from '@/components/ui/animated-shader-background';
+import { AboutTivvo } from '@/components/ui/about-tivvo';
 
 export type SmokeLoginProps = {
   brand?: string;
@@ -21,13 +22,12 @@ export type SmokeLoginProps = {
   mode?: 'login' | 'signup';
   disabled?: boolean;
   notice?: { text: string; kind: 'ok' | 'erro' | 'info' } | null;
-  onSubmit?: (values: { email: string; password: string }) => void | Promise<void>;
+  onSubmit?: (values: { email: string; password: string; firstName?: string }) => void | Promise<void>;
   forgotPasswordHref?: string;
   signUpHref?: string;
   onSignUpClick?: () => void;
   defaultTheme?: Theme;
   theme?: Theme;
-  onThemeChange?: (theme: Theme) => void;
   className?: string;
   footer?: ReactNode;
 };
@@ -43,18 +43,12 @@ export function SmokeLogin({
   submitLabel = 'Sign in', onSubmit = () => wait(700),
   mode = 'login', disabled = false, notice,
   forgotPasswordHref = '#', signUpHref = '#', onSignUpClick, defaultTheme = 'dark', className, footer,
-  theme: controlledTheme, onThemeChange,
+  theme: controlledTheme,
 }: SmokeLoginProps) {
-  const [localTheme, setLocalTheme] = useState<Theme>(defaultTheme);
-  const theme = controlledTheme ?? localTheme;
-  const changeTheme = (nextTheme: Theme) => {
-    if (controlledTheme === undefined) setLocalTheme(nextTheme);
-    onThemeChange?.(nextTheme);
-  };
+  const theme = controlledTheme ?? defaultTheme;
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const reducedMotion = useReducedMotion();
-  const dark = theme === 'dark';
   const rise = (index: number) => ({
     initial: reducedMotion ? { opacity: 0 } : { opacity: 0, y: 10, filter: 'blur(10px)' },
     animate: { opacity: 1, y: 0, filter: 'blur(0px)' },
@@ -65,35 +59,49 @@ export function SmokeLogin({
     if (busy || disabled) return;
     const data = new FormData(event.currentTarget);
     setBusy(true);
-    try { await onSubmit({ email: String(data.get('email')), password: String(data.get('password')) }); }
+    try { await onSubmit({ email: String(data.get('email')), password: String(data.get('password')), ...(mode === 'signup' ? { firstName: String(data.get('firstName') ?? '').trim() } : {}) }); }
     finally { setBusy(false); }
   };
 
   return (
-    <main data-theme={theme} style={{ ...THEMES[theme], colorScheme: theme } as CSSProperties} className={cn('login-shell grid min-h-dvh w-full grid-cols-1 gap-2 overflow-x-hidden bg-[var(--bg)] p-2 font-sans text-[var(--ink)] transition-colors duration-700 sm:gap-3 sm:p-3 md:h-dvh md:grid-cols-[1.08fr_1fr]', className)}>
-      <section className="relative min-h-[170px] sm:min-h-[250px] md:min-h-0">
-        <div aria-hidden className="absolute inset-0 rotate-[-1.4deg] rounded-[28px] bg-[var(--sheet)]" />
-        <div aria-hidden className="absolute inset-0 rotate-[0.9deg] rounded-[28px] bg-[var(--paper)] shadow-[0_8px_24px_-12px_rgb(0_0_0/0.18)]" />
-        <div className="relative h-full min-h-[170px] overflow-hidden rounded-[28px] bg-[#09140e] shadow-[0_24px_48px_-24px_rgb(0_0_0/0.35)] sm:min-h-[250px] md:min-h-0">
-          <AnoAI className="absolute inset-0 size-full" />
-          <div aria-hidden className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(9,20,14,.88)_0%,rgba(9,20,14,.52)_55%,rgba(9,20,14,.18)_100%)]" />
-          <div className="relative flex h-full min-h-[170px] flex-col p-5 text-white sm:min-h-[250px] sm:p-7 md:min-h-0 lg:p-10">
-            <motion.div {...rise(0)} className="text-[23px] font-semibold tracking-[-0.07em] sm:text-[25px]">{brand === 'tivvo' ? <>ti<span className="text-[#9dff3a]">vv</span>o</> : brand}</motion.div>
-            <motion.div {...rise(1)} className="flex max-w-[31rem] flex-1 flex-col justify-center py-2 sm:py-4">
+    <main data-theme={theme} style={{ ...THEMES[theme], colorScheme: 'dark' } as CSSProperties} className={cn('login-shell font-sans', className)}>
+      <div aria-hidden className="login-background">
+        <AnoAI className="absolute inset-0 size-full" />
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(9,20,14,.55)_0%,rgba(9,20,14,.12)_60%,rgba(9,20,14,.2)_100%)]" />
+      </div>
+      <section className="login-intro">
+          <div className="flex h-full flex-col text-white">
+            <motion.header {...rise(0)} className="login-brand-nav">
+              <span className="text-[23px] font-semibold tracking-[-0.07em] sm:text-[25px]">{brand === 'tivvo' ? <>ti<span className="text-[#9dff3a]">vv</span>o</> : brand}</span>
+              <nav aria-label="Sobre a tivvo"><AboutTivvo /></nav>
+            </motion.header>
+            <motion.div {...rise(1)} className="flex max-w-[31rem] flex-1 flex-col justify-center py-6 md:py-12">
               <p className="text-[clamp(1.9rem,4vw,4.25rem)] font-medium leading-[1.04] tracking-[-0.065em]">O próximo passo <span className="text-[#9dff3a]">é seu</span></p>
               <p className="mt-3 hidden max-w-[25rem] text-sm leading-relaxed text-white/80 sm:block lg:text-base">Na tivvo, você acompanha sua conta e descobre novas possibilidades em uma experiência simples</p>
             </motion.div>
-            <motion.p {...rise(2)} className="hidden border-t border-white/20 pt-3 text-xs text-white/70 sm:block">Ambiente de demonstração · Valores e investimentos simulados</motion.p>
+            <motion.p {...rise(2)} className="hidden border-t border-white/20 pt-4 text-xs text-white/70 md:block">Ambiente de demonstração · Valores e investimentos simulados</motion.p>
           </div>
-        </div>
       </section>
 
-      <section className="relative flex items-center justify-center px-5 py-6 sm:px-8 sm:py-8 md:px-6 md:py-6 lg:px-10">
-        <ThemeSwitch theme={theme} onToggle={() => changeTheme(dark ? 'light' : 'dark')} />
-        <div className="w-full max-w-[360px]">
+      <section className="login-form-panel" data-theme="dark" style={{ ...THEMES.dark, colorScheme: 'dark' } as CSSProperties} aria-label={mode === 'signup' ? 'Criar conta' : 'Entrar na conta'}>
+        <div className="w-full">
           <motion.h1 {...rise(2)} className="text-[30px] font-semibold leading-none tracking-[-0.045em] sm:text-[34px]">{title}</motion.h1>
-          <motion.p {...rise(3)} className="mt-2 text-[14px] text-[var(--muted)] sm:text-[15px]">{subtitle}</motion.p>
+          {subtitle && <motion.p {...rise(3)} className="mt-2 text-[14px] text-[var(--muted)] sm:text-[15px]">{subtitle}</motion.p>}
           <form onSubmit={handleSubmit} className="mt-6 space-y-3">
+            {mode === 'signup' && <motion.div {...rise(4)} key="first-name">
+              <Label htmlFor="first-name">Primeiro nome</Label>
+              <input
+                id="first-name"
+                name="firstName"
+                type="text"
+                required
+                maxLength={80}
+                autoComplete="given-name"
+                placeholder="Como você se chama?"
+                onChange={event => event.currentTarget.setCustomValidity(event.currentTarget.value.trim() ? '' : 'Informe seu primeiro nome')}
+                className={fieldClass}
+              />
+            </motion.div>}
             <motion.div {...rise(4)}>
               <Label htmlFor="email">E-mail</Label>
               <input id="email" name="email" type="email" required autoComplete="email" placeholder="voce@exemplo.com" className={fieldClass} />
@@ -117,4 +125,3 @@ export function SmokeLogin({
 
 const fieldClass = 'mt-2 h-11 w-full rounded-[14px] border border-[var(--line)] bg-[var(--field)] px-4 text-[15px] text-[var(--ink)] outline-none transition placeholder:text-[var(--muted)]/60 focus:border-[var(--accent)] focus:ring-4 focus:ring-[color:color-mix(in_oklab,var(--accent)_18%,transparent)]';
 function Label({ htmlFor, children }: { htmlFor: string; children: ReactNode }) { return <label htmlFor={htmlFor} className="text-[13px] font-medium text-[var(--ink)]">{children}</label>; }
-function ThemeSwitch({ theme, onToggle }: { theme: Theme; onToggle: () => void }) { const dark = theme === 'dark'; return <button type="button" onClick={onToggle} aria-label={dark ? 'Alternar para modo claro' : 'Alternar para modo escuro'} className="absolute right-3 top-3 flex h-9 items-center gap-2 rounded-full border border-[var(--line)] bg-[var(--field)] px-3 text-[13px] font-medium focus-visible:outline-2 focus-visible:outline-[var(--accent)] sm:right-6 sm:top-6"><AnimatePresence initial={false} mode="popLayout"><motion.span key={theme} initial={{ opacity: 0, rotate: -90 }} animate={{ opacity: 1, rotate: 0 }} exit={{ opacity: 0, rotate: 90 }}>{dark ? <Moon className="size-4" /> : <Sun className="size-4" />}</motion.span></AnimatePresence>{dark ? 'Escuro' : 'Claro'}</button>; }

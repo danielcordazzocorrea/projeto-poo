@@ -61,7 +61,7 @@ export default function App() {
     } catch (error) { setNotice({ text: `Login realizado, mas não foi possível carregar a conta: ${error instanceof Error ? error.message : 'erro inesperado'}`, kind: 'erro' }); }
     finally { setLoadingAccount(false); }
   }
-  async function authenticate(values: { email: string; password: string }): Promise<void> {
+  async function authenticate(values: { email: string; password: string; firstName?: string }): Promise<void> {
     setNotice(null);
     try {
       const nextSession = await submitCredentials(supabase, mode, values, window.location.origin);
@@ -73,20 +73,18 @@ export default function App() {
   }
   async function logout(): Promise<void> { if (!supabase) return; const { error } = await supabase.auth.signOut(); setNotice(error ? { text: error.message, kind: 'erro' } : { text: 'Você saiu da sua conta', kind: 'ok' }); }
 
-  if (session) return <AccountHome key={session.user.id} theme={theme} session={session} conta={conta} loading={loadingAccount} notice={notice} onRefresh={() => void loadAccount(session)} onLogout={() => void logout()} />;
+  if (session) return <AccountHome key={session.user.id} theme={theme} onThemeChange={setTheme} session={session} conta={conta} loading={loadingAccount} notice={notice} onRefresh={() => void loadAccount(session)} onLogout={() => void logout()} />;
   const signingUp = mode === 'signup';
   return <SmokeLogin
     theme={theme}
-    onThemeChange={setTheme}
     brand="tivvo"
     title={signingUp ? <>Comece pela ti<span className="text-[var(--accent)]">vv</span>o</> : <>Que bom ter você na ti<span className="text-[var(--accent)]">vv</span>o</>}
-    subtitle={signingUp ? 'Crie sua conta para explorar investimentos simulados com saldo inicial zero' : 'Acesse sua conta para acompanhar saldo e investimentos simulados'}
+    subtitle={signingUp ? 'Crie sua conta para explorar investimentos simulados com saldo inicial zero' : ''}
     submitLabel={signingUp ? 'Criar conta' : 'Entrar'}
     mode={mode}
     disabled={!configurado}
     notice={!configurado ? { text: CONFIGURATION_NOTICE, kind: 'info' } : notice}
     onSubmit={authenticate}
     onSignUpClick={() => { setMode(signingUp ? 'login' : 'signup'); setNotice(null); }}
-    footer="tivvo · Ambiente de demonstração · Valores e investimentos simulados"
   />;
 }
