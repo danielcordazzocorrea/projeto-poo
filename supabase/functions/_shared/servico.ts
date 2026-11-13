@@ -16,6 +16,8 @@ export interface RepositorioCorretora {
   comprar(codigo: string, micros: bigint): Promise<void>;
   // Mesmos tipos da compra, mas executa a operação inversa.
   vender(codigo: string, micros: bigint): Promise<void>;
+  // Transfere saldo para a conta encontrada pela chave Pix.
+  transferirPix(chaveDestino: string, centavos: bigint): Promise<void>;
 }
 
 // Serviço de aplicação: coordena os casos de uso da corretora.
@@ -53,6 +55,14 @@ export class Corretora {
     return this.consultarConta();
   }
 
+  async transferirPix(chaveDestino: unknown, valor: unknown) {
+    await this.repositorio.transferirPix(
+      this.validarChavePix(chaveDestino),
+      Dinheiro.positivo(valor).centavos,
+    );
+    return this.consultarConta();
+  }
+
   // `private` limita este detalhe de validação ao interior da classe Corretora.
   private validarCodigo(codigo: unknown): string {
     // Só permite códigos de 1 a 20 caracteres, com letras maiúsculas e números.
@@ -61,5 +71,14 @@ export class Corretora {
     }
     // Depois da verificação, TypeScript sabe que codigo é string.
     return codigo;
+  }
+
+  private validarChavePix(chave: unknown): string {
+    if (typeof chave !== 'string') throw new RegraDeNegocio('Chave Pix inválida.');
+    const normalizada = chave.trim().toLowerCase();
+    if (normalizada.length < 3 || normalizada.length > 255 || /\s/.test(normalizada)) {
+      throw new RegraDeNegocio('Chave Pix inválida.');
+    }
+    return normalizada;
   }
 }
