@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import type { Theme } from '@/lib/theme';
 import { ArrowLeft, ArrowUpRight, ArrowRightLeft, ChartNoAxesCombined, Check, Eye, EyeOff, Landmark, LogOut, Moon, Sun, RefreshCw, UserRound } from 'lucide-react';
-import { formatarSaldo, type Conta, type TipoMoeda } from './moeda';
+import { formatarSaldo, type Conta, type PixReceipt, type TipoMoeda } from './moeda';
 
 type Area = 'home' | 'investments' | 'pix' | 'profile' | 'currencies';
 type AccountHomeProps = {
@@ -13,7 +13,7 @@ type AccountHomeProps = {
   loading: boolean;
   notice: { text: string; kind: 'ok' | 'erro' | 'info' } | null;
   onRefresh: () => void;
-  onPixTransfer: (chaveDestino: string, valor: string) => Promise<void>;
+  onPixTransfer: (chaveDestino: string, valor: string) => Promise<PixReceipt>;
   onConvertBalance: (moeda: TipoMoeda) => Promise<void>;
   onLogout: () => void;
 };
@@ -41,14 +41,19 @@ export function AccountHome({ theme, onThemeChange, session, conta, loading, not
   const [pixKey, setPixKey] = useState('');
   const [pixValue, setPixValue] = useState('');
   const [sendingPix, setSendingPix] = useState(false);
+  const [pixSuccess, setPixSuccess] = useState<{ chave: string; valor: string; moeda: TipoMoeda; recebido: PixReceipt } | null>(null);
   const [targetCurrency, setTargetCurrency] = useState<TipoMoeda>('USD');
   const [converting, setConverting] = useState(false);
   const heading = useRef<HTMLHeadingElement>(null);
   const previousArea = useRef(area);
+  const successDialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     if (previousArea.current !== area) heading.current?.focus();
     previousArea.current = area;
   }, [area]);
+  useEffect(() => {
+    if (pixSuccess && !successDialog.current?.open) successDialog.current?.showModal();
+  }, [pixSuccess]);
   const balance = conta ? formatarSaldo(conta.saldo, conta.moeda_saldo) : 'Indisponível';
   const created = new Date(session.user.created_at);
   const createdLabel = Number.isNaN(created.getTime()) ? 'Não informado' : created.toLocaleDateString('pt-BR');
@@ -62,9 +67,14 @@ export function AccountHome({ theme, onThemeChange, session, conta, loading, not
 
   async function submitPix(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
+    if (sendingPix) return;
     setSendingPix(true);
     try {
-      await onPixTransfer(pixKey, pixValue);
+      const chave = pixKey.trim();
+      const valor = pixValue;
+      const moeda = conta?.moeda_saldo ?? 'BRL';
+      const recebido = await onPixTransfer(chave, valor);
+      setPixSuccess({ chave, valor, moeda, recebido });
       setPixKey('');
       setPixValue('');
     } catch { /* A mensagem de erro é exibida pelo aviso compartilhado da conta. */ }
@@ -151,14 +161,15 @@ export function AccountHome({ theme, onThemeChange, session, conta, loading, not
           <button type="button" className="account-detail-refresh" onClick={onRefresh} disabled={loading}><RefreshCw size={16} className={loading ? 'account-spin' : ''} aria-hidden />{loading ? 'Atualizando…' : 'Atualizar dados'}</button>
         </> : area === 'pix' ? <div className="account-pix">
           <p className="account-detail-intro">Envie saldo simulado para outra conta tivvo usando a chave Pix de e-mail.</p>
-          <form className="account-pix-form" onSubmit={event => void submitPix(event)}>
+          <form className="account-pix-form" onSubmit={event => void submitPix(event)} aria-busy={sendingPix}>
             <h2>Enviar Pix</h2>
             <label htmlFor="pix-key">Chave Pix de destino <span>(e-mail)</span></label>
             <input id="pix-key" type="email" value={pixKey} onChange={event => setPixKey(event.target.value)} placeholder="pessoa@exemplo.com" autoComplete="email" required disabled={sendingPix || loading} />
             <label htmlFor="pix-value">Valor em {conta?.moeda_saldo ?? 'BRL'}</label>
             <div className="account-pix-value"><span>{conta?.moeda_saldo === 'USD' ? 'US$' : conta?.moeda_saldo === 'EUR' ? '€' : 'R$'}</span><input id="pix-value" type="text" inputMode="decimal" value={pixValue} onChange={event => setPixValue(event.target.value.replace(',', '.'))} placeholder="0,00" required disabled={sendingPix || loading} /></div>
-            <button type="submit" className="account-pix-submit" disabled={sendingPix || loading}>{sendingPix ? 'Enviando Pix…' : 'Enviar Pix'}</button>
+            <button type="submit" className="account-pix-submit" disabled={sendingPix || loading}>{sendingPix && <RefreshCw size={16} className="account-spin" aria-hidden />}{sendingPix ? 'Enviando Pix…' : 'Enviar Pix'}</button>
           </form>
+          {sendingPix && <div className="account-pix-progress" role="status" aria-live="polite"><span className="account-pix-progress-icon"><ArrowRightLeft size={22} aria-hidden /></span><div><strong>Transferência em andamento</strong><p>Estamos enviando seu Pix. Aguarde a confirmação.</p></div><span className="account-pix-progress-bar" aria-hidden /></div>}
           <p className="account-pix-note">O envio é imediato neste ambiente de demonstração. Confira a chave e o valor antes de confirmar.</p>
         </div> : <div className="account-coming-soon">
           <span className="account-coming-icon"><ChartNoAxesCombined size={40} strokeWidth={1.4} aria-hidden /></span>
@@ -171,5 +182,15 @@ export function AccountHome({ theme, onThemeChange, session, conta, loading, not
       {notice && <p className="account-notice" role={notice.kind === 'erro' ? 'alert' : 'status'}>{notice.text}</p>}
       <footer className="account-footer"><span>tivvo</span><p>Ambiente de demonstração · Saldos e investimentos simulados</p></footer>
     </main>
+    <dialog ref={successDialog} className="account-pix-dialog" aria-labelledby="pix-success-title" onClose={() => setPixSuccess(null)}>
+      {pixSuccess && <div className="account-pix-dialog-content">
+        <span className="account-pix-success-icon"><Check size={30} strokeWidth={2.5} aria-hidden /></span>
+        <span className="account-pix-success-eyebrow">Transferência concluída</span>
+        <h2 id="pix-success-title">Pix enviado com sucesso</h2>
+        <p className="account-pix-success-amount">{formatarSaldo(pixSuccess.valor, pixSuccess.moeda)}</p>
+        <div className="account-pix-success-details"><div><span>Enviado para</span><strong>{pixSuccess.chave}</strong></div>{pixSuccess.recebido && <div><span>Recebido pelo destinatário</span><strong>{formatarSaldo(pixSuccess.recebido.valor_recebido, pixSuccess.recebido.moeda_recebida)}</strong></div>}</div>
+        <button type="button" className="account-pix-success-close" onClick={() => successDialog.current?.close()}>Concluir</button>
+      </div>}
+    </dialog>
   </div>;
 }
