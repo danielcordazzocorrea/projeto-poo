@@ -4,8 +4,10 @@ import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import {
   Ativo, Conta, Dinheiro, FalhaDePersistencia, Movimentacao,
   NaoEncontrado, Posicao, Quantidade, RegraDeNegocio,
-  type TipoAtivo, type TipoMovimentacao,
+  validarTipoMoeda,
+  type TipoAtivo, type TipoMovimentacao, type TipoMoeda,
 } from './dominio.ts';
+import type { Cotacoes } from './cotacoes.ts';
 // A classe abaixo promete cumprir o contrato que o serviço espera.
 import type { RepositorioCorretora } from './servico.ts';
 
@@ -32,7 +34,13 @@ function verificarErro(erro: ErroBanco): void {
 // Adaptador: implementa o contrato RepositorioCorretora usando Supabase.
 export class RepositorioSupabase implements RepositorioCorretora {
   // O cliente recebido representa a sessão do usuário desta requisição.
-  constructor(private readonly banco: SupabaseClient) {}
+  constructor(private readonly banco: SupabaseClient,
+    private readonly admin?: SupabaseClient, private readonly usuarioId?: string) {}
+
+  private servico() {
+    if (!this.admin || !this.usuarioId) throw new FalhaDePersistencia('Serviço de câmbio não configurado.');
+    return { banco: this.admin, usuarioId: this.usuarioId };
+  }
 
   // Lê o catálogo de ativos e devolve objetos da classe Ativo.
   async listarAtivos(): Promise<Ativo[]> {
@@ -59,7 +67,7 @@ export class RepositorioSupabase implements RepositorioCorretora {
   async consultarConta(): Promise<Conta> {
     // A política RLS do banco limita o SELECT à conta do usuário da sessão.
     const { data: conta, error: erroConta } = await this.banco.from('contas')
-      .select('id,usuario_id,saldo_centavos').maybeSingle();
+      .select('id,usuario_id,saldo_centavos,moeda_saldo').maybeSingle();
     verificarErro(erroConta);
     // A ausência da conta é diferente de falha de comunicação com o banco.
     if (!conta) throw new NaoEncontrado('Conta não encontrada. Abra uma conta primeiro.');
@@ -70,7 +78,7 @@ export class RepositorioSupabase implements RepositorioCorretora {
       this.banco.from('posicoes').select('ativo_codigo,quantidade_micros').eq('conta_id', conta.id),
       // Lê no máximo as 100 movimentações mais recentes da mesma conta.
       this.banco.from('movimentacoes')
-        .select('id,tipo,valor_centavos,ativo_codigo,quantidade_micros,criada_em')
+        .select('id,tipo,valor_centavos,ativo_codigo,quantidade_micros,criada_em,moeda,moeda_destino,valor_destino_centavos,cotacao_em')
         .eq('conta_id', conta.id).order('criada_em', { ascending: false }).limit(100),
       // Busca os dados completos dos ativos usados para montar as posições.
       this.listarAtivos(),
@@ -103,6 +111,10 @@ export class RepositorioSupabase implements RepositorioCorretora {
       row.ativo_codigo,
       // Depósitos têm quantidade nula; compras e vendas têm quantidade.
       row.quantidade_micros === null ? null : Quantidade.doBanco(row.quantidade_micros),
+      validarTipoMoeda(row.moeda),
+      row.moeda_destino === null ? null : validarTipoMoeda(row.moeda_destino),
+      row.valor_destino_centavos === null ? null : Dinheiro.doBanco(row.valor_destino_centavos),
+      row.cotacao_em,
     ));
     // Composição: Conta recebe seu saldo, suas posições e suas movimentações.
     return new Conta(
@@ -112,6 +124,7 @@ export class RepositorioSupabase implements RepositorioCorretora {
       resultadoChavePix.data.chave,
       posicoes,
       movimentos,
+      validarTipoMoeda(conta.moeda_saldo),
     );
   }
 
@@ -144,11 +157,43 @@ export class RepositorioSupabase implements RepositorioCorretora {
     verificarErro(error);
   }
 
-  async transferirPix(chaveDestino: string, centavos: bigint): Promise<void> {
-    const { error } = await this.banco.rpc('transferir_pix', {
-      p_chave_destino: chaveDestino,
-      p_valor_centavos: Number(centavos),
+  async consultarMoedaDestinoPix(chaveDestino: string): Promise<TipoMoeda> {
+    const { banco } = this.servico();
+    const { data: chave, error: erroChave } = await banco.from('chaves_pix')
+      .select('usuario_id').eq('chave', chaveDestino).maybeSingle();
+    verificarErro(erroChave);
+    if (!chave) throw new NaoEncontrado('Conta de destino não encontrada.');
+    const { data: conta, error: erroConta } = await banco.from('contas')
+      .select('moeda_saldo').eq('usuario_id', chave.usuario_id).maybeSingle();
+    verificarErro(erroConta);
+    if (!conta) throw new NaoEncontrado('Conta de destino não encontrada.');
+    return validarTipoMoeda(conta.moeda_saldo);
+  }
+
+  async converterSaldo(destino: TipoMoeda, origem: TipoMoeda, cotacoes: Cotacoes | null): Promise<{ cotacao_em: string | null }> {
+    const { banco, usuarioId } = this.servico();
+    const { data, error } = await banco.rpc('converter_saldo', {
+      p_usuario_id: usuarioId, p_moeda_destino: destino,
+      p_moeda_origem: origem, p_cotacoes: cotacoes ?? {},
     });
     verificarErro(error);
+    if (!data) throw new FalhaDePersistencia('Conversão sem comprovante.');
+    return { cotacao_em: data.cotacao_em ?? null };
+  }
+
+  async transferirPix(chaveDestino: string, centavos: bigint, origem: TipoMoeda,
+    destino: TipoMoeda, cotacoes: Cotacoes | null): Promise<{ moeda_recebida: TipoMoeda; valor_recebido: string; cotacao_em: string | null }> {
+    const { banco, usuarioId } = this.servico();
+    const { data, error } = await banco.rpc('transferir_pix_convertido', {
+      p_usuario_id: usuarioId,
+      p_chave_destino: chaveDestino,
+      p_valor_centavos: Number(centavos),
+      p_moeda_origem: origem, p_moeda_destino: destino, p_cotacoes: cotacoes ?? {},
+    });
+    verificarErro(error);
+    if (!data) throw new FalhaDePersistencia('Pix sem comprovante.');
+    return { moeda_recebida: validarTipoMoeda(data.moeda_recebida),
+      valor_recebido: Dinheiro.doBanco(data.valor_recebido_centavos).formatar(),
+      cotacao_em: data.cotacao_em ?? null };
   }
 }

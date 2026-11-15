@@ -25,7 +25,12 @@ test('serviço valida entradas e delega operações ao repositório', async () =
     depositar: async centavos => { chamadas.push(['depositar', centavos]); },
     comprar: async (codigo, micros) => { chamadas.push(['comprar', codigo, micros]); },
     vender: async (codigo, micros) => { chamadas.push(['vender', codigo, micros]); },
-    transferirPix: async (chave, centavos) => { chamadas.push(['pix', chave, centavos]); },
+    consultarMoedaDestinoPix: async () => 'BRL',
+    converterSaldo: async (destino, origem) => { chamadas.push(['converter', origem, destino]); return { cotacao_em: null }; },
+    transferirPix: async (chave, centavos, origem, destino) => {
+      chamadas.push(['pix', chave, centavos, origem, destino]);
+      return { moeda_recebida: destino, valor_recebido: '15.25', cotacao_em: null };
+    },
   };
   const corretora = new Corretora(repositorio);
   assert.equal((await corretora.consultarConta()).saldo_brl, '50.00');
@@ -38,7 +43,7 @@ test('serviço valida entradas e delega operações ao repositório', async () =
   assert.deepEqual(chamadas, [
     ['abrir'], ['depositar', 1005n], ['comprar', 'ACAO1', 500000n],
     ['vender', 'ACAO1', 250000n],
-    ['pix', 'destinatario@example.com', 1525n],
+    ['pix', 'destinatario@example.com', 1525n, 'BRL', 'BRL'],
   ]);
   await assert.rejects(corretora.comprar('inválido', '1'), RegraDeNegocio);
   await assert.rejects(corretora.transferirPix('  ', '1'), RegraDeNegocio);

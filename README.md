@@ -59,12 +59,15 @@ O caminho base é `/functions/v1/corretora`. Envie o JWT de sessão do Supabase 
 | `GET` | `/ativos` | — |
 | `POST` | `/conta` | `{}` (recuperação de usuário antigo sem conta) |
 | `GET` | `/conta` | — |
+| `POST` | `/conta/converter` | `{"moeda":"EUR"}` |
 | `POST` | `/depositos` | `{"valor":"100.00"}` |
 | `POST` | `/compras` | `{"codigo_ativo":"ACAO1","quantidade":"2"}` |
 | `POST` | `/vendas` | `{"codigo_ativo":"ACAO1","quantidade":"1"}` |
 | `POST` | `/pix/transferencias` | `{"chave_destino":"pessoa@exemplo.com","valor":"25.00"}` |
 
 Valores monetários e quantidades são texto decimal. A resposta da conta traz saldo, sua `chave_pix`, posições e as 100 movimentações mais recentes. Os preços `ACAO1` e `USD` são fixos e fictícios. O depósito adiciona saldo **simulado**, sem integração de pagamentos. O Pix simulado encontra a conta destinatária pela chave, rejeita a própria chave e saldo insuficiente, e grava o débito e o crédito na mesma transação do Postgres.
+
+O saldo da conta pode ser convertido entre BRL, USD e EUR com cotação consultada na API no momento da operação. O Pix debita na moeda do remetente e credita na moeda atual do destinatário. Veja [como funcionam as moedas, a API e a migração](docs/moedas.md).
 
 ## Testes
 

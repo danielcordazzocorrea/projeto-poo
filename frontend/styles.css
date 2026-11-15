@@ -59,7 +59,7 @@ button:not(:disabled) { cursor: pointer; }
 
 .account-app { --account-ink: #14291e; --account-muted: #5e7165; --account-line: #dbe5dc; min-height: 100dvh; background: #f4f6f2; color: var(--account-ink); font-family: "Avenir Next", Avenir, "Segoe UI", sans-serif; }
 .account-app button { -webkit-tap-highlight-color: transparent; }
-.account-app button:disabled { cursor: wait; opacity: .6; }
+.account-app button:disabled { cursor: default; opacity: .6; }
 .account-app :focus-visible { outline: 3px solid #4c9330; outline-offset: 5px; }
 .account-container { width: min(1120px, calc(100% - 64px)); margin-inline: auto; }
 .account-skip { position: absolute; top: -80px; left: 20px; z-index: 5; padding: 12px 20px; background: white; }
@@ -92,7 +92,7 @@ button:not(:disabled) { cursor: pointer; }
 .account-section-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 20px; margin-bottom: 20px; }
 .account-section-heading h2 { font-size: 22px; font-weight: 600; letter-spacing: -.6px; }
 .account-section-heading > span { color: var(--account-muted); font-size: 13px; }
-.account-destinations { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+.account-destinations { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
 .account-destination { display: flex; flex-direction: column; align-items: stretch; text-align: left; border: 1px solid var(--account-line); border-radius: 18px; padding: 28px; background: white; transition: border-color .18s, background-color .18s; }
 .account-destination:hover { border-color: #719a7a; background: #fafff7; }
 .account-destination-top { display: flex; justify-content: space-between; align-items: center; color: #5e7165; margin-bottom: 28px; }
@@ -121,7 +121,23 @@ button:not(:disabled) { cursor: pointer; }
 .account-pix-form h2 { margin-bottom: 8px; font-size: 20px; font-weight: 600; letter-spacing: -.4px; }
 .account-pix-form label { font-size: 13px; font-weight: 600; }
 .account-pix-form label span { color: var(--account-muted); font-weight: 400; }
-.account-pix-form input { width: 100%; min-height: 46px; border: 1px solid var(--account-line); border-radius: 10px; padding: 10px 12px; background: transparent; color: var(--account-ink); }
+.account-pix-form input, .account-pix-form select { width: 100%; min-height: 46px; border: 1px solid var(--account-line); border-radius: 10px; padding: 10px 12px; background: transparent; color: var(--account-ink); }
+.account-currency-area { max-width: 620px; }
+.account-currency-balance { margin-top: 30px; padding-bottom: 24px; border-bottom: 1px solid var(--account-line); }
+.account-currency-balance > span { font-size: 12px; color: var(--account-muted); }
+.account-currency-current { margin: 6px 0 0; font-size: clamp(28px, 4vw, 40px); font-variant-numeric: tabular-nums; letter-spacing: -1px; }
+.account-currency-options { min-width: 0; margin: 0; padding: 0; border: 0; }
+.account-currency-options legend { margin-bottom: 12px; font-size: 13px; font-weight: 600; }
+.account-currency-options-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.account-currency-choice { position: relative; min-width: 0; cursor: pointer; }
+.account-pix-form .account-currency-choice input { position: absolute; width: 1px; height: 1px; min-height: 0; padding: 0; opacity: 0; }
+.account-currency-choice-content { display: flex; flex-direction: column; gap: 4px; min-height: 72px; padding: 13px 16px; border: 1px solid var(--account-line); border-radius: 12px; background: white; transition: border-color .18s, background-color .18s, box-shadow .18s; }
+.account-pix-form .account-currency-choice-content > span { color: var(--account-muted); font-size: 12px; font-weight: 400; }
+.account-currency-choice-content strong { color: var(--account-ink); font-size: 15px; font-weight: 600; letter-spacing: .02em; }
+.account-currency-choice:hover .account-currency-choice-content { border-color: #719a7a; }
+.account-currency-choice input:checked + .account-currency-choice-content { border-color: #4c9330; background: #eef4e9; box-shadow: inset 0 0 0 1px #4c9330; }
+.account-currency-choice input:focus-visible + .account-currency-choice-content { outline: 3px solid #4c9330; outline-offset: 3px; }
+.account-currency-options:disabled .account-currency-choice { cursor: default; opacity: .6; }
 .account-pix-form input:focus { border-color: #4c9330; outline: 0; }
 .account-pix-value { display: flex; align-items: center; border: 1px solid var(--account-line); border-radius: 10px; padding-left: 12px; }
 .account-pix-value:focus-within { border-color: #4c9330; }
@@ -148,6 +164,9 @@ button:not(:disabled) { cursor: pointer; }
 .account-app[data-theme="dark"] .account-notice { background: #34271d; border-color: #8c6749; color: #f2d1af; }
 .account-app[data-theme="dark"] .account-detail-refresh { background: #9dff3a; color: #0c0d0c; }
 .account-app[data-theme="dark"] .account-pix-submit { background: #9dff3a; color: #0c0d0c; }
+.account-app[data-theme="dark"] .account-currency-choice-content { background: #121812; }
+.account-app[data-theme="dark"] .account-currency-choice input:checked + .account-currency-choice-content { background: #253726; border-color: #9dff3a; box-shadow: inset 0 0 0 1px #9dff3a; }
+.account-app[data-theme="dark"] .account-currency-choice input:focus-visible + .account-currency-choice-content { outline-color: #9dff3a; }
 @keyframes account-spin { to { transform: rotate(360deg); } }
 .account-spin { animation: account-spin 1.2s linear infinite; }
 @media (max-width: 800px) {

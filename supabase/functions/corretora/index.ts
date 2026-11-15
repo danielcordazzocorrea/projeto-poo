@@ -21,6 +21,11 @@ async function lerJson(req: Request): Promise<Record<string, unknown>> {
 
 Deno.serve(withSupabase({ auth: 'user' }, async (req, ctx) => {
   const corretora = new Corretora(new RepositorioSupabase(ctx.supabase));
+  function corretoraComCambio(): Corretora {
+    const usuarioId = ctx.userClaims?.id;
+    if (!usuarioId) throw new RegraDeNegocio('Sessão inválida. Entre novamente.');
+    return new Corretora(new RepositorioSupabase(ctx.supabase, ctx.supabaseAdmin, usuarioId));
+  }
   const caminho = new URL(req.url).pathname.match(/\/corretora(\/.*)?$/)?.[1] ?? '/';
   try {
     if (req.method === 'GET' && caminho === '/ativos') {
@@ -31,6 +36,9 @@ Deno.serve(withSupabase({ auth: 'user' }, async (req, ctx) => {
     }
     if (req.method === 'GET' && caminho === '/conta') {
       return json(200, await corretora.consultarConta());
+    }
+    if (req.method === 'POST' && caminho === '/conta/converter') {
+      return json(200, await corretoraComCambio().converterSaldo((await lerJson(req)).moeda));
     }
     if (req.method === 'POST' && caminho === '/depositos') {
       return json(200, await corretora.depositar((await lerJson(req)).valor));
@@ -45,7 +53,7 @@ Deno.serve(withSupabase({ auth: 'user' }, async (req, ctx) => {
     }
     if (req.method === 'POST' && caminho === '/pix/transferencias') {
       const dados = await lerJson(req);
-      return json(200, await corretora.transferirPix(dados.chave_destino, dados.valor));
+      return json(200, await corretoraComCambio().transferirPix(dados.chave_destino, dados.valor));
     }
     return json(404, { erro: 'Rota não encontrada.' });
   } catch (erro) {
