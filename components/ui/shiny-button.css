@@ -94,15 +94,18 @@
 }
 
 .shiny-cta::after {
+  z-index: 0;
+  inset-inline-start: 0;
+  inset-block-start: 0;
+  translate: 0 0;
   width: 100%;
-  aspect-ratio: 1;
-  background: linear-gradient(-50deg, transparent, var(--shiny-cta-highlight), transparent);
-  mask-image: radial-gradient(circle at bottom, transparent 40%, black);
-  opacity: .6;
-  animation: shiny-shimmer calc(var(--shiny-duration) * 2) linear infinite;
+  height: 100%;
+  background: linear-gradient(105deg, transparent 28%, #9dff3a12 42%, #f1ffe266 50%, #9dff3a1f 58%, transparent 72%);
+  animation: shiny-sweep var(--shiny-duration) ease-in-out infinite;
 }
 
 .shiny-cta-content {
+  position: relative;
   z-index: 1;
   display: inline-flex;
   align-items: center;
@@ -131,7 +134,7 @@
 .shiny-cta:focus-visible { outline: 2px solid #9dff3a; }
 
 @keyframes shiny-gradient-angle { to { --shiny-gradient-angle: 360deg; } }
-@keyframes shiny-shimmer { to { rotate: 360deg; } }
+@keyframes shiny-sweep { from { transform: translateX(-125%); } to { transform: translateX(125%); } }
 @keyframes shiny-breathe { from, to { scale: 1; } 50% { scale: 1.2; } }
 
 @media (prefers-reduced-motion: reduce) {
