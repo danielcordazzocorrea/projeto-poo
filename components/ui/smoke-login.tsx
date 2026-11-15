@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils';
 import type { Theme } from '@/lib/theme';
 import AnoAI from '@/components/ui/animated-shader-background';
 import { AboutTivvo } from '@/components/ui/about-tivvo';
+import { ShinyButton } from '@/components/ui/shiny-button';
 
 export type SmokeLoginProps = {
   brand?: string;
@@ -163,7 +164,7 @@ export function SmokeLogin({
                 className={fieldClass}
               />
             </motion.div>}
-            <motion.div {...rise(6)} className="pt-1"><button type="submit" disabled={disabled || busy} aria-busy={busy} aria-describedby={notice || formError ? 'auth-notice' : undefined} className="group flex h-11 w-full items-center justify-center gap-2 rounded-[14px] bg-[var(--btn)] text-[15px] font-medium text-[var(--btn-ink)] shadow-[0_10px_24px_-12px_rgb(0_0_0/0.5)] transition hover:brightness-110 active:scale-[0.985] disabled:opacity-75 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]">{busy ? <><LoaderCircle aria-hidden className="size-[18px] animate-spin" />{mode === 'signup' ? 'Criando conta...' : 'Entrando...'}</> : <>{submitLabel}<ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" /></>}</button></motion.div>
+            <motion.div {...rise(6)} className="pt-1"><ShinyButton type="submit" disabled={disabled || busy} aria-busy={busy} aria-describedby={notice || formError ? 'auth-notice' : undefined} className="group">{busy ? <><LoaderCircle aria-hidden className="size-[18px] animate-spin" />{mode === 'signup' ? 'Criando conta...' : 'Entrando...'}</> : <>{submitLabel}<ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" /></>}</ShinyButton></motion.div>
             {(formError || notice) && <p id="auth-notice" role={formError || notice?.kind === 'erro' ? 'alert' : 'status'} className="rounded-xl border border-[var(--line)] bg-[var(--field)] p-3 text-sm text-[var(--ink)]">{formError ?? notice?.text}</p>}
           </form>
           <motion.p {...rise(7)} className="mt-6 text-center text-[13px] text-[var(--muted)]">{mode === 'signup' ? 'Já tem uma conta? ' : 'Ainda não tem conta? '}{onSignUpClick ? <button type="button" disabled={busy} onClick={onSignUpClick} className="font-medium text-[var(--ink)] underline-offset-4 hover:underline disabled:opacity-50">{mode === 'signup' ? 'Entrar' : 'Crie uma conta'}</button> : <a href={signUpHref} className="font-medium text-[var(--ink)] underline-offset-4 hover:underline">Crie uma conta</a>}</motion.p>
