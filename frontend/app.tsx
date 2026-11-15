@@ -4,7 +4,7 @@ import { AccountHome } from './account-home';
 import { SmokeLogin } from '@/components/ui/smoke-login';
 import { CONFIGURATION_NOTICE, submitCredentials } from './auth';
 import { readSavedTheme, THEME_STORAGE_KEY, type Theme } from '@/lib/theme';
-import { type Conta, type TipoMoeda } from './moeda';
+import { type Conta, type PixReceipt, type TipoMoeda } from './moeda';
 
 type Notice = { text: string; kind: 'ok' | 'erro' | 'info' } | null;
 
@@ -72,8 +72,8 @@ export default function App() {
       throw error;
     } finally { setLoadingAccount(false); }
   }
-  async function transferPix(chaveDestino: string, valor: string): Promise<void> {
-    if (!session) return;
+  async function transferPix(chaveDestino: string, valor: string): Promise<PixReceipt> {
+    if (!session) throw new Error('Entre na conta para enviar um Pix.');
     setLoadingAccount(true); setNotice(null);
     try {
       const response = await fetch(`${url}/functions/v1/corretora/pix/transferencias`, {
@@ -85,9 +85,7 @@ export default function App() {
       const resultado = await response.json() as Conta & { comprovante?: { moeda_recebida: TipoMoeda; valor_recebido: string } };
       setConta(resultado);
       const recebido = resultado.comprovante;
-      setNotice({ text: recebido
-        ? `Pix enviado. O destinatário recebeu ${recebido.valor_recebido} ${recebido.moeda_recebida}.`
-        : 'Pix enviado com sucesso.', kind: 'ok' });
+      return recebido ?? null;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'erro inesperado';
       setNotice({ text: `Não foi possível enviar o Pix: ${message}`, kind: 'erro' });

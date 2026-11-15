@@ -1,4 +1,5 @@
 export type TipoMoeda = 'BRL' | 'USD' | 'EUR';
+export type PixReceipt = { moeda_recebida: TipoMoeda; valor_recebido: string } | null;
 export type Conta = {
   id: string;
   saldo: string;
