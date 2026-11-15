@@ -80,6 +80,14 @@ export class Dinheiro {
   formatar(): string { return formatarDecimal(this.centavos, 2); }
 }
 
+export type TipoMoeda = 'BRL' | 'USD' | 'EUR';
+export function validarTipoMoeda(valor: unknown): TipoMoeda {
+  if (valor !== 'BRL' && valor !== 'USD' && valor !== 'EUR') {
+    throw new RegraDeNegocio('Moeda deve ser BRL, USD ou EUR.');
+  }
+  return valor;
+}
+
 // Objeto de valor: representa quantidades com até seis casas decimais.
 export class Quantidade {
   // Uma unidade equivale a 1.000.000 de micros.
@@ -127,7 +135,7 @@ export class Posicao {
 }
 
 // Tipos permitidos no histórico de operações.
-export type TipoMovimentacao = 'DEPOSITO' | 'COMPRA' | 'VENDA' | 'PIX_ENVIADO' | 'PIX_RECEBIDO';
+export type TipoMovimentacao = 'DEPOSITO' | 'COMPRA' | 'VENDA' | 'PIX_ENVIADO' | 'PIX_RECEBIDO' | 'CONVERSAO';
 
 // Uma movimentação registra uma operação já concluída.
 export class Movimentacao {
@@ -143,6 +151,10 @@ export class Movimentacao {
     // Depósitos e Pix não têm ativo nem quantidade, por isso estes campos aceitam null.
     readonly codigoAtivo: string | null,
     readonly quantidade: Quantidade | null,
+    readonly moeda: TipoMoeda = 'BRL',
+    readonly moedaDestino: TipoMoeda | null = null,
+    readonly valorDestino: Dinheiro | null = null,
+    readonly cotacaoEm: string | null = null,
   ) {}
   // Monta a forma pública da movimentação para a API.
   paraJson() {
@@ -151,7 +163,12 @@ export class Movimentacao {
       id: this.id,
       tipo: this.tipo,
       // Dinheiro.formatar transforma centavos em texto com duas casas.
-      valor_brl: this.valor.formatar(),
+      valor_brl: this.moeda === 'BRL' ? this.valor.formatar() : null,
+      valor: this.valor.formatar(),
+      moeda: this.moeda,
+      moeda_destino: this.moedaDestino,
+      valor_destino: this.valorDestino?.formatar() ?? null,
+      cotacao_em: this.cotacaoEm,
       criada_em: this.criadaEm,
       codigo_ativo: this.codigoAtivo,
       // `?.` só chama formatar quando há quantidade; `??` devolve null se não há.
@@ -175,6 +192,7 @@ export class Conta {
     readonly posicoes: Posicao[],
     // Histórico: até 100 movimentações carregadas pelo repositório.
     readonly movimentacoes: Movimentacao[],
+    readonly moedaSaldo: TipoMoeda = 'BRL',
   ) {}
   // Serializa a conta e todos os objetos que ela contém.
   paraJson() {
@@ -182,7 +200,9 @@ export class Conta {
       id: this.id,
       usuario_id: this.usuarioId,
       // O cliente recebe "50.00", não o bigint 5000n.
-      saldo_brl: this.saldo.formatar(),
+      saldo_brl: this.moedaSaldo === 'BRL' ? this.saldo.formatar() : null,
+      saldo: this.saldo.formatar(),
+      moeda_saldo: this.moedaSaldo,
       chave_pix: this.chavePix,
       // `map` transforma cada objeto Posicao em JSON.
       posicoes: this.posicoes.map(p => p.paraJson()),

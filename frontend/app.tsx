@@ -4,8 +4,8 @@ import { AccountHome } from './account-home';
 import { SmokeLogin } from '@/components/ui/smoke-login';
 import { CONFIGURATION_NOTICE, submitCredentials } from './auth';
 import { readSavedTheme, THEME_STORAGE_KEY, type Theme } from '@/lib/theme';
+import { type Conta, type TipoMoeda } from './moeda';
 
-type Conta = { id: string; saldo_brl: string };
 type Notice = { text: string; kind: 'ok' | 'erro' | 'info' } | null;
 
 const url = import.meta.env.VITE_SUPABASE_URL?.trim() || 'https://pzaakefnbhwlhatgzgea.supabase.co';
@@ -51,6 +51,27 @@ export default function App() {
   async function requestAccount(method: 'GET' | 'POST', token: string): Promise<Response> {
     return fetch(`${url}/functions/v1/corretora/conta`, { method, headers: { apikey: chave, Authorization: `Bearer ${token}` } });
   }
+  async function convertBalance(moeda: TipoMoeda): Promise<void> {
+    if (!session) throw new Error('Entre na conta para converter o saldo.');
+    setLoadingAccount(true); setNotice(null);
+    try {
+      const response = await fetch(`${url}/functions/v1/corretora/conta/converter`, {
+        method: 'POST',
+        headers: { apikey: chave, Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ moeda }),
+      });
+      if (!response.ok) throw new Error(await readError(response));
+      const resultado = await response.json() as Conta & { comprovante?: { cotacao_em: string | null } };
+      setConta(resultado);
+      const horario = resultado.comprovante?.cotacao_em;
+      setNotice({ text: horario
+        ? `Saldo convertido com cotação consultada em ${new Date(horario).toLocaleString('pt-BR')}.`
+        : 'Moeda do saldo atualizada.', kind: 'ok' });
+    } catch (error) {
+      setNotice({ text: `Não foi possível converter o saldo: ${error instanceof Error ? error.message : 'erro inesperado'}`, kind: 'erro' });
+      throw error;
+    } finally { setLoadingAccount(false); }
+  }
   async function transferPix(chaveDestino: string, valor: string): Promise<void> {
     if (!session) return;
     setLoadingAccount(true); setNotice(null);
@@ -61,8 +82,12 @@ export default function App() {
         body: JSON.stringify({ chave_destino: chaveDestino, valor }),
       });
       if (!response.ok) throw new Error(await readError(response));
-      setConta(await response.json() as Conta);
-      setNotice({ text: 'Pix enviado com sucesso.', kind: 'ok' });
+      const resultado = await response.json() as Conta & { comprovante?: { moeda_recebida: TipoMoeda; valor_recebido: string } };
+      setConta(resultado);
+      const recebido = resultado.comprovante;
+      setNotice({ text: recebido
+        ? `Pix enviado. O destinatário recebeu ${recebido.valor_recebido} ${recebido.moeda_recebida}.`
+        : 'Pix enviado com sucesso.', kind: 'ok' });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'erro inesperado';
       setNotice({ text: `Não foi possível enviar o Pix: ${message}`, kind: 'erro' });
@@ -91,7 +116,7 @@ export default function App() {
   }
   async function logout(): Promise<void> { if (!supabase) return; const { error } = await supabase.auth.signOut(); setNotice(error ? { text: error.message, kind: 'erro' } : { text: 'Você saiu da sua conta', kind: 'ok' }); }
 
-  if (session) return <AccountHome key={session.user.id} theme={theme} onThemeChange={setTheme} session={session} conta={conta} loading={loadingAccount} notice={notice} onRefresh={() => void loadAccount(session)} onPixTransfer={transferPix} onLogout={() => void logout()} />;
+  if (session) return <AccountHome key={session.user.id} theme={theme} onThemeChange={setTheme} session={session} conta={conta} loading={loadingAccount} notice={notice} onRefresh={() => void loadAccount(session)} onPixTransfer={transferPix} onConvertBalance={convertBalance} onLogout={() => void logout()} />;
   const signingUp = mode === 'signup';
   return <SmokeLogin
     theme={theme}
