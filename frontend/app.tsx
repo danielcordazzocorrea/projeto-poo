@@ -7,6 +7,7 @@ import { readSavedTheme, THEME_STORAGE_KEY, type Theme } from '@/lib/theme';
 import { type Conta, type ConversionReceipt, type PixReceipt, type TipoMoeda } from './moeda';
 import type { ContaInvestimento, DirecaoTransferencia, TransferenciaInvestimento } from './investment-account';
 import { requestPixTransfer } from './pix-transfer';
+import { requestCurrencyConversion } from './currency-conversion';
 
 type Notice = { text: string; kind: 'ok' | 'erro' | 'info' } | null;
 
@@ -133,18 +134,9 @@ export default function App() {
     if (!session) throw new Error('Entre na conta para converter o saldo.');
     setLoadingAccount(true); setNotice(null);
     try {
-      const response = await fetch(`${url}/functions/v1/corretora/conta/converter`, {
-        method: 'POST',
-        headers: { apikey: chave, Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ moeda }),
-      });
-      if (!response.ok) throw new Error(await readError(response));
-      const resultado = await response.json() as Conta & { comprovante?: { cotacao_em: string | null } };
-      setConta(resultado);
-      return { conta: resultado, cotacaoEm: resultado.comprovante?.cotacao_em ?? null };
-    } catch (error) {
-      setNotice({ text: `Não foi possível converter o saldo: ${error instanceof Error ? error.message : 'erro inesperado'}`, kind: 'erro' });
-      throw error;
+      const resultado = await requestCurrencyConversion({ url, apiKey: chave, token: session.access_token, currency: moeda });
+      setConta(resultado.conta);
+      return resultado;
     } finally { setLoadingAccount(false); }
   }
   async function transferPix(chaveDestino: string, valor: string): Promise<PixReceipt> {

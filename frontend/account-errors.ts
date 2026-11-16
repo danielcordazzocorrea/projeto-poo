@@ -96,6 +96,9 @@ export function mapAccountError(error: unknown, context: AccountErrorContext): A
   if (operation === 'conversion' && matches('O saldo já está nesta moeda', 'Selecione uma moeda de destino diferente', 'Moeda deve ser BRL, USD ou EUR')) {
     return notice('Confira a moeda de destino', 'Escolha uma moeda disponível diferente da moeda atual do saldo.', 'exchange', 'select-currency');
   }
+  if (operation === 'conversion' && matches('Valor inferior a um centavo na moeda de destino')) {
+    return notice('Saldo muito baixo para converter', 'O saldo convertido seria inferior a um centavo. Escolha outra moeda ou aguarde até ter saldo suficiente.', 'exchange', 'select-currency');
+  }
   if (writing && matches('Moeda da conta mudou. Atualize e tente novamente')) {
     return notice('O saldo foi atualizado', 'A moeda da conta mudou. Recarregue os dados antes de continuar.', 'exchange', 'reload', 'warning');
   }

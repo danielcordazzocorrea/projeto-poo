@@ -1,7 +1,8 @@
 import { useRef, useState } from 'react';
-import { ArrowRightLeft, CloudOff, UserRoundX, Wallet } from 'lucide-react';
+import { ArrowRightLeft, CloudOff, Clock, UserRoundX, Wallet } from 'lucide-react';
 import { ErrorDialog, type ErrorDialogProps } from '@/components/ui/error-dialog';
 import type { Theme } from '@/lib/theme';
+import { mapAccountError } from './account-errors';
 import './error-dialog-preview.css';
 
 type Example = Pick<ErrorDialogProps, 'title' | 'description' | 'variant' | 'icon' | 'details' | 'actionLabel'> & {
@@ -24,9 +25,16 @@ const examples: Example[] = [
     actionLabel: 'Corrigir chave', target: 'key',
   },
   {
-    title: 'Cotação indisponível',
-    description: 'Não conseguimos consultar a cotação agora. Tente novamente em instantes.',
-    variant: 'warning', icon: ArrowRightLeft, actionLabel: 'Fechar',
+    ...mapAccountError('Não foi possível consultar a API de câmbio.', { operation: 'conversion' }),
+    icon: ArrowRightLeft,
+  },
+  {
+    ...mapAccountError(new TypeError('Failed to fetch'), { operation: 'conversion', outcome: 'unconfirmed' }),
+    icon: Clock,
+  },
+  {
+    ...mapAccountError('Valor inferior a um centavo na moeda de destino', { operation: 'conversion' }),
+    icon: ArrowRightLeft,
   },
   {
     title: 'Não conseguimos carregar os dados',

@@ -7,6 +7,7 @@ import { ErrorDialog } from '@/components/ui/error-dialog';
 import { CircleAlert, CloudOff, Clock, Search, UserRoundX, Wallet } from 'lucide-react';
 import { mapAccountError, type AccountErrorNotice } from './account-errors';
 import { PixTransferError } from './pix-transfer';
+import { CurrencyConversionError } from './currency-conversion';
 import { formatarSaldo, type Conta, type ConversionReceipt, type Movimentacao, type PixReceipt, type TipoMoeda } from './moeda';
 import { InvestmentAccount, type ContaInvestimento, type DirecaoTransferencia, type TransferenciaInvestimento } from './investment-account';
 
@@ -71,12 +72,13 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
   const [pixKey, setPixKey] = useState('');
   const [pixValue, setPixValue] = useState('');
   const [sendingPix, setSendingPix] = useState(false);
-  const [pixError, setPixError] = useState<{ notice: AccountErrorNotice; details: { label: string; value: string }[] } | null>(null);
+  const [operationError, setOperationError] = useState<{ notice: AccountErrorNotice; details: { label: string; value: string }[] } | null>(null);
   const pixKeyInput = useRef<HTMLInputElement>(null);
   const pixValueInput = useRef<HTMLInputElement>(null);
   const [pixSuccess, setPixSuccess] = useState<{ chave: string; valor: string; moeda: TipoMoeda; recebido: PixReceipt } | null>(null);
   const [targetCurrency, setTargetCurrency] = useState<TipoMoeda>('USD');
   const [converting, setConverting] = useState(false);
+  const currencyOptions = useRef<HTMLFieldSetElement>(null);
   const [historyFilter, setHistoryFilter] = useState<TransactionFilter>('all');
   const [conversionSuccess, setConversionSuccess] = useState<{ saldoAnterior: string; moedaAnterior: TipoMoeda; recibo: ConversionReceipt } | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
@@ -117,7 +119,7 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
   async function submitPix(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     if (sendingPix || loading) return;
-    setPixError(null);
+    setOperationError(null);
     setSendingPix(true);
     try {
       const chave = pixKey.trim();
@@ -136,21 +138,28 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
           { label: 'Valor solicitado', value: formatarSaldo(pixValue, conta.moeda_saldo) },
           { label: 'Último saldo disponível', value: formatarSaldo(conta.saldo, conta.moeda_saldo) },
         ] : [];
-      setPixError({ notice, details });
+      setOperationError({ notice, details });
     }
     finally { setSendingPix(false); }
   }
 
   async function submitConversion(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
+    if (converting || loading || sendingPix || !conta) return;
+    setOperationError(null);
     setConverting(true);
     try {
       const saldoAnterior = conta?.saldo ?? '0';
       const moedaAnterior = conta?.moeda_saldo ?? 'BRL';
       const recibo = await onConvertBalance(targetCurrency);
+      loadingDialog.current?.close();
       setConversionSuccess({ saldoAnterior, moedaAnterior, recibo });
     }
-    catch { /* O aviso compartilhado mostra o erro. */ }
+    catch (error) {
+      loadingDialog.current?.close();
+      const notice = error instanceof CurrencyConversionError ? error.notice : mapAccountError(error, { operation: 'conversion' });
+      setOperationError({ notice, details: [{ label: 'Moeda solicitada', value: targetCurrency }] });
+    }
     finally { setConverting(false); }
   }
 
@@ -205,7 +214,7 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
           <p className="account-detail-intro">Seu saldo está em <strong>{conta?.moeda_saldo ?? 'BRL'}</strong>. Ao converter, todo o saldo passa para a moeda escolhida.</p>
           <div className="account-currency-balance"><span>Saldo atual</span><p className="account-currency-current" aria-live="polite">{conta ? formatarSaldo(conta.saldo, conta.moeda_saldo) : 'Carregando saldo…'}</p></div>
           <form className="account-pix-form" onSubmit={event => void submitConversion(event)} aria-busy={converting}>
-            <fieldset className="account-currency-options" disabled={loading || converting}>
+            <fieldset ref={currencyOptions} className="account-currency-options" disabled={loading || converting}>
               <legend>Converter saldo para</legend>
               <div className="account-currency-options-grid">
                 {([['BRL', 'Real'], ['USD', 'Dólar'], ['EUR', 'Euro']] as const).map(([codigo, nome]) => <label className="account-currency-choice" key={codigo}>
@@ -259,17 +268,18 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
       {notice && <p className="account-notice" role={notice.kind === 'erro' ? 'alert' : 'status'}>{notice.text}</p>}
       <footer className="account-footer"><span>tivvo</span><p>Ambiente de demonstração · Saldos e investimentos simulados</p></footer>
     </main>
-    {pixError && <ErrorDialog
-      {...pixError.notice}
-      open={!sendingPix && !loading}
+    {operationError && <ErrorDialog
+      {...operationError.notice}
+      open={!operationLoading && !loading}
       theme={theme}
-      icon={errorIcons[pixError.notice.icon]}
-      details={pixError.details}
-      onClose={() => setPixError(null)}
+      icon={errorIcons[operationError.notice.icon]}
+      details={operationError.details}
+      onClose={() => setOperationError(null)}
       onAction={() => {
-        switch (pixError.notice.action) {
+        switch (operationError.notice.action) {
           case 'edit-key': pixKeyInput.current?.focus(); break;
           case 'edit-value': pixValueInput.current?.focus(); break;
+          case 'select-currency': currencyOptions.current?.querySelector<HTMLInputElement>('input:checked')?.focus(); break;
           case 'check-balances': setArea('home'); onRefresh(); break;
           case 'reload': onRefresh(); break;
           case 'sign-in': onLogout(); break;
