@@ -35,6 +35,12 @@ function formatDateBr(value: unknown): string {
   return `${day}/${month}/${year}`;
 }
 
+function formatDateTimeBr(value: string | null): string {
+  if (!value) return 'Não informado';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? 'Não informado' : date.toLocaleString('pt-BR');
+}
+
 function PixLogo() {
   return <img className="account-pix-logo" src="/pix-logo.svg" alt="" />;
 }
@@ -48,9 +54,13 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
   const [pixSuccess, setPixSuccess] = useState<{ chave: string; valor: string; moeda: TipoMoeda; recebido: PixReceipt } | null>(null);
   const [targetCurrency, setTargetCurrency] = useState<TipoMoeda>('USD');
   const [converting, setConverting] = useState(false);
+  const [conversionSuccess, setConversionSuccess] = useState<{ saldoAnterior: string; moedaAnterior: TipoMoeda; recibo: ConversionReceipt } | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const previousArea = useRef(area);
   const successDialog = useRef<HTMLDialogElement>(null);
+  const conversionSuccessDialog = useRef<HTMLDialogElement>(null);
+  const loadingDialog = useRef<HTMLDialogElement>(null);
+  const operationLoading = sendingPix ? 'pix' : converting ? 'conversion' : null;
   useEffect(() => {
     if (previousArea.current !== area) heading.current?.focus();
     previousArea.current = area;
@@ -58,6 +68,13 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
   useEffect(() => {
     if (pixSuccess && !successDialog.current?.open) successDialog.current?.showModal();
   }, [pixSuccess]);
+  useEffect(() => {
+    if (conversionSuccess && !conversionSuccessDialog.current?.open) conversionSuccessDialog.current?.showModal();
+  }, [conversionSuccess]);
+  useEffect(() => {
+    if (operationLoading && !loadingDialog.current?.open) loadingDialog.current?.showModal();
+    if (!operationLoading && loadingDialog.current?.open) loadingDialog.current.close();
+  }, [operationLoading]);
   const balance = conta ? formatarSaldo(conta.saldo, conta.moeda_saldo) : 'Indisponível';
   const created = new Date(session.user.created_at);
   const createdLabel = Number.isNaN(created.getTime()) ? 'Não informado' : created.toLocaleDateString('pt-BR');
@@ -88,7 +105,12 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
   async function submitConversion(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     setConverting(true);
-    try { await onConvertBalance(targetCurrency); }
+    try {
+      const saldoAnterior = conta?.saldo ?? '0';
+      const moedaAnterior = conta?.moeda_saldo ?? 'BRL';
+      const recibo = await onConvertBalance(targetCurrency);
+      setConversionSuccess({ saldoAnterior, moedaAnterior, recibo });
+    }
     catch { /* O aviso compartilhado mostra o erro. */ }
     finally { setConverting(false); }
   }
@@ -152,7 +174,6 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
             </fieldset>
             <button type="submit" className="account-pix-submit" disabled={loading || converting || !conta || targetCurrency === conta.moeda_saldo}>{converting && <RefreshCw size={16} className="account-spin" aria-hidden />}{converting ? 'Convertendo…' : targetCurrency === conta?.moeda_saldo ? `Saldo já está em ${targetCurrency}` : 'Converter saldo'}</button>
           </form>
-          {converting && <div className="account-pix-progress" role="status" aria-live="polite"><span className="account-pix-progress-icon"><ArrowRightLeft size={22} aria-hidden /></span><div><strong>Conversão em andamento</strong><p>Estamos convertendo seu saldo para {targetCurrency}. Aguarde a confirmação.</p></div><span className="account-pix-progress-bar" aria-hidden /></div>}
           <p className="account-pix-note">A conversão usa a cotação de referência consultada na API e trunca frações menores que um centavo. O Pix é enviado na moeda do seu saldo e chega na moeda da conta de destino. A transferência para investimentos converte automaticamente para BRL.</p>
         </div> : area === 'profile' ? <>
           <p className="account-detail-intro">Confira seus dados de cadastro e as informações da sua conta tivvo</p>
@@ -174,7 +195,6 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
             <div className="account-pix-value"><span>{conta?.moeda_saldo === 'USD' ? 'US$' : conta?.moeda_saldo === 'EUR' ? '€' : 'R$'}</span><input id="pix-value" type="text" inputMode="decimal" value={pixValue} onChange={event => setPixValue(event.target.value.replace(',', '.'))} placeholder="0,00" required disabled={sendingPix || loading} /></div>
             <button type="submit" className="account-pix-submit" disabled={sendingPix || loading}>{sendingPix && <RefreshCw size={16} className="account-spin" aria-hidden />}{sendingPix ? 'Enviando Pix…' : 'Enviar Pix'}</button>
           </form>
-          {sendingPix && <div className="account-pix-progress" role="status" aria-live="polite"><span className="account-pix-progress-icon"><ArrowRightLeft size={22} aria-hidden /></span><div><strong>Transferência em andamento</strong><p>Estamos enviando seu Pix. Aguarde a confirmação.</p></div><span className="account-pix-progress-bar" aria-hidden /></div>}
           <p className="account-pix-note">O envio é imediato neste ambiente de demonstração. Confira a chave e o valor antes de confirmar.</p>
         </div> : <InvestmentAccount principal={conta} investimento={investimento} loading={loading} onRefresh={onInvestmentRefresh} onTransfer={onInvestmentTransfer} />}
       </section>}
@@ -190,6 +210,30 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
         <p className="account-pix-success-amount">{formatarSaldo(pixSuccess.valor, pixSuccess.moeda)}</p>
         <div className="account-pix-success-details"><div><span>Enviado para</span><strong>{pixSuccess.chave}</strong></div>{pixSuccess.recebido && <div><span>Recebido pelo destinatário</span><strong>{formatarSaldo(pixSuccess.recebido.valor_recebido, pixSuccess.recebido.moeda_recebida)}</strong></div>}</div>
         <button type="button" className="account-pix-success-close" onClick={() => successDialog.current?.close()}>Concluir</button>
+      </div>}
+    </dialog>
+    <dialog ref={conversionSuccessDialog} className="account-pix-dialog" aria-labelledby="conversion-success-title" onClose={() => setConversionSuccess(null)}>
+      {conversionSuccess && <div className="account-pix-dialog-content">
+        <span className="account-pix-success-icon"><Check size={30} strokeWidth={2.5} aria-hidden /></span>
+        <span className="account-pix-success-eyebrow">Conversão concluída</span>
+        <h2 id="conversion-success-title">Saldo convertido com sucesso</h2>
+        <p className="account-pix-success-amount">{formatarSaldo(conversionSuccess.recibo.conta.saldo, conversionSuccess.recibo.conta.moeda_saldo)}</p>
+        <div className="account-pix-success-details">
+          <div><span>Convertido de</span><strong>{formatarSaldo(conversionSuccess.saldoAnterior, conversionSuccess.moedaAnterior)}</strong></div>
+          <div><span>Nova moeda</span><strong>{conversionSuccess.recibo.conta.moeda_saldo}</strong></div>
+          <div><span>Cotação consultada em</span><strong>{formatDateTimeBr(conversionSuccess.recibo.cotacaoEm)}</strong></div>
+        </div>
+        <button type="button" className="account-pix-success-close" onClick={() => conversionSuccessDialog.current?.close()}>Concluir</button>
+      </div>}
+    </dialog>
+    <dialog ref={loadingDialog} className="account-pix-dialog account-loading-dialog" aria-labelledby="operation-loading-title" onCancel={event => event.preventDefault()}>
+      {operationLoading && <div className="account-loading-dialog-content" role="status" aria-live="polite">
+        <span className="account-pix-progress-icon"><ArrowRightLeft size={22} aria-hidden /></span>
+        <div>
+          <h2 id="operation-loading-title">{operationLoading === 'pix' ? 'Transferência em andamento' : 'Conversão em andamento'}</h2>
+          <p>{operationLoading === 'pix' ? 'Estamos enviando seu Pix. Aguarde a confirmação.' : `Estamos convertendo seu saldo para ${targetCurrency}. Aguarde a confirmação.`}</p>
+        </div>
+        <span className="account-pix-progress-bar" aria-hidden />
       </div>}
     </dialog>
   </div>;
