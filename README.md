@@ -90,3 +90,8 @@ As tarefas sugeridas para cinco pessoas estão em `docs/plano-equipe.md`.
 Leia `docs/guia-poo.md` na ordem indicada. Os arquivos `dominio.ts`,
 `servico.ts` e `repositorio-supabase.ts` têm comentários explicando as linhas
 de lógica e a relação entre classes, serviço e banco.
+
+## Consulta de ativos B3
+
+A área Investimentos oferece busca e cotação pela brapi, separadas das operações simuladas.
+Veja [configuração do segredo, contrato, cache e validação](docs/mercado-brapi.md).

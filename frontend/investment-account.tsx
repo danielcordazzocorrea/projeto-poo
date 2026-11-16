@@ -70,6 +70,6 @@ export function InvestmentAccount({ principal, investimento, loading, onRefresh,
     {investimento?.posicoes.length ? <ul className="investment-history">{investimento.posicoes.map(posicao => <li key={posicao.codigo_ativo}><strong>{posicao.codigo_ativo}</strong><span>{posicao.quantidade} cotas</span></li>)}</ul> : <p className="account-pix-note">Sua carteira ainda não tem ativos.</p>}
     <div className="investment-history-heading"><h2>Transferências recentes</h2><button type="button" className="account-detail-refresh" onClick={onRefresh} disabled={loading || sending}><RefreshCw size={16} className={loading ? 'account-spin' : ''} aria-hidden />Atualizar</button></div>
     {investimento?.transferencias.length ? <ul className="investment-history">{investimento.transferencias.map(item => <li key={item.id}><span><strong>{item.direcao === 'PARA_INVESTIMENTOS' ? 'Para investimentos' : 'Para conta principal'}</strong><small>{item.criada_em ? new Date(item.criada_em).toLocaleString('pt-BR') : 'Transferência concluída'}</small></span><span>{formatarSaldo(item.valor_origem, item.moeda_origem)} → {formatarSaldo(item.valor_destino, item.moeda_destino)}</span></li>)}</ul> : <p className="account-pix-note">Nenhuma transferência ainda.</p>}
-    <p className="account-pix-note">Valores e transferências são simulados. A busca de ativos e as operações de compra e venda serão adicionadas separadamente.</p>
+    <p className="account-pix-note">Valores e transferências são simulados. As operações de compra e venda serão adicionadas separadamente.</p>
   </div>;
 }
