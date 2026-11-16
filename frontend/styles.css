@@ -261,6 +261,28 @@ button:not(:disabled) { cursor: pointer; }
 @media (prefers-reduced-motion: reduce) { .account-app *, .account-app *::before, .account-app *::after { animation: none !important; transition: none !important; } }
 
 .account-market { max-width: 850px; }
+.market-history-card { margin-top: 24px; padding: 20px; border: 1px solid var(--account-line); border-radius: 18px; min-width: 0; }
+.market-history-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.market-history-heading h3 { margin: 0; font-size: 16px; }
+.market-history-heading span, .market-history-note { color: var(--account-muted); font-size: 12px; }
+.market-history-value { font-variant-numeric: tabular-nums; font-weight: 600; margin: 16px 0 4px; }
+.market-history-chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.market-history-chart svg text { fill: var(--account-muted); font-size: 12px; }
+.market-history-grid { stroke: var(--account-line); stroke-width: 1; }
+.market-history-line { fill: none; stroke: #4c9330; stroke-width: 2.5; vector-effect: non-scaling-stroke; }
+.market-history-area { fill: #4c93301c; }
+.market-history-point { fill: #4c9330; }
+.market-history-selector { display: grid; gap: 6px; font-size: 12px; color: var(--account-muted); }
+.market-history-selector input { width: 100%; accent-color: #4c9330; }
+.market-history-note { line-height: 1.5; margin-block: 12px; }
+.market-history-chart summary { cursor: pointer; font-size: 13px; }
+.market-history-table { max-height: 240px; overflow: auto; margin-top: 12px; }
+.market-history-table table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.market-history-table th, .market-history-table td { text-align: left; padding: 8px; border-bottom: 1px solid var(--account-line); }
+.market-history-card button { border: 1px solid var(--account-line); border-radius: 8px; padding: 8px 12px; }
+.account-app[data-theme="dark"] .market-history-line { stroke: #9dff3a; }
+.account-app[data-theme="dark"] .market-history-point { fill: #9dff3a; }
+.account-app[data-theme="dark"] .market-history-area { fill: #9dff3a19; }
 .market-results { list-style: none; padding: 0; margin: 24px 0; display: grid; gap: 10px; }
 .market-results button { width: 100%; display: flex; gap: 16px; align-items: center; text-align: left; padding: 16px; border: 1px solid currentColor; border-radius: 12px; background: transparent; color: inherit; cursor: pointer; }
 .market-results button span:nth-child(2) { flex: 1; overflow-wrap: anywhere; }

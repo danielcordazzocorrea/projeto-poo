@@ -7,6 +7,14 @@ export type CotacaoAtivo = ResumoAtivo & {
   fonte: 'brapi';
 };
 export type BuscaAtivos = { ativos: ResumoAtivo[]; pagina: number; tem_proxima: boolean };
+export type HistoricoAtivo = {
+  codigo: string;
+  periodo: '1mo';
+  intervalo: '1d';
+  pontos: { data: string; preco_brl: string }[];
+  consultado_em: string;
+  fonte: 'brapi';
+};
 
 export class ErroMercado extends Error {
   constructor(public status: number, public codigo: string, mensagem: string) { super(mensagem); }
@@ -125,18 +133,62 @@ export class MercadoBrapi {
     });
   }
 
+  private async identificar(codigo: string): Promise<ResumoAtivo> {
+    let pagina = 1;
+    let ativo: ResumoAtivo | undefined;
+    do {
+      const resultado = await this.buscar(codigo, pagina++);
+      ativo = resultado.ativos.find(item => item.codigo === codigo);
+      if (ativo || !resultado.tem_proxima) break;
+    } while (pagina <= 10);
+    if (!ativo) throw new ErroMercado(404, 'ATIVO_NAO_ENCONTRADO', 'Ativo não encontrado entre ações, ETFs e FIIs identificados pelo provedor.');
+    return ativo;
+  }
+
+  async historico(ticker: string): Promise<HistoricoAtivo> {
+    const codigo = ticker.trim().toUpperCase();
+    if (!/^[A-Z]{4}[0-9]{1,2}$/.test(codigo)) throw new ErroMercado(400, 'TICKER_INVALIDO', 'Ticker inválido.');
+    return this.memorizar(`historico:${codigo}:1mo:1d`, 3_600_000, async () => {
+      await this.identificar(codigo);
+      const dados = await this.consultar('/api/v2/stocks/historical', {
+        symbols: codigo, range: '1mo', interval: '1d', sortOrder: 'asc',
+      });
+      if (!Array.isArray(dados.results)) throw new ErroMercado(502, 'RESPOSTA_INVALIDA', 'Histórico inválido.');
+      const resultado = dados.results.map(objeto).find(item => item.symbol === codigo);
+      if (!resultado) throw new ErroMercado(404, 'HISTORICO_INDISPONIVEL', 'Histórico não disponível para este ativo.');
+      const serie = objeto(resultado.data);
+      if (!Array.isArray(serie.historicalDataPrice) || serie.historicalDataPrice.length > 366 ||
+          serie.usedInterval !== '1d' || serie.usedRange !== '1mo') {
+        throw new ErroMercado(502, 'RESPOSTA_INVALIDA', 'Série diária de preços inválida.');
+      }
+      const porData = new Map<string, string>();
+      for (const valor of serie.historicalDataPrice) {
+        const ponto = objeto(valor);
+        // Datas do provedor são timestamps UNIX em segundos. Não inventar preços para lacunas.
+        if (ponto.close === null) continue;
+        if (typeof ponto.date !== 'number' || !Number.isSafeInteger(ponto.date) || ponto.date <= 0 ||
+            ponto.date > Math.floor(this.agora() / 1000) || typeof ponto.close !== 'number' ||
+            !Number.isFinite(ponto.close) || ponto.close <= 0 || ponto.close >= 1e12) {
+          throw new ErroMercado(502, 'RESPOSTA_INVALIDA', 'Ponto do histórico inválido.');
+        }
+        const data = new Date(ponto.date * 1000).toISOString().slice(0, 10);
+        const preco = ponto.close.toFixed(2);
+        if (porData.has(data) && porData.get(data) !== preco) {
+          throw new ErroMercado(502, 'RESPOSTA_INVALIDA', 'Preços conflitantes na mesma data.');
+        }
+        porData.set(data, preco);
+      }
+      return { codigo, periodo: '1mo', intervalo: '1d',
+        pontos: [...porData].sort(([a], [b]) => a.localeCompare(b)).map(([data, preco_brl]) => ({ data, preco_brl })),
+        consultado_em: new Date(this.agora()).toISOString(), fonte: 'brapi' };
+    });
+  }
+
   async cotar(ticker: string): Promise<CotacaoAtivo> {
     const codigo = ticker.trim().toUpperCase();
     if (!/^[A-Z]{4}[0-9]{1,2}$/.test(codigo)) throw new ErroMercado(400, 'TICKER_INVALIDO', 'Ticker inválido.');
     return this.memorizar(`cotacao:${codigo}`, 60_000, async () => {
-      let pagina = 1;
-      let ativo: ResumoAtivo | undefined;
-      do {
-        const resultado = await this.buscar(codigo, pagina++);
-        ativo = resultado.ativos.find(item => item.codigo === codigo);
-        if (ativo || !resultado.tem_proxima) break;
-      } while (pagina <= 10);
-      if (!ativo) throw new ErroMercado(404, 'ATIVO_NAO_ENCONTRADO', 'Ativo não encontrado entre ações, ETFs e FIIs identificados pelo provedor.');
+      const ativo = await this.identificar(codigo);
       const dados = await this.consultar('/api/v2/stocks/quote', { symbols: codigo });
       if (!Array.isArray(dados.results)) throw new ErroMercado(502, 'RESPOSTA_INVALIDA', 'Cotação inválida.');
       const resultado = dados.results.map(objeto).find(item => item.symbol === codigo);

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import type { BuscaAtivos, CotacaoAtivo } from '../supabase/functions/_shared/mercado-brapi';
+import type { BuscaAtivos, CotacaoAtivo, HistoricoAtivo } from '../supabase/functions/_shared/mercado-brapi';
+import { GraficoAtivo } from './mercado-grafico';
 
 const url = import.meta.env.VITE_SUPABASE_URL?.trim() || 'https://pzaakefnbhwlhatgzgea.supabase.co';
 const chave = (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || '').trim();
@@ -25,6 +26,10 @@ export function MercadoAtivos({ token }: { token: string }) {
   const [erroCotacao, setErroCotacao] = useState('');
   const [buscando, setBuscando] = useState(false);
   const [cotando, setCotando] = useState(false);
+  const [historico, setHistorico] = useState<HistoricoAtivo | null>(null);
+  const [erroHistorico, setErroHistorico] = useState('');
+  const [carregandoHistorico, setCarregandoHistorico] = useState(false);
+  const [tentativaHistorico, setTentativaHistorico] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -51,6 +56,18 @@ export function MercadoAtivos({ token }: { token: string }) {
       .finally(() => { if (!controller.signal.aborted) setCotando(false); });
     return () => controller.abort();
   }, [ticker, token]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setHistorico(null); setErroHistorico('');
+    if (!ticker) { setCarregandoHistorico(false); return () => controller.abort(); }
+    setCarregandoHistorico(true);
+    void consultar<HistoricoAtivo>(`/${encodeURIComponent(ticker)}/historico`, token, controller.signal)
+      .then(dados => { if (!controller.signal.aborted) setHistorico(dados); })
+      .catch(erro => { if (!controller.signal.aborted) setErroHistorico(erro instanceof Error ? erro.message : 'Falha ao consultar histórico.'); })
+      .finally(() => { if (!controller.signal.aborted) setCarregandoHistorico(false); });
+    return () => controller.abort();
+  }, [ticker, token, tentativaHistorico]);
 
   return <div className="account-market">
     <p className="account-detail-intro">Pesquise ações, ETFs e FIIs por nome ou ticker.</p>
@@ -87,6 +104,14 @@ export function MercadoAtivos({ token }: { token: string }) {
         <div><dt>Consultado no servidor</dt><dd>{horario(cotacao.consultado_em)}</dd></div>
         <div><dt>Fonte</dt><dd>brapi</dd></div>
       </dl>
+    </section>}
+    {ticker && <section className="market-history-card" aria-label={`Evolução do preço de ${ticker}`} aria-busy={carregandoHistorico}>
+      <div className="market-history-heading"><h3>Evolução do preço · {ticker}</h3><span>Último mês</span></div>
+      {carregandoHistorico && <p role="status">Carregando histórico…</p>}
+      {erroHistorico && <div role="alert"><p>Não foi possível carregar o gráfico. {erroHistorico}</p>
+        <button type="button" onClick={() => setTentativaHistorico(valor => valor + 1)}>Tentar novamente</button>
+      </div>}
+      {historico?.codigo === ticker && !carregandoHistorico && !erroHistorico && <GraficoAtivo key={`${ticker}:${historico.consultado_em}`} historico={historico} />}
     </section>}
   </div>;
 }

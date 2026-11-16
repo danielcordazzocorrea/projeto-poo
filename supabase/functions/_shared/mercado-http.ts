@@ -7,8 +7,10 @@ export async function responderMercado(req: Request, mercado: MercadoBrapi): Pro
   if (caminho !== '/mercado/ativos' && !caminho.startsWith('/mercado/ativos/')) return null;
   if (req.method !== 'GET') return Response.json({ erro: 'Método não permitido.' }, { status: 405, headers: { Allow: 'GET' } });
   try {
+    const historico = caminho.match(/^\/mercado\/ativos\/([^/]+)\/historico$/);
     const dados = caminho === '/mercado/ativos'
       ? await mercado.buscar(url.searchParams.get('busca') ?? '', Number(url.searchParams.get('pagina') ?? '1'))
+      : historico ? await mercado.historico(historico[1]!)
       : await mercado.cotar(caminho.slice('/mercado/ativos/'.length));
     return Response.json(dados, { headers: { 'Cache-Control': 'no-store' } });
   } catch (erro) {

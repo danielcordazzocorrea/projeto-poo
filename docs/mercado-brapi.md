@@ -6,7 +6,7 @@ Não há alteração de tabelas, RPCs ou preços usados nas compras e vendas sim
 
 ## Contrato e rotas
 
-Base: `/functions/v1/corretora`. As duas rotas exigem a sessão Supabase
+Base: `/functions/v1/corretora`. As rotas exigem a sessão Supabase
 (`Authorization: Bearer <JWT>` e `apikey` publicável), como a API existente.
 
 - `GET /mercado/ativos?busca=PETR&pagina=1` retorna
@@ -16,6 +16,24 @@ Base: `/functions/v1/corretora`. As duas rotas exigem a sessão Supabase
   `{ codigo, nome, tipo, preco_brl, cotacao_em, consultado_em, fonte: "brapi" }`.
   `preco_brl` é texto decimal com duas casas; `cotacao_em` pode ser null.
   `consultado_em` registra a obtenção no backend e permanece igual no cache.
+- `GET /mercado/ativos/PETR4/historico` retorna
+  `{ codigo, periodo: "1mo", intervalo: "1d", pontos: [{ data: "2026-11-13", preco_brl: "42.50" }], consultado_em, fonte: "brapi" }`.
+  O período é fixo: último mês, com fechamento diário em BRL. Não aceita períodos
+  arbitrários nem consulta intradiária. Datas ficam em ordem crescente, sem
+  duplicatas; preços nulos são omitidos, sem interpolar lacunas. Uma série vazia
+  representa ausência de dados. Formato inválido gera erro, sem inventar preços.
+
+O histórico usa `/api/v2/stocks/historical` com `symbols`, `range=1mo`,
+`interval=1d` e `sortOrder=asc`. O endpoint geral atende ações, ETFs e FIIs,
+conforme a cobertura da chave. A fonte do gráfico é `close`, que pode conter
+ajustes do provedor; não é uma série de retorno calculada pela aplicação.
+Referência: [histórico de preços](https://brapi.dev/docs/acoes/historico).
+
+O frontend carrega o histórico somente ao selecionar um ativo, em requisição
+separada da cotação, sem atualização automática. Uma falha exibe mensagem e
+botão para tentar novamente. Trocar de ativo cancela a consulta anterior e
+descarta respostas antigas. O gráfico SVG não adiciona dependências; permite
+explorar preços por ponteiro, controle de datas pelo teclado ou tabela.
 
 A listagem usa páginas de 20 do provedor e filtra tipos fora do escopo.
 Por isso uma página pode ter menos de 20 itens, inclusive zero, e ainda permitir
@@ -50,7 +68,7 @@ projeto hospedado antes de qualquer operação de banco. Esta atividade não pre
 ## Cache e falhas
 
 Cache em memória por instância da Edge Function, limitado a 200 entradas:
-5 minutos por busca/página e 1 minuto por ticker. Requisições simultâneas
+5 minutos por busca/página, 1 minuto por cotação e 1 hora por histórico/ticker/período. Requisições simultâneas
 iguais compartilham a chamada. Reinícios e instâncias distintas não compartilham
 cache; ele não representa uma cota global. Erros não são armazenados.
 Um 429 suspende novas chamadas nessa instância pelo Retry-After em segundos
@@ -93,7 +111,16 @@ possivelmente de cerca de 30 minutos no plano gratuito, e exibe o horário da fo
 Os dados de mercado ainda não alimentam compra/venda: essa integração exige
 validação de preço no servidor e registro de horário e fonte com a pessoa da conta.
 
-Resultado nesta implementação: 27 testes passaram; build do frontend concluído.
+O histórico acrescenta testes de ordenação, cache de uma hora, chamadas simultâneas,
+ETF/FII, séries vazias, lacunas, dados inválidos, isolamento de falhas e rota HTTP.
+Para verificar a interface, selecione um ativo e explore o gráfico pelo mouse,
+controle de datas e tabela; repita com janela estreita e tema escuro. Em uma
+troca rápida de ativo, não devem aparecer preços do ativo anterior.
+
+O novo endpoint precisa estar publicado na Edge Function do ambiente usado pelo
+frontend. Rodar apenas `npm run dev` contra uma função antiga não disponibiliza
+o histórico. Não é necessário alterar o banco nem configurar um novo segredo:
+ele reutiliza `BRAPI_TOKEN`. A implementação na branch não publica a função.
 
 ## Validação real em 15/11/2026
 
