@@ -8,6 +8,7 @@ import { type Conta, type ConversionReceipt, type PixReceipt, type TipoMoeda } f
 import type { ContaInvestimento, DirecaoTransferencia, TransferenciaInvestimento } from './investment-account';
 import { requestPixTransfer } from './pix-transfer';
 import { requestCurrencyConversion } from './currency-conversion';
+import { InvestmentTransferError, requestInvestmentTransfer } from './investment-transfer';
 
 type Notice = { text: string; kind: 'ok' | 'erro' | 'info' } | null;
 
@@ -71,13 +72,8 @@ export default function App() {
     try {
       const key = `${session.user.id}:${direcao}:${valor}`;
       if (pendingInvestment.current?.key !== key) pendingInvestment.current = { key, id: crypto.randomUUID() };
-      const response = await fetch(`${url}/functions/v1/corretora/investimentos/transferencias`, {
-        method: 'POST',
-        headers: { apikey: chave, Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ direcao, valor, requisicao_id: pendingInvestment.current.id }),
-      });
-      if (!response.ok) throw new Error(await readError(response));
-      const result = await response.json() as { conta: ContaInvestimento; comprovante: TransferenciaInvestimento };
+      const result = await requestInvestmentTransfer({ url, apiKey: chave, token: session.access_token,
+        direction: direcao, value: valor, requestId: pendingInvestment.current.id });
       setInvestimento(result.conta);
       const principal = await requestAccount('GET', session.access_token);
       if (!principal.ok) throw new Error(await readError(principal));
@@ -85,8 +81,8 @@ export default function App() {
       pendingInvestment.current = null;
       return result.comprovante;
     } catch (error) {
-      setNotice({ text: `Não foi possível concluir ou confirmar a transferência: ${error instanceof Error ? error.message : 'erro inesperado'}. Confira os saldos antes de tentar novamente.`, kind: 'erro' });
-      throw error;
+      // A later balance refresh can fail even after the transfer completed.
+      throw error instanceof InvestmentTransferError ? error : new InvestmentTransferError(error, 'unconfirmed');
     } finally { setLoadingAccount(false); }
   }
   async function purchaseInvestment(codigoAtivo: string, quantidade: string): Promise<void> {

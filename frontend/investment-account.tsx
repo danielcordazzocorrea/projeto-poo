@@ -1,26 +1,12 @@
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { ArrowDownToLine, ArrowLeft, ArrowUpFromLine, ChevronRight, HandCoins, RefreshCw } from 'lucide-react';
 import { MercadoAtivos } from './mercado-ativos';
-import { formatarSaldo, type Conta, type TipoMoeda } from './moeda';
+import { formatarSaldo, type Conta } from './moeda';
+import { InvestmentTransferError } from './investment-transfer';
+import { mapAccountError, type AccountErrorNotice } from './account-errors';
 
-export type DirecaoTransferencia = 'PARA_INVESTIMENTOS' | 'PARA_PRINCIPAL';
-export type TransferenciaInvestimento = {
-  id: string;
-  direcao: DirecaoTransferencia;
-  valor_origem: string;
-  moeda_origem: TipoMoeda;
-  valor_destino: string;
-  moeda_destino: TipoMoeda;
-  cotacao_em: string | null;
-  criada_em?: string;
-};
-export type ContaInvestimento = {
-  saldo: string;
-  moeda: 'BRL';
-  acoes_investidas: string;
-  posicoes: Array<{ codigo_ativo: string; quantidade: string }>;
-  transferencias: TransferenciaInvestimento[];
-};
+import type { ContaInvestimento, DirecaoTransferencia, TransferenciaInvestimento } from './investment-types';
+export type { ContaInvestimento, DirecaoTransferencia, TransferenciaInvestimento } from './investment-types';
 
 type Props = {
   principal: Conta | null;
@@ -29,6 +15,7 @@ type Props = {
   token: string;
   onRefresh: () => void;
   onTransfer: (direcao: DirecaoTransferencia, valor: string) => Promise<TransferenciaInvestimento>;
+  onTransferError: (notice: AccountErrorNotice, recover?: () => void) => void;
   onPurchase: (codigoAtivo: string, quantidade: string) => Promise<void>;
   onSale: (codigoAtivo: string, quantidade: string) => Promise<void>;
 };
@@ -43,11 +30,12 @@ function GrowthHomeIcon() {
   </svg>;
 }
 
-export function InvestmentAccount({ principal, investimento, loading, token, onRefresh, onTransfer, onPurchase, onSale }: Props) {
+export function InvestmentAccount({ principal, investimento, loading, token, onRefresh, onTransfer, onTransferError, onPurchase, onSale }: Props) {
   const [categoria, setCategoria] = useState<'renda-fixa' | 'acoes' | 'compradas' | null>(null);
   const [direcao, setDirecao] = useState<DirecaoTransferencia>('PARA_INVESTIMENTOS');
   const [valor, setValor] = useState('');
   const [sending, setSending] = useState(false);
+  const valueInput = useRef<HTMLInputElement>(null);
   const [receipt, setReceipt] = useState<TransferenciaInvestimento | null>(null);
   const [ativoParaVenda, setAtivoParaVenda] = useState<string | null>(null);
   const [quantidadeVenda, setQuantidadeVenda] = useState('');
@@ -62,14 +50,19 @@ export function InvestmentAccount({ principal, investimento, loading, token, onR
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (sending) return;
+    if (sending || loading || !principal || !investimento) return;
     setSending(true);
     setReceipt(null);
     try {
       const result = await onTransfer(direcao, valor.trim().replace(',', '.'));
       setReceipt(result);
       setValor('');
-    } catch { /* O aviso compartilhado da conta mostra o erro. */ }
+    } catch (error) {
+      const notice = error instanceof InvestmentTransferError ? error.notice : mapAccountError(error, { operation: 'investment-transfer' });
+      const recover = notice.action === 'edit-value' ? () => valueInput.current?.focus()
+        : notice.action === 'check-balances' || notice.action === 'reload' ? onRefresh : undefined;
+      onTransferError(notice, recover);
+    }
     finally { setSending(false); }
   }
   async function vender(event: FormEvent<HTMLFormElement>, codigo: string) {
@@ -134,7 +127,7 @@ export function InvestmentAccount({ principal, investimento, loading, token, onR
             <button type="button" className={direcao === 'PARA_PRINCIPAL' ? 'is-selected' : ''} aria-pressed={direcao === 'PARA_PRINCIPAL'} onClick={() => { setDirecao('PARA_PRINCIPAL'); setReceipt(null); }}><ArrowUpFromLine size={17} aria-hidden />Para conta principal</button>
           </div>
           <label htmlFor="investment-value">Valor em {moedaOrigem}</label>
-          <input id="investment-value" type="text" inputMode="decimal" value={valor} onChange={event => setValor(event.target.value)} placeholder="0,00" required disabled={loading || sending || !principal || !investimento} />
+          <input ref={valueInput} id="investment-value" type="text" inputMode="decimal" value={valor} onChange={event => setValor(event.target.value)} placeholder="0,00" required disabled={loading || sending || !principal || !investimento} />
           {principal?.moeda_saldo !== 'BRL' && <p className="account-pix-note">A conversão entre {principal?.moeda_saldo} e BRL é automática nesta transferência. O valor convertido será mostrado no comprovante.</p>}
           <button type="submit" className="account-pix-submit" disabled={loading || sending || !principal || !investimento}>{sending && <RefreshCw size={16} className="account-spin" aria-hidden />}{sending ? 'Transferindo…' : 'Confirmar transferência'}</button>
         </form>

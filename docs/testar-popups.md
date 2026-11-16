@@ -37,6 +37,17 @@ O carregamento deve fechar antes do popup. A mesma mensagem não deve aparecer n
 
 O botão fica desabilitado quando a moeda escolhida já é a atual. Converter com conexão normal altera TODO o saldo simulado, portanto não é necessário fazer isso apenas para testar o popup de erro.
 
+## Transferências entre contas de investimentos
+
+1. Entre em Investimentos → Renda fixa.
+2. Escolha “Para investimentos” e informe um valor acima do saldo da conta principal. O popup deve indicar saldo insuficiente na conta principal.
+3. Clique em “Alterar valor”: o campo deve continuar preenchido e receber foco.
+4. Repita com “Para conta principal” e um valor acima do saldo da conta de investimentos. A mensagem deve identificar essa conta como origem.
+5. Informe zero para testar valor inválido.
+6. Para testar resultado incerto, selecione Offline em Network/Rede ANTES de confirmar a transferência. Depois do aviso, restaure a conexão e clique em “Conferir saldos”: as duas contas devem atualizar na mesma área, sem repetir a transferência.
+
+Login/cadastro e os erros de compra e venda de ações não foram alterados nesta etapa.
+
 ## Verificações automatizadas
 
 Execute `npm.cmd test` e `npm.cmd run build:front`.

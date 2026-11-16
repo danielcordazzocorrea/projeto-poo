@@ -72,7 +72,7 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
   const [pixKey, setPixKey] = useState('');
   const [pixValue, setPixValue] = useState('');
   const [sendingPix, setSendingPix] = useState(false);
-  const [operationError, setOperationError] = useState<{ notice: AccountErrorNotice; details: { label: string; value: string }[] } | null>(null);
+  const [operationError, setOperationError] = useState<{ notice: AccountErrorNotice; details: { label: string; value: string }[]; recover?: () => void } | null>(null);
   const pixKeyInput = useRef<HTMLInputElement>(null);
   const pixValueInput = useRef<HTMLInputElement>(null);
   const [pixSuccess, setPixSuccess] = useState<{ chave: string; valor: string; moeda: TipoMoeda; recebido: PixReceipt } | null>(null);
@@ -261,7 +261,7 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
           </form>
           <p className="account-pix-note">O envio é imediato neste ambiente de demonstração. Confira a chave e o valor antes de confirmar.</p>
         </div> : <>
-          <InvestmentAccount principal={conta} investimento={investimento} loading={loading} token={session.access_token} onRefresh={onInvestmentRefresh} onTransfer={onInvestmentTransfer} onPurchase={onInvestmentPurchase} onSale={onInvestmentSale} />
+          <InvestmentAccount principal={conta} investimento={investimento} loading={loading} token={session.access_token} onRefresh={onInvestmentRefresh} onTransfer={onInvestmentTransfer} onTransferError={(notice, recover) => setOperationError({ notice, details: [], recover })} onPurchase={onInvestmentPurchase} onSale={onInvestmentSale} />
         </>}
       </section>}
 
@@ -276,6 +276,7 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
       details={operationError.details}
       onClose={() => setOperationError(null)}
       onAction={() => {
+        if (operationError.recover) { operationError.recover(); return; }
         switch (operationError.notice.action) {
           case 'edit-key': pixKeyInput.current?.focus(); break;
           case 'edit-value': pixValueInput.current?.focus(); break;
