@@ -4,6 +4,8 @@ import type { BuscaAtivos, CotacaoAtivo } from '../supabase/functions/_shared/me
 import type { TipoMoeda } from './moeda';
 import type { AccountErrorNotice } from './account-errors';
 import { queryErrorNotice, readQueryResponse } from './query-errors';
+import { InvestmentTradeError } from './investment-trade';
+import { mapAccountError } from './account-errors';
 
 const url = import.meta.env.VITE_SUPABASE_URL?.trim() || 'https://pzaakefnbhwlhatgzgea.supabase.co';
 const chave = (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || '').trim();
@@ -20,12 +22,15 @@ function preco(valor: string): string {
   return Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
-export function MercadoAtivos({ token, onPurchase, saldoPrincipal, moedaPrincipal, onQueryError }: {
+export function MercadoAtivos({ token, onPurchase, saldoPrincipal, moedaPrincipal, onQueryError, onTradeError, onRefresh, loading }: {
   token: string;
   onPurchase: (codigoAtivo: string, quantidade: string) => Promise<void>;
   saldoPrincipal: string;
   moedaPrincipal: TipoMoeda;
   onQueryError: (notice: AccountErrorNotice, recover?: () => void) => void;
+  onTradeError: (notice: AccountErrorNotice, recover?: () => void) => void;
+  onRefresh: () => void;
+  loading: boolean;
 }) {
   const [busca, setBusca] = useState('');
   const [pagina, setPagina] = useState(1);
@@ -41,7 +46,7 @@ export function MercadoAtivos({ token, onPurchase, saldoPrincipal, moedaPrincipa
   const [cotando, setCotando] = useState(false);
   const [quantidade, setQuantidade] = useState('1');
   const [comprando, setComprando] = useState(false);
-  const [erroCompra, setErroCompra] = useState('');
+  const purchaseQuantityInput = useRef<HTMLInputElement>(null);
   const [compraConcluida, setCompraConcluida] = useState(false);
 
   useEffect(() => {
@@ -84,13 +89,16 @@ export function MercadoAtivos({ token, onPurchase, saldoPrincipal, moedaPrincipa
 
   async function comprar(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!cotacao || comprando) return;
-    setComprando(true); setErroCompra(''); setCompraConcluida(false);
+    if (!cotacao || comprando || loading) return;
+    setComprando(true); setCompraConcluida(false);
     try {
       await onPurchase(cotacao.codigo, quantidade.trim().replace(',', '.'));
       setCompraConcluida(true);
-    } catch (erro) {
-      setErroCompra(erro instanceof Error ? erro.message : 'Não foi possível concluir a compra.');
+    } catch (error) {
+      const notice = error instanceof InvestmentTradeError ? error.notice : mapAccountError(error, { operation: 'purchase' });
+      const recover = notice.action === 'edit-quantity' ? () => purchaseQuantityInput.current?.focus()
+        : notice.action === 'check-balances' || notice.action === 'reload' ? onRefresh : undefined;
+      onTradeError(notice, recover);
     } finally { setComprando(false); }
   }
 
@@ -109,7 +117,7 @@ export function MercadoAtivos({ token, onPurchase, saldoPrincipal, moedaPrincipa
       <div className="market-search-input">
         <Search size={18} aria-hidden />
         <input ref={searchInput} id="market-search" type="search" value={busca} maxLength={80} placeholder="Ex.: PETR4 ou Petrobras" autoComplete="off"
-          onChange={event => { setBusca(event.target.value); setPagina(1); setTicker(null); setCotacao(null); setLista(null); setCompraConcluida(false); setErroCompra(''); }} />
+          onChange={event => { setBusca(event.target.value); setPagina(1); setTicker(null); setCotacao(null); setLista(null); setCompraConcluida(false); }} />
       </div>
       <p>Cotações de referência podem ter atraso de aproximadamente 30 minutos.</p>
     </div>
@@ -121,7 +129,7 @@ export function MercadoAtivos({ token, onPurchase, saldoPrincipal, moedaPrincipa
       <div className="market-section-title"><h4>Resultados</h4><span>Página {pagina}</span></div>
       {lista.ativos.length === 0 && <p className="market-state">Nenhum ativo compatível nesta página.</p>}
       <ul className="market-results">{lista.ativos.map(ativo => <li key={ativo.codigo}>
-        <button type="button" aria-pressed={ticker === ativo.codigo} onClick={() => { setTicker(ativo.codigo); setCompraConcluida(false); setErroCompra(''); }}>
+        <button type="button" aria-pressed={ticker === ativo.codigo} onClick={() => { setTicker(ativo.codigo); setCompraConcluida(false); }}>
           <span className="market-result-symbol">{ativo.codigo.slice(0, 1)}</span>
           <span className="market-result-main"><strong>{ativo.codigo}</strong><span>{ativo.nome}</span></span>
           <span className="market-result-type">{ativo.tipo}</span>
@@ -144,12 +152,11 @@ export function MercadoAtivos({ token, onPurchase, saldoPrincipal, moedaPrincipa
         <span className="market-main-balance">Saldo da conta principal: <strong>{saldoPrincipal}</strong></span>
         <form className="market-buy-form" onSubmit={event => void comprar(event)}>
           <label htmlFor="market-quantity">Quantidade</label>
-          <div><input id="market-quantity" type="text" inputMode="decimal" value={quantidade} onChange={event => setQuantidade(event.target.value)} placeholder="1" required disabled={comprando} />
-            <button type="submit" disabled={comprando || moedaPrincipal !== 'BRL'}>{comprando ? 'Comprando…' : 'Comprar ativo'}</button></div>
+          <div><input ref={purchaseQuantityInput} id="market-quantity" type="text" inputMode="decimal" value={quantidade} onChange={event => setQuantidade(event.target.value)} placeholder="1" required disabled={comprando || loading} />
+            <button type="submit" disabled={comprando || loading || moedaPrincipal !== 'BRL'}>{comprando ? 'Comprando…' : 'Comprar ativo'}</button></div>
         </form>
         {moedaPrincipal !== 'BRL' && <span className="market-buy-error">Converta o saldo principal para BRL antes de comprar.</span>}
         {compraConcluida && <span className="market-buy-success" role="status">Compra concluída. Sua carteira foi atualizada.</span>}
-        {erroCompra && <span className="market-buy-error" role="alert">{erroCompra}</span>}
       </article>
 
       <article className="market-quote-card market-chart-card">

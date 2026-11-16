@@ -1,6 +1,6 @@
 /** Pure presentation data: no React, requests, navigation or login validation. */
-export type AccountErrorOperation = 'pix' | 'conversion' | 'investment-transfer' | 'account' | 'market';
-export type AccountErrorAction = 'close' | 'edit-value' | 'edit-key' | 'select-currency' | 'check-balances' | 'reload' | 'edit-search' | 'sign-in';
+export type AccountErrorOperation = 'pix' | 'conversion' | 'investment-transfer' | 'purchase' | 'sale' | 'account' | 'market';
+export type AccountErrorAction = 'close' | 'edit-value' | 'edit-quantity' | 'edit-key' | 'select-currency' | 'open-currencies' | 'check-balances' | 'reload' | 'edit-search' | 'sign-in';
 export type AccountErrorIcon = 'alert' | 'wallet' | 'recipient' | 'exchange' | 'connection' | 'clock' | 'search';
 
 export type AccountErrorNotice = {
@@ -23,6 +23,7 @@ const actionLabels: Record<AccountErrorAction, string> = {
   close: 'Entendi', 'edit-value': 'Alterar valor', 'edit-key': 'Corrigir chave',
   'select-currency': 'Escolher moeda', 'check-balances': 'Conferir saldos',
   reload: 'Recarregar', 'edit-search': 'Revisar busca', 'sign-in': 'Entrar novamente',
+  'edit-quantity': 'Alterar quantidade', 'open-currencies': 'Ir para Moedas',
 };
 
 function notice(title: string, description: string, icon: AccountErrorIcon = 'alert',
@@ -46,8 +47,11 @@ function readError(error: unknown): { message: string; code: string } {
 function unconfirmed(operation: AccountErrorOperation): AccountErrorNotice {
   const title = operation === 'pix' ? 'Não foi possível confirmar o Pix'
     : operation === 'conversion' ? 'Não foi possível confirmar a conversão'
-      : 'Não foi possível confirmar a transferência';
-  return notice(title, 'Confira os saldos e o histórico antes de tentar novamente.', 'clock', 'check-balances', 'warning');
+      : operation === 'purchase' ? 'Não foi possível confirmar a compra'
+        : operation === 'sale' ? 'Não foi possível confirmar a venda' : 'Não foi possível confirmar a transferência';
+  return notice(title, operation === 'purchase' || operation === 'sale'
+    ? 'Confira os saldos e os ativos da sua carteira antes de tentar novamente.'
+    : 'Confira os saldos e o histórico antes de tentar novamente.', 'clock', 'check-balances', 'warning');
 }
 
 /** Pass the original error, before adding prefixes such as "Não foi possível enviar o Pix".
@@ -57,14 +61,35 @@ function unconfirmed(operation: AccountErrorOperation): AccountErrorNotice {
  */
 export function mapAccountError(error: unknown, context: AccountErrorContext): AccountErrorNotice {
   const { operation, outcome } = context;
-  const writing = operation === 'pix' || operation === 'conversion' || operation === 'investment-transfer';
+  const trading = operation === 'purchase' || operation === 'sale';
+  const writing = operation === 'pix' || operation === 'conversion' || operation === 'investment-transfer' || trading;
   if (writing && outcome === 'unconfirmed') return unconfirmed(operation);
   const { message, code } = readError(error);
   const matches = (...messages: string[]) => messages.some(candidate => normalize(candidate) === message);
 
   if (matches('Sessão inválida. Entre novamente.', 'Autenticação obrigatória',
-    'Entre na conta para enviar um Pix.', 'Entre na conta para converter o saldo.', 'Entre na conta para transferir.')) {
+    'Entre na conta para enviar um Pix.', 'Entre na conta para converter o saldo.', 'Entre na conta para transferir.',
+    'Entre na conta para comprar.', 'Entre na conta para vender.')) {
     return notice('Entre novamente', 'Sua sessão não está disponível. Entre na conta para continuar.', 'alert', 'sign-in', 'warning');
+  }
+
+  if (trading) {
+    if (matches('Quantidade inválida', 'Quantidade deve ser um decimal positivo em texto',
+      'Quantidade aceita até 6 casas decimais', 'Quantidade está fora do limite permitido')) {
+      return notice('Confira a quantidade', 'Informe uma quantidade maior que zero, com até seis casas decimais e dentro do limite permitido.', 'alert', 'edit-quantity');
+    }
+    if (operation === 'sale' && matches('Quantidade indisponível para venda', 'Quantidade insuficiente')) {
+      return notice('Quantidade indisponível', 'A quantidade informada é maior que a disponível na sua carteira. Revise a quantidade antes de vender.', 'wallet', 'edit-quantity');
+    }
+    if (operation === 'purchase' && matches('Saldo insuficiente', 'Saldo insuficiente na conta principal', 'Saldo insuficiente na conta de investimentos')) {
+      return notice('Saldo insuficiente para comprar', 'O saldo disponível na conta de origem não cobre esta compra. Reduza a quantidade de ativos.', 'wallet', 'edit-quantity');
+    }
+    if (matches('Converta o saldo principal para BRL antes de comprar ações', 'Converta o saldo principal para BRL antes de vender ações')) {
+      return notice('Saldo precisa estar em reais', 'Converta o saldo da conta principal para BRL antes de continuar.', 'exchange', 'open-currencies');
+    }
+    if (matches('Valor mínimo da venda é R$ 0,01', 'Valor mínimo da operação é R$ 0,01', 'Valor da operação excede o limite')) {
+      return notice('Revise a quantidade', 'O valor total precisa ser de pelo menos R$ 0,01 e respeitar o limite da operação.', 'wallet', 'edit-quantity');
+    }
   }
 
   if (operation === 'pix') {
@@ -133,6 +158,8 @@ export function mapAccountError(error: unknown, context: AccountErrorContext): A
 
   if (writing && outcome !== 'rejected') return unconfirmed(operation);
   const title = operation === 'pix' ? 'Não foi possível enviar o Pix'
-    : operation === 'conversion' ? 'Não foi possível converter' : 'Não foi possível transferir';
+    : operation === 'conversion' ? 'Não foi possível converter'
+      : operation === 'purchase' ? 'Não foi possível comprar'
+        : operation === 'sale' ? 'Não foi possível vender' : 'Não foi possível transferir';
   return notice(title, 'Não foi possível concluir esta operação. Confira os dados informados.', 'alert');
 }

@@ -3,6 +3,7 @@ import { ArrowDownToLine, ArrowLeft, ArrowUpFromLine, ChevronRight, HandCoins, R
 import { MercadoAtivos } from './mercado-ativos';
 import { formatarSaldo, type Conta } from './moeda';
 import { InvestmentTransferError } from './investment-transfer';
+import { InvestmentTradeError } from './investment-trade';
 import { mapAccountError, type AccountErrorNotice } from './account-errors';
 
 import type { ContaInvestimento, DirecaoTransferencia, TransferenciaInvestimento } from './investment-types';
@@ -15,7 +16,7 @@ type Props = {
   token: string;
   onRefresh: () => void;
   onTransfer: (direcao: DirecaoTransferencia, valor: string) => Promise<TransferenciaInvestimento>;
-  onTransferError: (notice: AccountErrorNotice, recover?: () => void) => void;
+  onOperationError: (notice: AccountErrorNotice, recover?: () => void) => void;
   onQueryError: (notice: AccountErrorNotice, recover?: () => void) => void;
   onPurchase: (codigoAtivo: string, quantidade: string) => Promise<void>;
   onSale: (codigoAtivo: string, quantidade: string) => Promise<void>;
@@ -31,7 +32,7 @@ function GrowthHomeIcon() {
   </svg>;
 }
 
-export function InvestmentAccount({ principal, investimento, loading, token, onRefresh, onTransfer, onTransferError, onQueryError, onPurchase, onSale }: Props) {
+export function InvestmentAccount({ principal, investimento, loading, token, onRefresh, onTransfer, onOperationError, onQueryError, onPurchase, onSale }: Props) {
   const [categoria, setCategoria] = useState<'renda-fixa' | 'acoes' | 'compradas' | null>(null);
   const [direcao, setDirecao] = useState<DirecaoTransferencia>('PARA_INVESTIMENTOS');
   const [valor, setValor] = useState('');
@@ -41,7 +42,7 @@ export function InvestmentAccount({ principal, investimento, loading, token, onR
   const [ativoParaVenda, setAtivoParaVenda] = useState<string | null>(null);
   const [quantidadeVenda, setQuantidadeVenda] = useState('');
   const [vendendo, setVendendo] = useState(false);
-  const [erroVenda, setErroVenda] = useState('');
+  const saleQuantityInput = useRef<HTMLInputElement>(null);
   const saldoDaCarteira = Number(investimento?.saldo ?? '0');
   const acoesDaCarteira = Number(investimento?.acoes_investidas ?? '0');
   const rendaFixa = Number.isFinite(saldoDaCarteira) ? Math.max(saldoDaCarteira, 0) : 0;
@@ -62,16 +63,21 @@ export function InvestmentAccount({ principal, investimento, loading, token, onR
       const notice = error instanceof InvestmentTransferError ? error.notice : mapAccountError(error, { operation: 'investment-transfer' });
       const recover = notice.action === 'edit-value' ? () => valueInput.current?.focus()
         : notice.action === 'check-balances' || notice.action === 'reload' ? onRefresh : undefined;
-      onTransferError(notice, recover);
+      onOperationError(notice, recover);
     }
     finally { setSending(false); }
   }
   async function vender(event: FormEvent<HTMLFormElement>, codigo: string) {
     event.preventDefault();
-    if (vendendo) return;
-    setVendendo(true); setErroVenda('');
+    if (vendendo || loading) return;
+    setVendendo(true);
     try { await onSale(codigo, quantidadeVenda.trim().replace(',', '.')); setAtivoParaVenda(null); setQuantidadeVenda(''); }
-    catch (erro) { setErroVenda(erro instanceof Error ? erro.message : 'Não foi possível concluir a venda.'); }
+    catch (error) {
+      const notice = error instanceof InvestmentTradeError ? error.notice : mapAccountError(error, { operation: 'sale' });
+      const recover = notice.action === 'edit-quantity' ? () => saleQuantityInput.current?.focus()
+        : notice.action === 'check-balances' || notice.action === 'reload' ? onRefresh : undefined;
+      onOperationError(notice, recover);
+    }
     finally { setVendendo(false); }
   }
 
@@ -147,12 +153,11 @@ export function InvestmentAccount({ principal, investimento, loading, token, onR
         <span className="investment-position-symbol">{posicao.codigo_ativo.slice(0, 1)}</span>
         <strong>{posicao.codigo_ativo}</strong>
         <span>{Number(posicao.quantidade).toLocaleString('pt-BR', { maximumFractionDigits: 6 })} unidades</span>
-        <button type="button" className="investment-sell-toggle" onClick={() => { setAtivoParaVenda(ativoParaVenda === posicao.codigo_ativo ? null : posicao.codigo_ativo); setQuantidadeVenda(''); setErroVenda(''); }}>Vender</button>
+        <button type="button" className="investment-sell-toggle" onClick={() => { setAtivoParaVenda(ativoParaVenda === posicao.codigo_ativo ? null : posicao.codigo_ativo); setQuantidadeVenda(''); }}>Vender</button>
         {ativoParaVenda === posicao.codigo_ativo && <form className="investment-sell-form" onSubmit={event => void vender(event, posicao.codigo_ativo)}>
           <label htmlFor={`sell-${posicao.codigo_ativo}`}>Quantidade para vender <span>Disponível: {Number(posicao.quantidade).toLocaleString('pt-BR', { maximumFractionDigits: 6 })}</span></label>
-          <div><input id={`sell-${posicao.codigo_ativo}`} type="text" inputMode="decimal" value={quantidadeVenda} onChange={event => setQuantidadeVenda(event.target.value)} placeholder="0" required disabled={vendendo} />
-            <button type="submit" disabled={vendendo}>{vendendo ? 'Vendendo…' : 'Confirmar venda'}</button></div>
-          {erroVenda && <p role="alert">{erroVenda}</p>}
+          <div><input ref={saleQuantityInput} id={`sell-${posicao.codigo_ativo}`} type="text" inputMode="decimal" value={quantidadeVenda} onChange={event => setQuantidadeVenda(event.target.value)} placeholder="0" required disabled={vendendo || loading} />
+            <button type="submit" disabled={vendendo || loading}>{vendendo ? 'Vendendo…' : 'Confirmar venda'}</button></div>
         </form>}
       </li>)}
     </ul>}
@@ -160,7 +165,7 @@ export function InvestmentAccount({ principal, investimento, loading, token, onR
 
   return <section className="investment-selected-content" aria-busy={loading}>
     <button type="button" className="account-back" onClick={() => setCategoria(null)}><ArrowLeft size={17} aria-hidden />Voltar às categorias</button>
-    <h2>Ações, BDRs, EFTs</h2><MercadoAtivos onQueryError={onQueryError} token={token} onPurchase={onPurchase}
+    <h2>Ações, BDRs, EFTs</h2><MercadoAtivos onQueryError={onQueryError} onTradeError={onOperationError} onRefresh={onRefresh} loading={loading} token={token} onPurchase={onPurchase}
       saldoPrincipal={principal ? formatarSaldo(principal.saldo, principal.moeda_saldo) : 'Carregando…'}
       moedaPrincipal={principal?.moeda_saldo ?? 'BRL'} />
   </section>;

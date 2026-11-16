@@ -10,6 +10,7 @@ import { requestPixTransfer } from './pix-transfer';
 import { requestCurrencyConversion } from './currency-conversion';
 import { InvestmentTransferError, requestInvestmentTransfer } from './investment-transfer';
 import { queryErrorNotice, readQueryResponse } from './query-errors';
+import { InvestmentTradeError, requestInvestmentTrade } from './investment-trade';
 import type { AccountErrorNotice } from './account-errors';
 
 type Notice = { text: string; kind: 'ok' | 'erro' | 'info' } | null;
@@ -93,17 +94,13 @@ export default function App() {
     try {
       const key = `${session.user.id}:${codigoAtivo}:${quantidade}`;
       if (pendingPurchase.current?.key !== key) pendingPurchase.current = { key, id: crypto.randomUUID() };
-      const response = await fetch(`${url}/functions/v1/corretora/investimentos/compras`, {
-        method: 'POST',
-        headers: { apikey: chave, Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ codigo_ativo: codigoAtivo, quantidade, requisicao_id: pendingPurchase.current.id }),
-      });
-      if (!response.ok) throw new Error(await readError(response));
-      setInvestimento(await response.json() as ContaInvestimento);
+      setInvestimento(await requestInvestmentTrade({ url, apiKey: chave, token: session.access_token,
+        operation: 'purchase', ticker: codigoAtivo, quantity: quantidade, requestId: pendingPurchase.current.id }));
+      const principal = await requestAccount('GET', session.access_token);
+      setConta(await readQueryResponse<Conta>(principal, 'account'));
       pendingPurchase.current = null;
     } catch (error) {
-      setNotice({ text: `Não foi possível concluir a compra: ${error instanceof Error ? error.message : 'erro inesperado'}`, kind: 'erro' });
-      throw error;
+      throw error instanceof InvestmentTradeError ? error : new InvestmentTradeError(error, 'purchase', 'unconfirmed');
     } finally { setLoadingAccount(false); }
   }
   async function sellInvestment(codigoAtivo: string, quantidade: string): Promise<void> {
@@ -112,20 +109,14 @@ export default function App() {
     try {
       const key = `${session.user.id}:${codigoAtivo}:${quantidade}`;
       if (pendingSale.current?.key !== key) pendingSale.current = { key, id: crypto.randomUUID() };
-      const response = await fetch(`${url}/functions/v1/corretora/investimentos/vendas`, {
-        method: 'POST',
-        headers: { apikey: chave, Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ codigo_ativo: codigoAtivo, quantidade, requisicao_id: pendingSale.current.id }),
-      });
-      if (!response.ok) throw new Error(await readError(response));
-      setInvestimento(await response.json() as ContaInvestimento);
+      setInvestimento(await requestInvestmentTrade({ url, apiKey: chave, token: session.access_token,
+        operation: 'sale', ticker: codigoAtivo, quantity: quantidade, requestId: pendingSale.current.id }));
       const principal = await requestAccount('GET', session.access_token);
       if (!principal.ok) throw new Error(await readError(principal));
       setConta(await principal.json() as Conta);
       pendingSale.current = null;
     } catch (error) {
-      setNotice({ text: `Não foi possível concluir a venda: ${error instanceof Error ? error.message : 'erro inesperado'}`, kind: 'erro' });
-      throw error;
+      throw error instanceof InvestmentTradeError ? error : new InvestmentTradeError(error, 'sale', 'unconfirmed');
     } finally { setLoadingAccount(false); }
   }
   async function convertBalance(moeda: TipoMoeda): Promise<ConversionReceipt> {

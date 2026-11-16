@@ -267,7 +267,7 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
           </form>
           <p className="account-pix-note">O envio é imediato neste ambiente de demonstração. Confira a chave e o valor antes de confirmar.</p>
         </div> : <>
-          <InvestmentAccount principal={conta} investimento={investimento} loading={loading} token={session.access_token} onRefresh={onInvestmentRefresh} onTransfer={onInvestmentTransfer} onTransferError={showQueryError} onQueryError={showQueryError} onPurchase={onInvestmentPurchase} onSale={onInvestmentSale} />
+          <InvestmentAccount principal={conta} investimento={investimento} loading={loading} token={session.access_token} onRefresh={onInvestmentRefresh} onTransfer={onInvestmentTransfer} onOperationError={showQueryError} onQueryError={showQueryError} onPurchase={onInvestmentPurchase} onSale={onInvestmentSale} />
         </>}
       </section>}
 
@@ -288,6 +288,7 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
           case 'edit-key': pixKeyInput.current?.focus(); break;
           case 'edit-value': pixValueInput.current?.focus(); break;
           case 'select-currency': currencyOptions.current?.querySelector<HTMLInputElement>('input:checked')?.focus(); break;
+          case 'open-currencies': setArea('currencies'); break;
           case 'check-balances': setArea('home'); onRefresh(); break;
           case 'reload': onRefresh(); break;
           case 'sign-in': onLogout(); break;

@@ -46,7 +46,18 @@ O botão fica desabilitado quando a moeda escolhida já é a atual. Converter co
 5. Informe zero para testar valor inválido.
 6. Para testar resultado incerto, selecione Offline em Network/Rede ANTES de confirmar a transferência. Depois do aviso, restaure a conexão e clique em “Conferir saldos”: as duas contas devem atualizar na mesma área, sem repetir a transferência.
 
-Login/cadastro e os erros de compra e venda de ações não foram alterados nesta etapa.
+Login e cadastro continuam fora do escopo dos popups.
+
+## Erros de compra e venda de ações
+
+- Compra: em Investimentos → Ações, BDRs, ETFs, busque um ativo e abra a cotação. Com a conta principal em BRL, informe quantidade `0` e clique em Comprar ativo. Deve aparecer “Confira a quantidade”. “Alterar quantidade” deve voltar ao campo sem apagar o valor.
+- Saldo insuficiente: informe uma quantidade cujo custo seja maior que o saldo principal. Deve aparecer “Saldo insuficiente para comprar”. Se o saldo não estiver em BRL, o botão de compra continua desabilitado, como antes.
+- Venda: em Ver ações compradas, escolha um ativo que já esteja na carteira. Informe uma quantidade maior que a disponível e confirme a venda. Deve aparecer “Quantidade indisponível”; o campo deve permanecer preenchido. Não é necessário fazer uma compra nova só para testar.
+- Se a conta principal estiver em outra moeda, a venda pode retornar “Saldo precisa estar em reais” antes de verificar a quantidade. O botão “Ir para Moedas” apenas navega para a conversão, sem executá-la.
+- Falha de conexão: com a cotação ou o formulário de venda já aberto, ative Offline ANTES de enviar. O popup deve informar que não foi possível confirmar a compra/venda. Restaure a conexão antes de “Conferir saldos”; essa ação consulta os dados, sem reenviar a operação.
+- Os exemplos de erro dependem de a consulta de cotação do servidor estar disponível. Uma falha do provedor pode interromper a operação antes da validação de saldo/quantidade.
+
+Não deve haver cópia do mesmo erro abaixo do formulário nem aviso de sucesso quando o resultado não foi confirmado. Comprovantes de compra e confirmação prévia de venda com estimativa de lucro permanecem para uma etapa futura.
 
 ## Carregamento da conta e consultas de mercado
 
