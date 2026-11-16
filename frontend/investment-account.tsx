@@ -122,7 +122,7 @@ export function InvestmentAccount({ principal, investimento, loading, token, onR
         <span className="investment-category-icon"><HandCoins size={27} strokeWidth={2.3} aria-hidden /></span><h2>Renda fixa</h2>
       </button>
       <button type="button" className="investment-category" onClick={() => setCategoria('acoes')}>
-        <span className="investment-category-icon"><GrowthHomeIcon /></span><h2>Ações, BDRs, EFTs</h2>
+        <span className="investment-category-icon"><GrowthHomeIcon /></span><h2>Renda variável</h2>
       </button>
     </section>
     <section className="investment-portfolio" aria-labelledby="portfolio-title">
@@ -132,6 +132,7 @@ export function InvestmentAccount({ principal, investimento, loading, token, onR
       </div>
       <div className="investment-portfolio-bar" aria-hidden>
         <span style={{ width: `${porcentagem(rendaFixa)}%` }} />
+        <span className="investment-portfolio-bar-stocks" style={{ width: `${porcentagem(acoes)}%` }} />
       </div>
       <dl className="investment-portfolio-breakdown">
         <div>
@@ -139,7 +140,7 @@ export function InvestmentAccount({ principal, investimento, loading, token, onR
           <dd><strong>{loading ? '—' : formatarSaldo(rendaFixa.toFixed(2), 'BRL')}</strong><span>{porcentagem(rendaFixa)}%</span></dd>
         </div>
         <div>
-          <dt><span className="investment-portfolio-marker investment-portfolio-marker-stocks" />Ações, BDRs, ETFs</dt>
+          <dt><span className="investment-portfolio-marker investment-portfolio-marker-stocks" />Renda variável</dt>
           <dd><strong>{loading ? '—' : formatarSaldo(acoes.toFixed(2), 'BRL')}</strong><span>{porcentagem(acoes)}%</span></dd>
         </div>
       </dl>
