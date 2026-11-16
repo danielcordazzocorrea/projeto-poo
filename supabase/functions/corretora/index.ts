@@ -1,7 +1,11 @@
+import { MercadoBrapi } from '../_shared/mercado-brapi.ts';
+import { responderMercado } from '../_shared/mercado-http.ts';
 import { withSupabase } from 'npm:@supabase/server@1';
 import { Corretora } from '../_shared/servico.ts';
 import { RepositorioSupabase } from '../_shared/repositorio-supabase.ts';
 import { FalhaDePersistencia, NaoEncontrado, RegraDeNegocio } from '../_shared/dominio.ts';
+
+const mercado = new MercadoBrapi(Deno.env.get('BRAPI_TOKEN') ?? '');
 
 function json(status: number, dados: unknown): Response {
   return Response.json(dados, { status });
@@ -28,6 +32,8 @@ Deno.serve(withSupabase({ auth: 'user' }, async (req, ctx) => {
   }
   const caminho = new URL(req.url).pathname.match(/\/corretora(\/.*)?$/)?.[1] ?? '/';
   try {
+    const respostaMercado = await responderMercado(req, mercado);
+    if (respostaMercado) return respostaMercado;
     if (req.method === 'GET' && caminho === '/ativos') {
       return json(200, await corretora.listarAtivos());
     }

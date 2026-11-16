@@ -220,3 +220,13 @@ button:not(:disabled) { cursor: pointer; }
   .account-data > div { grid-template-columns: 1fr; gap: 8px; }
 }
 @media (prefers-reduced-motion: reduce) { .account-app *, .account-app *::before, .account-app *::after { animation: none !important; transition: none !important; } }
+
+.account-market { max-width: 850px; }
+.market-results { list-style: none; padding: 0; margin: 24px 0; display: grid; gap: 10px; }
+.market-results button { width: 100%; display: flex; gap: 16px; align-items: center; text-align: left; padding: 16px; border: 1px solid currentColor; border-radius: 12px; background: transparent; color: inherit; cursor: pointer; }
+.market-results button span:nth-child(2) { flex: 1; overflow-wrap: anywhere; }
+.market-results button[aria-pressed="true"] { outline: 2px solid currentColor; }
+.market-pagination { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 20px 0; }
+.market-pagination button { padding: 8px 16px; border: 1px solid currentColor; border-radius: 8px; }
+.market-pagination button:disabled { opacity: .4; }
+@media (max-width: 520px) { .market-results button { flex-wrap: wrap; gap: 8px; } .market-results button span:nth-child(2) { flex-basis: 100%; order: 1; } }

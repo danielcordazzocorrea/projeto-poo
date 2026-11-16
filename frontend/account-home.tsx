@@ -1,3 +1,4 @@
+import { MercadoAtivos } from './mercado-ativos';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import type { Theme } from '@/lib/theme';
@@ -171,12 +172,7 @@ export function AccountHome({ theme, onThemeChange, session, conta, loading, not
           </form>
           {sendingPix && <div className="account-pix-progress" role="status" aria-live="polite"><span className="account-pix-progress-icon"><ArrowRightLeft size={22} aria-hidden /></span><div><strong>Transferência em andamento</strong><p>Estamos enviando seu Pix. Aguarde a confirmação.</p></div><span className="account-pix-progress-bar" aria-hidden /></div>}
           <p className="account-pix-note">O envio é imediato neste ambiente de demonstração. Confira a chave e o valor antes de confirmar.</p>
-        </div> : <div className="account-coming-soon">
-          <span className="account-coming-icon"><ChartNoAxesCombined size={40} strokeWidth={1.4} aria-hidden /></span>
-          <span className="account-soon-label">Em breve</span>
-          <h2>O próximo passo para sua carteira</h2>
-          <p>Estamos preparando a consulta de ativos e a gestão da sua carteira — as operações de investimento ainda não estão disponíveis nesta tela</p>
-        </div>}
+        </div> : <MercadoAtivos token={session.access_token} />}
       </section>}
 
       {notice && <p className="account-notice" role={notice.kind === 'erro' ? 'alert' : 'status'}>{notice.text}</p>}
