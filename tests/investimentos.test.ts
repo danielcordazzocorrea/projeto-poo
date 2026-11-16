@@ -13,13 +13,15 @@ const cotacoes: Cotacoes = {
 function criarRepositorio(moeda: TipoMoeda) {
   const chamadas: Array<{ direcao: string; centavos: bigint; moeda: TipoMoeda; taxas: Cotacoes | null; id: string }> = [];
   const repositorio: RepositorioInvestimentos = {
-    async consultarInvestimentos() { return { saldo: '0.00', moeda: 'BRL', posicoes: [], transferencias: [] }; },
+    async consultarInvestimentos() { return { saldo: '0.00', moeda: 'BRL', acoes_investidas: '0.00', posicoes: [], transferencias: [] }; },
     async consultarMoedaPrincipal() { return moeda; },
     async transferirInvestimento(direcao, centavos, moedaPrincipal, taxas, id) {
       chamadas.push({ direcao, centavos, moeda: moedaPrincipal, taxas, id });
       return { id, direcao, valor_origem: '10.00', moeda_origem: moedaPrincipal,
         valor_destino: '51.00', moeda_destino: 'BRL', cotacao_em: null };
     },
+    async comprarAtivo() {},
+    async venderAtivo() {},
   };
   return { repositorio, chamadas };
 }
