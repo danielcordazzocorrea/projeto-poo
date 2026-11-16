@@ -16,6 +16,7 @@ type Props = {
   onRefresh: () => void;
   onTransfer: (direcao: DirecaoTransferencia, valor: string) => Promise<TransferenciaInvestimento>;
   onTransferError: (notice: AccountErrorNotice, recover?: () => void) => void;
+  onQueryError: (notice: AccountErrorNotice, recover?: () => void) => void;
   onPurchase: (codigoAtivo: string, quantidade: string) => Promise<void>;
   onSale: (codigoAtivo: string, quantidade: string) => Promise<void>;
 };
@@ -30,7 +31,7 @@ function GrowthHomeIcon() {
   </svg>;
 }
 
-export function InvestmentAccount({ principal, investimento, loading, token, onRefresh, onTransfer, onTransferError, onPurchase, onSale }: Props) {
+export function InvestmentAccount({ principal, investimento, loading, token, onRefresh, onTransfer, onTransferError, onQueryError, onPurchase, onSale }: Props) {
   const [categoria, setCategoria] = useState<'renda-fixa' | 'acoes' | 'compradas' | null>(null);
   const [direcao, setDirecao] = useState<DirecaoTransferencia>('PARA_INVESTIMENTOS');
   const [valor, setValor] = useState('');
@@ -159,7 +160,7 @@ export function InvestmentAccount({ principal, investimento, loading, token, onR
 
   return <section className="investment-selected-content" aria-busy={loading}>
     <button type="button" className="account-back" onClick={() => setCategoria(null)}><ArrowLeft size={17} aria-hidden />Voltar às categorias</button>
-    <h2>Ações, BDRs, EFTs</h2><MercadoAtivos token={token} onPurchase={onPurchase}
+    <h2>Ações, BDRs, EFTs</h2><MercadoAtivos onQueryError={onQueryError} token={token} onPurchase={onPurchase}
       saldoPrincipal={principal ? formatarSaldo(principal.saldo, principal.moeda_saldo) : 'Carregando…'}
       moedaPrincipal={principal?.moeda_saldo ?? 'BRL'} />
   </section>;

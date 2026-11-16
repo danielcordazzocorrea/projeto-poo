@@ -128,7 +128,7 @@ export function mapAccountError(error: unknown, context: AccountErrorContext): A
     if (code === 'BUSCA_INVALIDA' || code === 'TICKER_INVALIDO' || matches('Digite entre 2 e 80 caracteres', 'Ticker inválido')) {
       return notice('Confira sua busca', 'Informe um termo entre 2 e 80 caracteres ou revise o código do ativo selecionado.', 'search', 'edit-search');
     }
-    return notice('Consulta indisponível', 'Não conseguimos consultar os dados de mercado agora. Tente novamente em instantes.', 'connection', 'close', 'warning');
+    return notice('Consulta indisponível', 'Não conseguimos consultar os dados de mercado agora. Tente novamente em instantes.', 'connection', 'reload', 'warning');
   }
 
   if (writing && outcome !== 'rejected') return unconfirmed(operation);

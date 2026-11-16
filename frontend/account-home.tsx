@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import type { Theme } from '@/lib/theme';
 import { ArrowDownLeft, ArrowLeft, ArrowUpRight, ArrowRightLeft, ChartNoAxesCombined, Check, Eye, EyeOff, History, Landmark, LogOut, Moon, Sun, RefreshCw, UserRound } from 'lucide-react';
@@ -21,6 +21,8 @@ type AccountHomeProps = {
   investimento: ContaInvestimento | null;
   loading: boolean;
   notice: { text: string; kind: 'ok' | 'erro' | 'info' } | null;
+  accountError: AccountErrorNotice | null;
+  onDismissAccountError: () => void;
   onRefresh: () => void;
   onPixTransfer: (chaveDestino: string, valor: string) => Promise<PixReceipt>;
   onConvertBalance: (moeda: TipoMoeda) => Promise<ConversionReceipt>;
@@ -66,13 +68,17 @@ function transactionLabel(transaction: Movimentacao): string {
   return 'Pix recebido';
 }
 
-export function AccountHome({ theme, onThemeChange, session, conta, investimento, loading, notice, onRefresh, onPixTransfer, onConvertBalance, onInvestmentTransfer, onInvestmentPurchase, onInvestmentSale, onInvestmentRefresh, onLogout }: AccountHomeProps) {
+export function AccountHome({ theme, onThemeChange, session, conta, investimento, loading, notice, accountError, onDismissAccountError, onRefresh, onPixTransfer, onConvertBalance, onInvestmentTransfer, onInvestmentPurchase, onInvestmentSale, onInvestmentRefresh, onLogout }: AccountHomeProps) {
   const [area, setArea] = useState<Area>('home');
   const [balanceVisible, setBalanceVisible] = useState(true);
   const [pixKey, setPixKey] = useState('');
   const [pixValue, setPixValue] = useState('');
   const [sendingPix, setSendingPix] = useState(false);
   const [operationError, setOperationError] = useState<{ notice: AccountErrorNotice; details: { label: string; value: string }[]; recover?: () => void } | null>(null);
+  const showQueryError = useCallback((notice: AccountErrorNotice, recover?: () => void) => {
+    setOperationError({ notice, details: [], recover });
+  }, []);
+  const displayedError = operationError ?? (accountError ? { notice: accountError, details: [], recover: undefined } : null);
   const pixKeyInput = useRef<HTMLInputElement>(null);
   const pixValueInput = useRef<HTMLInputElement>(null);
   const [pixSuccess, setPixSuccess] = useState<{ chave: string; valor: string; moeda: TipoMoeda; recebido: PixReceipt } | null>(null);
@@ -261,23 +267,24 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
           </form>
           <p className="account-pix-note">O envio é imediato neste ambiente de demonstração. Confira a chave e o valor antes de confirmar.</p>
         </div> : <>
-          <InvestmentAccount principal={conta} investimento={investimento} loading={loading} token={session.access_token} onRefresh={onInvestmentRefresh} onTransfer={onInvestmentTransfer} onTransferError={(notice, recover) => setOperationError({ notice, details: [], recover })} onPurchase={onInvestmentPurchase} onSale={onInvestmentSale} />
+          <InvestmentAccount principal={conta} investimento={investimento} loading={loading} token={session.access_token} onRefresh={onInvestmentRefresh} onTransfer={onInvestmentTransfer} onTransferError={showQueryError} onQueryError={showQueryError} onPurchase={onInvestmentPurchase} onSale={onInvestmentSale} />
         </>}
       </section>}
 
       {notice && <p className="account-notice" role={notice.kind === 'erro' ? 'alert' : 'status'}>{notice.text}</p>}
       <footer className="account-footer"><span>tivvo</span><p>Ambiente de demonstração · Saldos e investimentos simulados</p></footer>
     </main>
-    {operationError && <ErrorDialog
-      {...operationError.notice}
+    {displayedError && <ErrorDialog
+      key={operationError ? 'operation-error' : 'account-error'}
+      {...displayedError.notice}
       open={!operationLoading && !loading}
       theme={theme}
-      icon={errorIcons[operationError.notice.icon]}
-      details={operationError.details}
-      onClose={() => setOperationError(null)}
+      icon={errorIcons[displayedError.notice.icon]}
+      details={displayedError.details}
+      onClose={() => { if (operationError) setOperationError(null); else onDismissAccountError(); }}
       onAction={() => {
-        if (operationError.recover) { operationError.recover(); return; }
-        switch (operationError.notice.action) {
+        if (displayedError.recover) { displayedError.recover(); return; }
+        switch (displayedError.notice.action) {
           case 'edit-key': pixKeyInput.current?.focus(); break;
           case 'edit-value': pixValueInput.current?.focus(); break;
           case 'select-currency': currencyOptions.current?.querySelector<HTMLInputElement>('input:checked')?.focus(); break;

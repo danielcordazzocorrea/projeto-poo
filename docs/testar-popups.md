@@ -48,6 +48,17 @@ O botão fica desabilitado quando a moeda escolhida já é a atual. Converter co
 
 Login/cadastro e os erros de compra e venda de ações não foram alterados nesta etapa.
 
+## Carregamento da conta e consultas de mercado
+
+1. Com a conta já aberta, selecione Offline em F12 → Network/Rede e clique em “Atualizar saldo” na página inicial. Deve aparecer “Não conseguimos carregar os dados”.
+2. Restaure a conexão e clique em “Recarregar”: o popup deve fechar e os dados devem atualizar. Fechar pelo X ou Escape permite permanecer na página sem repetir a consulta.
+3. Em Investimentos → Ações, BDRs, ETFs, selecione Offline e digite uma busca com pelo menos dois caracteres. Deve aparecer “Consulta indisponível”.
+4. Restaure a conexão e clique em “Recarregar”: a mesma busca deve ser repetida, preservando o texto. Se fechar o popup, o botão “Buscar novamente” permite tentar depois.
+5. Para testar uma cotação, primeiro carregue os resultados online. Selecione Offline antes de clicar em um ativo. Restaure a conexão e use “Recarregar” para consultar o mesmo ativo.
+6. Uma busca sem resultados é um estado normal, sem popup. Limite de consultas apresenta aviso para aguardar; não há repetição automática.
+
+O popup deve aparecer uma vez por falha de consulta, sem outra cópia da mensagem abaixo da página. Digitar novamente ou sair da área cancela a consulta anterior sem apresentar erro de cancelamento.
+
 ## Verificações automatizadas
 
 Execute `npm.cmd test` e `npm.cmd run build:front`.
