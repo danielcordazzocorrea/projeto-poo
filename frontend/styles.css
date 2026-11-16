@@ -142,8 +142,10 @@ button:not(:disabled) { cursor: pointer; }
 .account-transaction-list { list-style: none; margin: 28px 0 0; padding: 0; border-top: 1px solid var(--account-line); }
 .account-transaction { display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(180px, auto); align-items: center; gap: 14px; padding: 18px 0; border-bottom: 1px solid var(--account-line); }
 .account-transaction-icon { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 13px; background: #e8f4e1; color: #3d8332; }
-.account-transaction-pix_enviado .account-transaction-icon { background: #f7ece6; color: #9a522a; }
-.account-transaction-pix_recebido .account-transaction-icon { background: #e7f3ef; color: #247563; }
+.account-transaction-pix_recebido .account-transaction-icon,
+.account-transaction-compra .account-transaction-icon { background: #e7effb; color: #2563b8; }
+.account-transaction-pix_enviado .account-transaction-icon,
+.account-transaction-venda .account-transaction-icon { background: #fbe9e9; color: #bd3434; }
 .account-transaction-main, .account-transaction-values { display: grid; gap: 4px; min-width: 0; }
 .account-transaction-main strong, .account-transaction-values strong { font-size: 14px; font-weight: 600; }
 .account-transaction-main span, .account-transaction-values span { color: var(--account-muted); font-size: 12px; line-height: 1.45; }
@@ -293,8 +295,10 @@ button:not(:disabled) { cursor: pointer; }
 .account-app[data-theme="dark"] .account-transactions-state { border-color: #38513c; background: #17251a; }
 .account-app[data-theme="dark"] .account-transaction-filter[aria-pressed="true"] { border-color: #9dff3a; background: #9dff3a; color: #0c0d0c; }
 .account-app[data-theme="dark"] .account-transaction-icon { background: #253e29; color: #a5f36d; }
-.account-app[data-theme="dark"] .account-transaction-pix_enviado .account-transaction-icon { background: #432d21; color: #f1b184; }
-.account-app[data-theme="dark"] .account-transaction-pix_recebido .account-transaction-icon { background: #173b33; color: #78d7bd; }
+.account-app[data-theme="dark"] .account-transaction-pix_recebido .account-transaction-icon,
+.account-app[data-theme="dark"] .account-transaction-compra .account-transaction-icon { background: #1c304b; color: #8bbcff; }
+.account-app[data-theme="dark"] .account-transaction-pix_enviado .account-transaction-icon,
+.account-app[data-theme="dark"] .account-transaction-venda .account-transaction-icon { background: #452424; color: #ff9999; }
 .account-app[data-theme="dark"] .investment-category { background: #1a241b; }
 .account-app[data-theme="dark"] .investment-category-icon { background: #253726; color: #b8ef91; }
 .account-app[data-theme="dark"] .investment-category:hover { background: #1c2b20; }

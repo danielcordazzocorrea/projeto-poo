@@ -1,6 +1,16 @@
-import { useState, type FormEvent } from 'react';
-import { ArrowDownToLine, ArrowLeft, ArrowUpFromLine, ChevronRight, HandCoins, RefreshCw } from 'lucide-react';
-import { MercadoAtivos } from './mercado-ativos';
+export type ComprovanteCompra = {
+  id: string;
+  codigo_ativo: string;
+  quantidade: string;
+  preco_unitario: string;
+  total_pago: string;
+  cotacao_em: string | null;
+  criada_em: string;
+};
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { ArrowDownToLine, ArrowLeft, ArrowUpFromLine, Check, ChevronRight, HandCoins, RefreshCw } from 'lucide-react';
+import { MercadoAtivos, consultarCotacao } from './mercado-ativos';
+import type { CotacaoAtivo } from '../supabase/functions/_shared/mercado-brapi';
 import { formatarSaldo, type Conta, type TipoMoeda } from './moeda';
 
 export type DirecaoTransferencia = 'PARA_INVESTIMENTOS' | 'PARA_PRINCIPAL';
@@ -18,7 +28,7 @@ export type ContaInvestimento = {
   saldo: string;
   moeda: 'BRL';
   acoes_investidas: string;
-  posicoes: Array<{ codigo_ativo: string; quantidade: string }>;
+  posicoes: Array<{ codigo_ativo: string; quantidade: string; preco_medio_compra?: string | null }>;
   transferencias: TransferenciaInvestimento[];
 };
 
@@ -29,7 +39,7 @@ type Props = {
   token: string;
   onRefresh: () => void;
   onTransfer: (direcao: DirecaoTransferencia, valor: string) => Promise<TransferenciaInvestimento>;
-  onPurchase: (codigoAtivo: string, quantidade: string) => Promise<void>;
+  onPurchase: (codigoAtivo: string, quantidade: string) => Promise<ComprovanteCompra>;
   onSale: (codigoAtivo: string, quantidade: string) => Promise<void>;
 };
 
@@ -53,6 +63,22 @@ export function InvestmentAccount({ principal, investimento, loading, token, onR
   const [quantidadeVenda, setQuantidadeVenda] = useState('');
   const [vendendo, setVendendo] = useState(false);
   const [erroVenda, setErroVenda] = useState('');
+  const [vendaConcluida, setVendaConcluida] = useState<{ codigo: string; quantidade: string } | null>(null);
+  const vendaDialog = useRef<HTMLDialogElement>(null);
+  const [cotacaoVenda, setCotacaoVenda] = useState<CotacaoAtivo | null>(null);
+  const [consultandoVenda, setConsultandoVenda] = useState(false);
+  const posicaoVenda = investimento?.posicoes.find(posicao => posicao.codigo_ativo === ativoParaVenda);
+  useEffect(() => {
+    if (!ativoParaVenda || categoria !== 'compradas') return;
+    const controller = new AbortController();
+    vendaDialog.current?.showModal();
+    setCotacaoVenda(null); setConsultandoVenda(true);
+    void consultarCotacao(ativoParaVenda, token, controller.signal)
+      .then(cotacao => { if (!controller.signal.aborted) setCotacaoVenda(cotacao); })
+      .catch(erro => { if (!controller.signal.aborted) setErroVenda(erro instanceof Error ? erro.message : 'Não foi possível consultar a cotação.'); })
+      .finally(() => { if (!controller.signal.aborted) setConsultandoVenda(false); });
+    return () => controller.abort();
+  }, [ativoParaVenda, categoria, token]);
   const saldoDaCarteira = Number(investimento?.saldo ?? '0');
   const acoesDaCarteira = Number(investimento?.acoes_investidas ?? '0');
   const rendaFixa = Number.isFinite(saldoDaCarteira) ? Math.max(saldoDaCarteira, 0) : 0;
@@ -74,9 +100,18 @@ export function InvestmentAccount({ principal, investimento, loading, token, onR
   }
   async function vender(event: FormEvent<HTMLFormElement>, codigo: string) {
     event.preventDefault();
-    if (vendendo) return;
+    if (vendendo || !cotacaoVenda || !posicaoVenda) return;
+    const quantidade = quantidadeVenda.trim().replace(',', '.');
+    if (!/^\d+(\.\d{1,6})?$/.test(quantidade) || Number(quantidade) <= 0 || Number(quantidade) > Number(posicaoVenda.quantidade)) {
+      setErroVenda('Informe uma quantidade maior que zero e até a quantidade disponível.');
+      return;
+    }
     setVendendo(true); setErroVenda('');
-    try { await onSale(codigo, quantidadeVenda.trim().replace(',', '.')); setAtivoParaVenda(null); setQuantidadeVenda(''); }
+    try {
+      await onSale(codigo, quantidade);
+      setVendaConcluida({ codigo, quantidade });
+      setQuantidadeVenda('');
+    }
     catch (erro) { setErroVenda(erro instanceof Error ? erro.message : 'Não foi possível concluir a venda.'); }
     finally { setVendendo(false); }
   }
@@ -153,15 +188,42 @@ export function InvestmentAccount({ principal, investimento, loading, token, onR
         <span className="investment-position-symbol">{posicao.codigo_ativo.slice(0, 1)}</span>
         <strong>{posicao.codigo_ativo}</strong>
         <span>{Number(posicao.quantidade).toLocaleString('pt-BR', { maximumFractionDigits: 6 })} unidades</span>
-        <button type="button" className="investment-sell-toggle" onClick={() => { setAtivoParaVenda(ativoParaVenda === posicao.codigo_ativo ? null : posicao.codigo_ativo); setQuantidadeVenda(''); setErroVenda(''); }}>Vender</button>
-        {ativoParaVenda === posicao.codigo_ativo && <form className="investment-sell-form" onSubmit={event => void vender(event, posicao.codigo_ativo)}>
-          <label htmlFor={`sell-${posicao.codigo_ativo}`}>Quantidade para vender <span>Disponível: {Number(posicao.quantidade).toLocaleString('pt-BR', { maximumFractionDigits: 6 })}</span></label>
-          <div><input id={`sell-${posicao.codigo_ativo}`} type="text" inputMode="decimal" value={quantidadeVenda} onChange={event => setQuantidadeVenda(event.target.value)} placeholder="0" required disabled={vendendo} />
-            <button type="submit" disabled={vendendo}>{vendendo ? 'Vendendo…' : 'Confirmar venda'}</button></div>
-          {erroVenda && <p role="alert">{erroVenda}</p>}
-        </form>}
+        <button type="button" className="investment-sell-toggle" onClick={() => { setAtivoParaVenda(posicao.codigo_ativo); setQuantidadeVenda(''); setErroVenda(''); }}>Vender</button>
       </li>)}
     </ul>}
+    <dialog ref={vendaDialog} className="account-pix-dialog" aria-labelledby="sell-dialog-title"
+      onCancel={event => { if (vendendo) event.preventDefault(); }}
+      onClose={() => { setAtivoParaVenda(null); setCotacaoVenda(null); setVendaConcluida(null); }}>
+      {vendaConcluida ? <div className="account-pix-dialog-content">
+        <span className="account-pix-success-icon"><Check size={30} strokeWidth={2.5} aria-hidden /></span>
+        <span className="account-pix-success-eyebrow">Venda concluída</span>
+        <h2 id="sell-dialog-title">Ativo vendido com sucesso</h2>
+        <div className="account-pix-success-details">
+          <div><span>Ativo</span><strong>{vendaConcluida.codigo}</strong></div>
+          <div><span>Quantidade vendida</span><strong>{Number(vendaConcluida.quantidade).toLocaleString('pt-BR', { maximumFractionDigits: 6 })}</strong></div>
+        </div>
+        <p className="account-pix-note">O valor da venda foi creditado na sua conta principal. Sua carteira foi atualizada.</p>
+        <button type="button" className="account-pix-success-close" onClick={() => vendaDialog.current?.close()}>Concluir</button>
+      </div> : <div className="account-pix-dialog-content">
+        <span className="account-pix-success-icon"><ArrowUpFromLine size={30} aria-hidden /></span>
+        <span className="account-pix-success-eyebrow">Venda de ativo</span>
+        <h2 id="sell-dialog-title">Vender {ativoParaVenda}</h2>
+        <div className="account-pix-success-details">
+          <div><span>Preço atual por unidade</span><strong>{consultandoVenda ? 'Consultando cotação…' : cotacaoVenda ? formatarSaldo(cotacaoVenda.preco_brl, 'BRL') : 'Indisponível'}</strong></div>
+          <div><span>Preço médio de compra por unidade</span><strong>{posicaoVenda?.preco_medio_compra ? formatarSaldo(posicaoVenda.preco_medio_compra, 'BRL') : 'Não informado'}</strong></div>
+          <div><span>Quantidade disponível</span><strong>{Number(posicaoVenda?.quantidade ?? '0').toLocaleString('pt-BR', { maximumFractionDigits: 6 })}</strong></div>
+          {cotacaoVenda && <div><span>Data e hora da cotação</span><strong>{cotacaoVenda.cotacao_em ? new Date(cotacaoVenda.cotacao_em).toLocaleString('pt-BR', { timeZoneName: 'short' }) : 'Não informado pelo provedor'}</strong></div>}
+        </div>
+        <form className="account-pix-form" onSubmit={event => { if (ativoParaVenda) void vender(event, ativoParaVenda); else event.preventDefault(); }}>
+          <label htmlFor="sell-dialog-quantity">Qual quantidade você quer vender?</label>
+          <input id="sell-dialog-quantity" type="text" inputMode="decimal" value={quantidadeVenda} onChange={event => setQuantidadeVenda(event.target.value)} placeholder="0" required disabled={vendendo || consultandoVenda} />
+          {erroVenda && <p className="investment-sale-error" role="alert">{erroVenda}</p>}
+          <p className="account-pix-note">O valor será creditado na sua conta principal pela cotação consultada na confirmação.</p>
+          <button type="submit" className="account-pix-success-close" disabled={vendendo || consultandoVenda || !cotacaoVenda || !quantidadeVenda.trim()}>{vendendo ? 'Vendendo…' : 'Confirmar venda'}</button>
+          <button type="button" className="account-back" disabled={vendendo} onClick={() => vendaDialog.current?.close()}>Cancelar</button>
+        </form>
+      </div>}
+    </dialog>
   </section>;
 
   return <section className="investment-selected-content" aria-busy={loading}>

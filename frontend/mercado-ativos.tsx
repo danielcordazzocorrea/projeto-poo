@@ -1,5 +1,6 @@
-import { useEffect, useState, type FormEvent } from 'react';
-import { BarChart3, Clock3, Search } from 'lucide-react';
+import type { ComprovanteCompra } from './investment-account';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { BarChart3, Check, Clock3, Search } from 'lucide-react';
 import type { BuscaAtivos, CotacaoAtivo } from '../supabase/functions/_shared/mercado-brapi';
 import type { TipoMoeda } from './moeda';
 
@@ -16,13 +17,16 @@ async function consultar<T>(caminho: string, token: string, signal: AbortSignal)
 function horario(valor: string | null): string {
   return valor ? new Date(valor).toLocaleString('pt-BR', { timeZoneName: 'short' }) : 'Não informado pelo provedor';
 }
+export function consultarCotacao(codigo: string, token: string, signal: AbortSignal) {
+  return consultar<CotacaoAtivo>(`/${encodeURIComponent(codigo)}`, token, signal);
+}
 function preco(valor: string): string {
   return Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
 export function MercadoAtivos({ token, onPurchase, saldoPrincipal, moedaPrincipal }: {
   token: string;
-  onPurchase: (codigoAtivo: string, quantidade: string) => Promise<void>;
+  onPurchase: (codigoAtivo: string, quantidade: string) => Promise<ComprovanteCompra>;
   saldoPrincipal: string;
   moedaPrincipal: TipoMoeda;
 }) {
@@ -39,6 +43,11 @@ export function MercadoAtivos({ token, onPurchase, saldoPrincipal, moedaPrincipa
   const [comprando, setComprando] = useState(false);
   const [erroCompra, setErroCompra] = useState('');
   const [compraConcluida, setCompraConcluida] = useState(false);
+  const [comprovante, setComprovante] = useState<ComprovanteCompra | null>(null);
+  const dialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    if (comprovante && !dialog.current?.open) dialog.current?.showModal();
+  }, [comprovante]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -71,7 +80,8 @@ export function MercadoAtivos({ token, onPurchase, saldoPrincipal, moedaPrincipa
     if (!cotacao || comprando) return;
     setComprando(true); setErroCompra(''); setCompraConcluida(false);
     try {
-      await onPurchase(cotacao.codigo, quantidade.trim().replace(',', '.'));
+      const recibo = await onPurchase(cotacao.codigo, quantidade.trim().replace(',', '.'));
+      setComprovante(recibo);
       setCompraConcluida(true);
     } catch (erro) {
       setErroCompra(erro instanceof Error ? erro.message : 'Não foi possível concluir a compra.');
@@ -119,6 +129,22 @@ export function MercadoAtivos({ token, onPurchase, saldoPrincipal, moedaPrincipa
 
     {cotando && <p className="market-state" role="status">Consultando {ticker}…</p>}
     {erroCotacao && <p className="market-state market-state-error" role="alert">{erroCotacao} <button type="button" onClick={() => setTicker(null)}>Fechar</button></p>}
+    <dialog ref={dialog} className="account-pix-dialog" aria-labelledby="purchase-success-title" onClose={() => setComprovante(null)}>
+      {comprovante && <div className="account-pix-dialog-content">
+        <span className="account-pix-success-icon"><Check size={30} strokeWidth={2.5} aria-hidden /></span>
+        <span className="account-pix-success-eyebrow">Compra concluída</span>
+        <h2 id="purchase-success-title">Ativo comprado com sucesso</h2>
+        <p className="account-pix-success-amount">{preco(comprovante.total_pago)}</p>
+        <div className="account-pix-success-details">
+          <div><span>Ativo</span><strong>{comprovante.codigo_ativo}</strong></div>
+          <div><span>Quantidade</span><strong>{Number(comprovante.quantidade).toLocaleString('pt-BR', { maximumFractionDigits: 6 })}</strong></div>
+          <div><span>Preço por unidade</span><strong>{preco(comprovante.preco_unitario)}</strong></div>
+          <div><span>Data e hora da cotação</span><strong>{horario(comprovante.cotacao_em)}</strong></div>
+          <div><span>Data e hora da compra</span><strong>{horario(comprovante.criada_em)}</strong></div>
+        </div>
+        <button type="button" className="account-pix-success-close" onClick={() => dialog.current?.close()}>Concluir</button>
+      </div>}
+    </dialog>
     {cotacao && <section className="market-quote-grid" aria-label="Cotação do ativo" aria-live="polite">
       <article className="market-quote-card market-price-card">
         <div className="market-card-heading"><span>Cotação atual</span><span className="market-live-indicator">Referência</span></div>

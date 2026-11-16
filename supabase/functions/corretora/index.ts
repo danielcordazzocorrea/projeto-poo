@@ -55,7 +55,7 @@ Deno.serve(withSupabase({ auth: 'user' }, async (req, ctx) => {
       if (typeof dados.codigo_ativo !== 'string') throw new RegraDeNegocio('Código de ativo inválido.');
       const cotacao = await mercado.cotar(dados.codigo_ativo);
       return json(200, await investimentos().comprarAtivo(
-        cotacao.codigo, dados.quantidade, cotacao.preco_brl, dados.requisicao_id,
+        cotacao.codigo, dados.quantidade, cotacao.preco_brl, dados.requisicao_id, cotacao.cotacao_em,
       ));
     }
     if (req.method === 'POST' && caminho === '/investimentos/vendas') {

@@ -1,3 +1,4 @@
+import type { ComprovanteCompra } from './investment-account';
 import { useEffect, useRef, useState } from 'react';
 import { createClient, type Session, type SupabaseClient } from '@supabase/supabase-js';
 import { AccountHome } from './account-home';
@@ -87,7 +88,7 @@ export default function App() {
       throw error;
     } finally { setLoadingAccount(false); }
   }
-  async function purchaseInvestment(codigoAtivo: string, quantidade: string): Promise<void> {
+  async function purchaseInvestment(codigoAtivo: string, quantidade: string): Promise<ComprovanteCompra> {
     if (!session) throw new Error('Entre na conta para comprar.');
     setLoadingAccount(true); setNotice(null);
     try {
@@ -99,8 +100,13 @@ export default function App() {
         body: JSON.stringify({ codigo_ativo: codigoAtivo, quantidade, requisicao_id: pendingPurchase.current.id }),
       });
       if (!response.ok) throw new Error(await readError(response));
-      setInvestimento(await response.json() as ContaInvestimento);
+      const resultado = await response.json() as { conta: ContaInvestimento; comprovante: ComprovanteCompra };
+      setInvestimento(resultado.conta);
       pendingPurchase.current = null;
+      // Keep the receipt available even if refreshing the principal balance fails.
+      const principal = await requestAccount('GET', session.access_token).catch(() => null);
+      if (principal?.ok) setConta(await principal.json() as Conta);
+      return resultado.comprovante;
     } catch (error) {
       setNotice({ text: `Não foi possível concluir a compra: ${error instanceof Error ? error.message : 'erro inesperado'}`, kind: 'erro' });
       throw error;
