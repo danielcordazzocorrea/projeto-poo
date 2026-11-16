@@ -9,6 +9,7 @@ export type Movimentacao = {
   moeda_destino: TipoMoeda | null;
   valor_destino: string | null;
   cotacao_em: string | null;
+  contraparte_nome: string | null;
   criada_em: string;
 };
 export type Conta = {

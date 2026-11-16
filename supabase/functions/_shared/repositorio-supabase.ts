@@ -77,10 +77,10 @@ export class RepositorioSupabase implements RepositorioCorretora, RepositorioInv
     const [resultadoPosicoes, resultadoMovimentos, ativos, resultadoChavePix] = await Promise.all([
       // Lê as quantidades dos ativos pertencentes à conta encontrada.
       this.banco.from('posicoes').select('ativo_codigo,quantidade_micros').eq('conta_id', conta.id),
-      // O histórico da conta é exibido integralmente na área de transações.
+      // A tela mostra as dez transações de moeda e Pix mais recentes.
       this.banco.from('movimentacoes')
-        .select('id,tipo,valor_centavos,ativo_codigo,quantidade_micros,criada_em,moeda,moeda_destino,valor_destino_centavos,cotacao_em')
-        .eq('conta_id', conta.id).order('criada_em', { ascending: false }),
+        .select('id,tipo,valor_centavos,ativo_codigo,quantidade_micros,criada_em,moeda,moeda_destino,valor_destino_centavos,cotacao_em,contraparte_nome')
+        .eq('conta_id', conta.id).in('tipo', ['CONVERSAO', 'PIX_ENVIADO', 'PIX_RECEBIDO']).order('criada_em', { ascending: false }).limit(10),
       // Busca os dados completos dos ativos usados para montar as posições.
       this.listarAtivos(),
       // A RLS permite ler somente a chave pertencente ao usuário da sessão.
@@ -116,6 +116,7 @@ export class RepositorioSupabase implements RepositorioCorretora, RepositorioInv
       row.moeda_destino === null ? null : validarTipoMoeda(row.moeda_destino),
       row.valor_destino_centavos === null ? null : Dinheiro.doBanco(row.valor_destino_centavos),
       row.cotacao_em,
+      row.contraparte_nome,
     ));
     // Composição: Conta recebe seu saldo, suas posições e suas movimentações.
     return new Conta(

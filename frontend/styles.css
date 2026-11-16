@@ -112,8 +112,7 @@ button:not(:disabled) { cursor: pointer; }
 .account-destination:hover { border-color: #719a7a; background: #fafff7; }
 .account-destination-top { display: flex; justify-content: space-between; align-items: center; color: #5e7165; margin-bottom: 28px; }
 .account-option-icon { display: grid; place-items: center; width: 52px; height: 52px; background: #eef4e9; color: #34583b; border-radius: 16px; }
-.account-destination-pix .account-option-icon { background: #e7f3ef; }
-.account-pix-logo { width: 29px; height: 29px; }
+.account-pix-logo { width: 29px; height: 29px; background: #34583b; -webkit-mask: url('/pix-logo.svg') center / contain no-repeat; mask: url('/pix-logo.svg') center / contain no-repeat; }
 .account-destination-profile .account-option-icon { background: #eff0f6; color: #515976; }
 .account-destination h3 { font-size: 22px; letter-spacing: -.6px; font-weight: 600; }
 .account-destination p { margin-block: 10px 28px; color: var(--account-muted); font-size: 14px; line-height: 1.65; }
@@ -132,6 +131,10 @@ button:not(:disabled) { cursor: pointer; }
 .account-verified { display: inline-flex; align-items: center; gap: 6px; }
 .account-detail-refresh { display: inline-flex; align-items: center; gap: 8px; margin-top: 28px; padding: 12px 18px; border-radius: 10px; background: #14291e; color: white; font-size: 13px; }
 .account-transactions { max-width: 760px; }
+.account-transaction-filters { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
+.account-transaction-filter { min-height: 40px; padding: 8px 16px; border: 1px solid var(--account-line); border-radius: 20px; color: var(--account-muted); font-size: 13px; font-weight: 600; }
+.account-transaction-filter:hover { border-color: #719a7a; color: var(--account-ink); }
+.account-transaction-filter[aria-pressed="true"] { border-color: #4c9330; background: #4c9330; color: white; }
 .account-transactions-state { margin-top: 28px; padding: 20px; border: 1px dashed var(--account-line); border-radius: 14px; color: var(--account-muted); font-size: 14px; }
 .account-transaction-list { list-style: none; margin: 28px 0 0; padding: 0; border-top: 1px solid var(--account-line); }
 .account-transaction { display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(180px, auto); align-items: center; gap: 14px; padding: 18px 0; border-bottom: 1px solid var(--account-line); }
@@ -228,11 +231,12 @@ button:not(:disabled) { cursor: pointer; }
 .account-app[data-theme="dark"] .account-destination:hover { background: #1c2b20; border-color: #719a7a; }
 .account-app[data-theme="dark"] .account-destination-top { color: var(--account-muted); }
 .account-app[data-theme="dark"] :is(.account-option-icon, .account-coming-icon) { background: #253726; color: #b8ef91; }
-.account-app[data-theme="dark"] .account-destination-pix .account-option-icon { background: #203c35; }
+.account-app[data-theme="dark"] .account-pix-logo { background: #b8ef91; }
 .account-app[data-theme="dark"] .account-destination-profile .account-option-icon { background: #2c3043; color: #c5cefa; }
 .account-app[data-theme="dark"] .account-notice { background: #34271d; border-color: #8c6749; color: #f2d1af; }
 .account-app[data-theme="dark"] .account-detail-refresh { background: #9dff3a; color: #0c0d0c; }
 .account-app[data-theme="dark"] .account-transactions-state { border-color: #38513c; background: #17251a; }
+.account-app[data-theme="dark"] .account-transaction-filter[aria-pressed="true"] { border-color: #9dff3a; background: #9dff3a; color: #0c0d0c; }
 .account-app[data-theme="dark"] .account-transaction-icon { background: #253e29; color: #a5f36d; }
 .account-app[data-theme="dark"] .account-transaction-pix_enviado .account-transaction-icon { background: #432d21; color: #f1b184; }
 .account-app[data-theme="dark"] .account-transaction-pix_recebido .account-transaction-icon { background: #173b33; color: #78d7bd; }

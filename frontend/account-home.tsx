@@ -8,6 +8,7 @@ import { formatarSaldo, type Conta, type ConversionReceipt, type Movimentacao, t
 import { InvestmentAccount, type ContaInvestimento, type DirecaoTransferencia, type TransferenciaInvestimento } from './investment-account';
 
 type Area = 'home' | 'investments' | 'pix' | 'profile' | 'history' | 'currencies';
+type TransactionFilter = 'all' | 'pix' | 'conversion';
 type AccountHomeProps = {
   theme: Theme;
   onThemeChange: (theme: Theme) => void;
@@ -30,6 +31,11 @@ const destinations = [
   { id: 'currencies', title: 'Moedas', description: 'Converta seu saldo entre real, dólar e euro com cotação atualizada', action: 'Converter saldo' },
   { id: 'history', title: 'Histórico de transações', description: 'Acompanhe conversões de moeda e Pix enviados ou recebidos', action: 'Ver histórico' },
 ] as const;
+const transactionFilters: { id: TransactionFilter; label: string }[] = [
+  { id: 'all', label: 'Todos' },
+  { id: 'pix', label: 'Pix' },
+  { id: 'conversion', label: 'Conversões' },
+];
 
 function formatDateBr(value: unknown): string {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return 'Não informado';
@@ -44,7 +50,7 @@ function formatDateTimeBr(value: string | null): string {
 }
 
 function PixLogo() {
-  return <img className="account-pix-logo" src="/pix-logo.svg" alt="" />;
+  return <span className="account-pix-logo" aria-hidden />;
 }
 
 function transactionLabel(transaction: Movimentacao): string {
@@ -62,6 +68,7 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
   const [pixSuccess, setPixSuccess] = useState<{ chave: string; valor: string; moeda: TipoMoeda; recebido: PixReceipt } | null>(null);
   const [targetCurrency, setTargetCurrency] = useState<TipoMoeda>('USD');
   const [converting, setConverting] = useState(false);
+  const [historyFilter, setHistoryFilter] = useState<TransactionFilter>('all');
   const [conversionSuccess, setConversionSuccess] = useState<{ saldoAnterior: string; moedaAnterior: TipoMoeda; recibo: ConversionReceipt } | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const previousArea = useRef(area);
@@ -94,7 +101,8 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
   const lastName = typeof savedLastName === 'string' ? savedLastName.trim() : '';
   const fullName = [firstName, lastName].filter(Boolean).join(' ') || 'Não informado';
   const birthDate = formatDateBr(session.user.user_metadata?.birth_date);
-  const transactionHistory = conta?.movimentacoes.filter(transaction => ['CONVERSAO', 'PIX_ENVIADO', 'PIX_RECEBIDO'].includes(transaction.tipo)) ?? [];
+  const transactionHistory = (conta?.movimentacoes.filter(transaction => ['CONVERSAO', 'PIX_ENVIADO', 'PIX_RECEBIDO'].includes(transaction.tipo)) ?? []).slice(0, 10);
+  const filteredTransactionHistory = transactionHistory.filter(transaction => historyFilter === 'all' || (historyFilter === 'pix' ? transaction.tipo.startsWith('PIX_') : transaction.tipo === 'CONVERSAO'));
 
   async function submitPix(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -200,11 +208,14 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
           <button type="button" className="account-detail-refresh" onClick={onRefresh} disabled={loading}><RefreshCw size={16} className={loading ? 'account-spin' : ''} aria-hidden />{loading ? 'Atualizando…' : 'Atualizar dados'}</button>
         </> : area === 'history' ? <div className="account-transactions">
           <p className="account-detail-intro">Consulte todas as conversões de saldo e os Pix enviados ou recebidos pela sua conta.</p>
-          {loading ? <p className="account-transactions-state" role="status">Carregando histórico…</p> : transactionHistory.length === 0 ? <p className="account-transactions-state">Ainda não há conversões ou Pix para mostrar.</p> : <ul className="account-transaction-list" aria-label="Transações da conta">
-            {transactionHistory.map(transaction => <li className={`account-transaction account-transaction-${transaction.tipo.toLowerCase()}`} key={transaction.id}>
+          <div className="account-transaction-filters" role="group" aria-label="Filtrar transações">
+            {transactionFilters.map(filter => <button key={filter.id} type="button" className="account-transaction-filter" aria-pressed={historyFilter === filter.id} onClick={() => setHistoryFilter(filter.id)}>{filter.label}</button>)}
+          </div>
+          {loading ? <p className="account-transactions-state" role="status">Carregando histórico…</p> : filteredTransactionHistory.length === 0 ? <p className="account-transactions-state">{historyFilter === 'all' ? 'Ainda não há conversões ou Pix para mostrar.' : historyFilter === 'pix' ? 'Ainda não há Pix para mostrar.' : 'Ainda não há conversões para mostrar.'}</p> : <ul className="account-transaction-list" aria-label="Transações da conta">
+            {filteredTransactionHistory.map(transaction => <li className={`account-transaction account-transaction-${transaction.tipo.toLowerCase()}`} key={transaction.id}>
               <span className="account-transaction-icon">{transaction.tipo === 'CONVERSAO' ? <ArrowRightLeft size={20} aria-hidden /> : transaction.tipo === 'PIX_ENVIADO' ? <ArrowUpRight size={20} aria-hidden /> : <ArrowDownLeft size={20} aria-hidden />}</span>
               <div className="account-transaction-main"><strong>{transactionLabel(transaction)}</strong><span>{formatDateTimeBr(transaction.criada_em)}</span></div>
-              <div className="account-transaction-values">{transaction.tipo === 'CONVERSAO' ? <><strong>{formatarSaldo(transaction.valor, transaction.moeda)} → {transaction.valor_destino && transaction.moeda_destino ? formatarSaldo(transaction.valor_destino, transaction.moeda_destino) : transaction.moeda_destino ?? transaction.moeda}</strong><span>{transaction.moeda} para {transaction.moeda_destino ?? transaction.moeda}</span></> : <><strong>{transaction.tipo === 'PIX_ENVIADO' ? '−' : '+'}{formatarSaldo(transaction.valor, transaction.moeda)}</strong>{transaction.valor_destino && transaction.moeda_destino && <span>{transaction.tipo === 'PIX_ENVIADO' ? 'Destinatário recebeu' : 'Origem enviou'} {formatarSaldo(transaction.valor_destino, transaction.moeda_destino)}</span>}</>}</div>
+              <div className="account-transaction-values">{transaction.tipo === 'CONVERSAO' ? <><strong>{formatarSaldo(transaction.valor, transaction.moeda)} → {transaction.valor_destino && transaction.moeda_destino ? formatarSaldo(transaction.valor_destino, transaction.moeda_destino) : transaction.moeda_destino ?? transaction.moeda}</strong><span>{transaction.moeda} para {transaction.moeda_destino ?? transaction.moeda}</span></> : <><strong>{transaction.tipo === 'PIX_ENVIADO' ? '−' : '+'}{formatarSaldo(transaction.valor, transaction.moeda)}</strong><span>{transaction.tipo === 'PIX_ENVIADO' ? `Para ${transaction.contraparte_nome ?? 'conta de destino'}` : `Recebido do ${transaction.contraparte_nome ?? 'remetente'}`}</span></>}</div>
             </li>)}
           </ul>}
           <button type="button" className="account-detail-refresh" onClick={onRefresh} disabled={loading}><RefreshCw size={16} className={loading ? 'account-spin' : ''} aria-hidden />{loading ? 'Atualizando…' : 'Atualizar histórico'}</button>
