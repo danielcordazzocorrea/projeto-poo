@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { BuscaAtivos, CotacaoAtivo, HistoricoAtivo } from '../supabase/functions/_shared/mercado-brapi';
 import { GraficoAtivo } from './mercado-grafico';
+import { PERIODOS_HISTORICO, type PeriodoHistorico } from '../supabase/functions/_shared/mercado-periodos';
 
 const url = import.meta.env.VITE_SUPABASE_URL?.trim() || 'https://pzaakefnbhwlhatgzgea.supabase.co';
 const chave = (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || '').trim();
@@ -30,6 +31,7 @@ export function MercadoAtivos({ token }: { token: string }) {
   const [erroHistorico, setErroHistorico] = useState('');
   const [carregandoHistorico, setCarregandoHistorico] = useState(false);
   const [tentativaHistorico, setTentativaHistorico] = useState(0);
+  const [periodo, setPeriodo] = useState<PeriodoHistorico>('1mo');
 
   useEffect(() => {
     const controller = new AbortController();
@@ -62,12 +64,12 @@ export function MercadoAtivos({ token }: { token: string }) {
     setHistorico(null); setErroHistorico('');
     if (!ticker) { setCarregandoHistorico(false); return () => controller.abort(); }
     setCarregandoHistorico(true);
-    void consultar<HistoricoAtivo>(`/${encodeURIComponent(ticker)}/historico`, token, controller.signal)
+    void consultar<HistoricoAtivo>(`/${encodeURIComponent(ticker)}/historico?periodo=${periodo}`, token, controller.signal)
       .then(dados => { if (!controller.signal.aborted) setHistorico(dados); })
       .catch(erro => { if (!controller.signal.aborted) setErroHistorico(erro instanceof Error ? erro.message : 'Falha ao consultar histórico.'); })
       .finally(() => { if (!controller.signal.aborted) setCarregandoHistorico(false); });
     return () => controller.abort();
-  }, [ticker, token, tentativaHistorico]);
+  }, [ticker, token, periodo, tentativaHistorico]);
 
   return <div className="account-market">
     <p className="account-detail-intro">Pesquise ações, ETFs e FIIs por nome ou ticker.</p>
@@ -106,12 +108,20 @@ export function MercadoAtivos({ token }: { token: string }) {
       </dl>
     </section>}
     {ticker && <section className="market-history-card" aria-label={`Evolução do preço de ${ticker}`} aria-busy={carregandoHistorico}>
-      <div className="market-history-heading"><h3>Evolução do preço · {ticker}</h3><span>Último mês</span></div>
+      <div className="market-history-heading"><h3>Evolução do preço · {ticker}</h3><span>{PERIODOS_HISTORICO[periodo].descricao}</span></div>
+      <div className="market-history-periods" role="group" aria-label="Período do gráfico">
+        {(Object.keys(PERIODOS_HISTORICO) as PeriodoHistorico[]).map(valor => <button key={valor} type="button"
+          aria-pressed={periodo === valor} aria-label={PERIODOS_HISTORICO[valor].descricao}
+          title={PERIODOS_HISTORICO[valor].descricao}
+          onClick={() => { if (valor !== periodo) { setHistorico(null); setErroHistorico(''); setCarregandoHistorico(true); setPeriodo(valor); } }}>
+          {PERIODOS_HISTORICO[valor].rotulo}
+        </button>)}
+      </div>
       {carregandoHistorico && <p role="status">Carregando histórico…</p>}
       {erroHistorico && <div role="alert"><p>Não foi possível carregar o gráfico. {erroHistorico}</p>
         <button type="button" onClick={() => setTentativaHistorico(valor => valor + 1)}>Tentar novamente</button>
       </div>}
-      {historico?.codigo === ticker && !carregandoHistorico && !erroHistorico && <GraficoAtivo key={`${ticker}:${historico.consultado_em}`} historico={historico} />}
+      {historico?.codigo === ticker && historico.periodo === periodo && !carregandoHistorico && !erroHistorico && <GraficoAtivo key={`${ticker}:${periodo}:${historico.consultado_em}`} historico={historico} />}
     </section>}
   </div>;
 }

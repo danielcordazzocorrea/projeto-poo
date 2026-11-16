@@ -275,11 +275,14 @@ button:not(:disabled) { cursor: pointer; }
 .market-history-selector { display: grid; gap: 6px; font-size: 12px; color: var(--account-muted); }
 .market-history-selector input { width: 100%; accent-color: #4c9330; }
 .market-history-note { line-height: 1.5; margin-block: 12px; }
-.market-history-chart summary { cursor: pointer; font-size: 13px; }
-.market-history-table { max-height: 240px; overflow: auto; margin-top: 12px; }
-.market-history-table table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.market-history-table th, .market-history-table td { text-align: left; padding: 8px; border-bottom: 1px solid var(--account-line); }
 .market-history-card button { border: 1px solid var(--account-line); border-radius: 8px; padding: 8px 12px; }
+.market-history-periods { display: flex; margin-top: 18px; border-bottom: 1px solid var(--account-line); overflow-x: auto; }
+.market-history-periods button { position: relative; flex: 1 0 46px; padding: 12px 8px; border: 0; border-radius: 0; background: transparent; color: var(--account-muted); font-size: 13px; font-weight: 600; cursor: pointer; }
+.market-history-periods button + button::before { content: ''; position: absolute; left: 0; top: 12px; bottom: 12px; border-left: 1px solid var(--account-line); }
+.market-history-periods button[aria-pressed="true"] { color: #326e20; }
+.market-history-periods button[aria-pressed="true"]::after { content: ''; position: absolute; bottom: 0; height: 3px; left: 25%; right: 25%; border-radius: 3px 3px 0 0; background: currentColor; }
+.market-history-periods button:focus-visible { outline: 2px solid currentColor; outline-offset: -3px; }
+.account-app[data-theme="dark"] .market-history-periods button[aria-pressed="true"] { color: #9dff3a; }
 .account-app[data-theme="dark"] .market-history-line { stroke: #9dff3a; }
 .account-app[data-theme="dark"] .market-history-point { fill: #9dff3a; }
 .account-app[data-theme="dark"] .market-history-area { fill: #9dff3a19; }

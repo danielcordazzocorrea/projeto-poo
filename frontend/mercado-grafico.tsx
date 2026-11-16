@@ -1,13 +1,17 @@
 import { useState } from 'react';
 import type { HistoricoAtivo } from '../supabase/functions/_shared/mercado-brapi';
+import { PERIODOS_HISTORICO } from '../supabase/functions/_shared/mercado-periodos';
 
 const reais = (valor: number) => valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-const dataBr = (data: string) => data.split('-').reverse().join('/');
+const dataBr = (data: string) => data.includes('T')
+  ? new Date(data).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+  : data.split('-').reverse().join('/');
+const intervalos = { '5m': '5 minutos', '60m': '1 hora', '1d': '1 dia', '1wk': '1 semana', '1mo': '1 mês' };
 
 export function GraficoAtivo({ historico }: { historico: HistoricoAtivo }) {
   const [selecionado, setSelecionado] = useState<number | null>(null);
   const pontos = historico.pontos;
-  if (pontos.length === 0) return <p role="status">Sem histórico disponível para este ativo no último mês.</p>;
+  if (pontos.length === 0) return <p role="status">Sem histórico disponível para este ativo no período selecionado.</p>;
   const valores = pontos.map(ponto => Number(ponto.preco_brl));
   const minimo = Math.min(...valores);
   const maximo = Math.max(...valores);
@@ -23,7 +27,7 @@ export function GraficoAtivo({ historico }: { historico: HistoricoAtivo }) {
 
   return <div className="market-history-chart">
     <p className="market-history-value" aria-live="polite">{descricao}</p>
-    <svg viewBox="0 0 600 225" role="img" aria-label={`Histórico diário de ${historico.codigo}, último mês. ${descricao}`}
+    <svg viewBox="0 0 600 225" role="img" aria-label={`Histórico de ${historico.codigo}. ${PERIODOS_HISTORICO[historico.periodo].descricao}. ${descricao}`}
       onPointerMove={event => {
         const limites = event.currentTarget.getBoundingClientRect();
         const posicao = (event.clientX - limites.left) / limites.width * 600;
@@ -44,13 +48,7 @@ export function GraficoAtivo({ historico }: { historico: HistoricoAtivo }) {
         aria-label="Data do histórico" aria-valuetext={descricao}
         onChange={event => setSelecionado(Number(event.target.value))} />
     </label>}
-    <p className="market-history-note">Fechamento diário em BRL, conforme informado pela brapi; pode incluir ajustes por proventos e desdobramentos.</p>
-    <details><summary>Ver preços em tabela</summary>
-      <div className="market-history-table"><table>
-        <caption>Histórico de {historico.codigo} — último mês</caption>
-        <thead><tr><th scope="col">Data</th><th scope="col">Fechamento</th></tr></thead>
-        <tbody>{pontos.map(ponto => <tr key={ponto.data}><td>{dataBr(ponto.data)}</td><td>{reais(Number(ponto.preco_brl))}</td></tr>)}</tbody>
-      </table></div>
-    </details>
+    <p className="market-history-note">Preços em BRL com intervalo de {intervalos[historico.intervalo]}, conforme informado pela brapi; podem incluir ajustes por proventos e desdobramentos.
+      {(historico.intervalo === '5m' || historico.intervalo === '60m') && ' Horários de Brasília.'}</p>
   </div>;
 }

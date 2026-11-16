@@ -10,7 +10,7 @@ export async function responderMercado(req: Request, mercado: MercadoBrapi): Pro
     const historico = caminho.match(/^\/mercado\/ativos\/([^/]+)\/historico$/);
     const dados = caminho === '/mercado/ativos'
       ? await mercado.buscar(url.searchParams.get('busca') ?? '', Number(url.searchParams.get('pagina') ?? '1'))
-      : historico ? await mercado.historico(historico[1]!)
+      : historico ? await mercado.historico(historico[1]!, url.searchParams.get('periodo') ?? '1mo')
       : await mercado.cotar(caminho.slice('/mercado/ativos/'.length));
     return Response.json(dados, { headers: { 'Cache-Control': 'no-store' } });
   } catch (erro) {

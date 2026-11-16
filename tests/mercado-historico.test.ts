@@ -91,3 +91,55 @@ test('rota de histórico valida ticker e método e não armazena resposta HTTP',
   assert.equal(response?.headers.get('Cache-Control'), 'no-store');
   assert.equal((await response?.json()).pontos.length, 2);
 });
+
+test('períodos do seletor usam intervalos adequados e caches separados', async () => {
+  const consultados: string[] = [];
+  const mercado = new MercadoBrapi('teste', { agora: () => instante, fetch: async input => {
+    const url = new URL(String(input));
+    if (url.pathname === '/api/quote/list') return Response.json({ stocks: [{ stock: 'PETR4', name: 'Petrobras', type: 'stock' }], hasNextPage: false });
+    const range = url.searchParams.get('range');
+    const interval = url.searchParams.get('interval');
+    consultados.push(`${range}:${interval}`);
+    return Response.json({ results: [{ symbol: 'PETR4', data: { usedRange: range, usedInterval: interval, historicalDataPrice: pontos } }] });
+  } });
+  for (const periodo of ['1d', '5d', '1mo', '6mo', 'ytd', '1y', '5y', 'max']) {
+    const req = new Request(`https://teste/functions/v1/corretora/mercado/ativos/PETR4/historico?periodo=${periodo}`);
+    const response = await responderMercado(req, mercado);
+    assert.equal(response?.status, 200);
+    assert.equal((await response?.json()).periodo, periodo);
+    await mercado.historico('PETR4', periodo);
+  }
+  assert.deepEqual(consultados, ['1d:5m', '5d:60m', '1mo:1d', '6mo:1d', 'ytd:1d', '1y:1d', '5y:1wk', 'max:1mo']);
+});
+
+test('períodos intradiários preservam pontos do mesmo dia e expiram em cinco minutos', async () => {
+  const body = { results: [{ symbol: 'PETR4', data: { usedRange: '1d', usedInterval: '5m', historicalDataPrice: [
+    { date: dia('2026-11-13'), close: 42 }, { date: dia('2026-11-13') + 300, close: 43 },
+  ] } }] };
+  const { mercado, chamadas, avancar } = criar(body);
+  const historico = await mercado.historico('PETR4', '1d');
+  assert.deepEqual(historico.pontos.map(p => p.data), ['2026-11-13T12:00:00.000Z', '2026-11-13T12:05:00.000Z']);
+  avancar(299_999);
+  await mercado.historico('PETR4', '1d');
+  assert.equal(chamadas.length, 2);
+  avancar(2);
+  await mercado.historico('PETR4', '1d');
+  assert.equal(chamadas.length, 4);
+});
+
+test('rejeita períodos desconhecidos antes da API, incluindo propriedades de Object', async () => {
+  const { mercado, chamadas } = criar();
+  for (const periodo of ['', '2y', '__proto__', 'constructor', 'toString']) {
+    const response = await responderMercado(new Request(`https://teste/functions/v1/corretora/mercado/ativos/PETR4/historico?periodo=${periodo}`), mercado);
+    assert.equal(response?.status, 400);
+    assert.equal((await response?.json()).codigo, 'PERIODO_INVALIDO');
+  }
+  assert.equal(chamadas.length, 0);
+});
+
+test('período negado pelo provedor tem erro próprio e não usa outro período', async () => {
+  const { mercado } = criar({ message: 'segredo do provedor' }, 'PETR4', 400);
+  await assert.rejects(mercado.historico('PETR4', '5y'), (e: unknown) => e instanceof ErroMercado &&
+    e.status === 422 && e.codigo === 'PERIODO_INDISPONIVEL' && !e.message.includes('segredo'));
+  await assert.rejects(criar().mercado.historico('PETR4', '6mo'), (e: unknown) => e instanceof ErroMercado && e.codigo === 'RESPOSTA_INVALIDA');
+});

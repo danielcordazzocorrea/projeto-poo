@@ -1,3 +1,5 @@
+import { PERIODOS_HISTORICO, periodoValido, type PeriodoHistorico, type IntervaloHistorico } from './mercado-periodos.ts';
+
 export type TipoAtivoMercado = 'ACAO' | 'ETF' | 'FII';
 export type ResumoAtivo = { codigo: string; nome: string; tipo: TipoAtivoMercado };
 export type CotacaoAtivo = ResumoAtivo & {
@@ -9,8 +11,8 @@ export type CotacaoAtivo = ResumoAtivo & {
 export type BuscaAtivos = { ativos: ResumoAtivo[]; pagina: number; tem_proxima: boolean };
 export type HistoricoAtivo = {
   codigo: string;
-  periodo: '1mo';
-  intervalo: '1d';
+  periodo: PeriodoHistorico;
+  intervalo: IntervaloHistorico;
   pontos: { data: string; preco_brl: string }[];
   consultado_em: string;
   fonte: 'brapi';
@@ -100,6 +102,9 @@ export class MercadoBrapi {
         throw new ErroMercado(429, 'LIMITE_BRAPI', 'Limite de consultas atingido. Tente novamente mais tarde.');
       }
       if (resposta.status === 401) throw new ErroMercado(503, 'TOKEN_INVALIDO', 'Credencial do provedor de mercado inválida.');
+      if (resposta.status === 400 && caminho === '/api/v2/stocks/historical') {
+        throw new ErroMercado(422, 'PERIODO_INDISPONIVEL', 'O provedor não liberou este período ou intervalo. A disponibilidade depende do plano da brapi. Tente outro período.');
+      }
       if (resposta.status === 403) throw new ErroMercado(503, 'ACESSO_NEGADO', 'Consulta não autorizada pelo provedor. Verifique a credencial e a cobertura do plano.');
       if (resposta.status === 404) throw new ErroMercado(404, 'ATIVO_NAO_ENCONTRADO', 'Ativo não encontrado.');
       if (!resposta.ok) throw new ErroMercado(502, 'FALHA_BRAPI', 'Provedor de mercado indisponível.');
@@ -145,21 +150,24 @@ export class MercadoBrapi {
     return ativo;
   }
 
-  async historico(ticker: string): Promise<HistoricoAtivo> {
+  async historico(ticker: string, periodo = '1mo'): Promise<HistoricoAtivo> {
     const codigo = ticker.trim().toUpperCase();
     if (!/^[A-Z]{4}[0-9]{1,2}$/.test(codigo)) throw new ErroMercado(400, 'TICKER_INVALIDO', 'Ticker inválido.');
-    return this.memorizar(`historico:${codigo}:1mo:1d`, 3_600_000, async () => {
+    if (!periodoValido(periodo)) throw new ErroMercado(400, 'PERIODO_INVALIDO', 'Período de histórico inválido.');
+    const intervalo = PERIODOS_HISTORICO[periodo].intervalo;
+    const intradiario = intervalo === '5m' || intervalo === '60m';
+    return this.memorizar(`historico:${codigo}:${periodo}:${intervalo}`, intradiario ? 300_000 : 3_600_000, async () => {
       await this.identificar(codigo);
       const dados = await this.consultar('/api/v2/stocks/historical', {
-        symbols: codigo, range: '1mo', interval: '1d', sortOrder: 'asc',
+        symbols: codigo, range: periodo, interval: intervalo, sortOrder: 'asc',
       });
       if (!Array.isArray(dados.results)) throw new ErroMercado(502, 'RESPOSTA_INVALIDA', 'Histórico inválido.');
       const resultado = dados.results.map(objeto).find(item => item.symbol === codigo);
       if (!resultado) throw new ErroMercado(404, 'HISTORICO_INDISPONIVEL', 'Histórico não disponível para este ativo.');
       const serie = objeto(resultado.data);
-      if (!Array.isArray(serie.historicalDataPrice) || serie.historicalDataPrice.length > 366 ||
-          serie.usedInterval !== '1d' || serie.usedRange !== '1mo') {
-        throw new ErroMercado(502, 'RESPOSTA_INVALIDA', 'Série diária de preços inválida.');
+      if (!Array.isArray(serie.historicalDataPrice) || serie.historicalDataPrice.length > 5000 ||
+          serie.usedInterval !== intervalo || serie.usedRange !== periodo) {
+        throw new ErroMercado(502, 'RESPOSTA_INVALIDA', 'Série de preços incompatível com o período solicitado.');
       }
       const porData = new Map<string, string>();
       for (const valor of serie.historicalDataPrice) {
@@ -171,14 +179,15 @@ export class MercadoBrapi {
             !Number.isFinite(ponto.close) || ponto.close <= 0 || ponto.close >= 1e12) {
           throw new ErroMercado(502, 'RESPOSTA_INVALIDA', 'Ponto do histórico inválido.');
         }
-        const data = new Date(ponto.date * 1000).toISOString().slice(0, 10);
+        const instante = new Date(ponto.date * 1000).toISOString();
+        const data = intradiario ? instante : instante.slice(0, 10);
         const preco = ponto.close.toFixed(2);
         if (porData.has(data) && porData.get(data) !== preco) {
           throw new ErroMercado(502, 'RESPOSTA_INVALIDA', 'Preços conflitantes na mesma data.');
         }
         porData.set(data, preco);
       }
-      return { codigo, periodo: '1mo', intervalo: '1d',
+      return { codigo, periodo, intervalo,
         pontos: [...porData].sort(([a], [b]) => a.localeCompare(b)).map(([data, preco_brl]) => ({ data, preco_brl })),
         consultado_em: new Date(this.agora()).toISOString(), fonte: 'brapi' };
     });
