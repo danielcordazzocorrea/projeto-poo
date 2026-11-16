@@ -19,7 +19,7 @@ Base: `/functions/v1/corretora`. As duas rotas exigem a sessão Supabase
 
 A listagem usa páginas de 20 do provedor e filtra tipos fora do escopo.
 Por isso uma página pode ter menos de 20 itens, inclusive zero, e ainda permitir
-avançar. Fundos sem subtipo informado não são classificados por suposição.
+avançar. Tickers fracionários com sufixo F são filtrados, pois o detalhe aceita apenas o ticker padrão. Fundos sem subtipo informado não são classificados por suposição.
 Tipos aceitos: stock/unit → ACAO, etf → ETF, fii → FII.
 O detalhe confirma o tipo na listagem, procurando até 10 páginas para o ticker.
 
@@ -40,9 +40,9 @@ Referências: [listagem](https://brapi.dev/docs/acoes/list),
    Configure o frontend com URL e chave publicável desse mesmo ambiente.
 4. Em um projeto hospedado de TESTE, cadastre `BRAPI_TOKEN` em
    Edge Functions → Secrets no painel Supabase. Alternativamente use
-   `npx supabase secrets set --env-file supabase/.env.local --project-ref REF_DE_TESTE`.
+   `npx supabase secrets set --env-file supabase/.env.local --remote=REF_DE_TESTE`.
    Revise o projeto antes de executar. A publicação da função é uma etapa separada:
-   `npx supabase functions deploy corretora --project-ref REF_DE_TESTE`.
+   `npx supabase functions deploy corretora --remote=REF_DE_TESTE --use-api`.
 
 Não há migração nova. Leia o aviso do README sobre o histórico divergente do
 projeto hospedado antes de qualquer operação de banco. Esta atividade não precisa de db push.
@@ -74,8 +74,7 @@ Eles cobrem tipos, paginação, campos ausentes, horários, cache e concorrênci
 erros HTTP, timeout, rede, entradas inválidas e o handler de rotas.
 A autenticação completa exige a Edge Function em execução.
 
-A chave real ainda não foi fornecida/configurada; cobertura do plano gratuito
-e interação no navegador permanecem pendentes de validação em ambiente de teste:
+A chave real foi configurada e validada em 15/11/2026. A lista abaixo mantém o roteiro de verificação manual no navegador:
 
 - Entre na aplicação e abra Investimentos; busque PETR e Petrobras.
 - Teste PETR4 (ação), BOVA11 (ETF) e HGLG11 (FII), registrando quais o plano libera.
@@ -94,6 +93,19 @@ possivelmente de cerca de 30 minutos no plano gratuito, e exibe o horário da fo
 Os dados de mercado ainda não alimentam compra/venda: essa integração exige
 validação de preço no servidor e registro de horário e fonte com a pessoa da conta.
 
-Resultado nesta implementação: 25 testes passaram; build do frontend concluído.
-Listagem pública de BOVA11 consultada sem token: type=fund e subType=etf confirmados.
-A cotação autenticada e a cobertura da chave gratuita continuam pendentes.
+Resultado nesta implementação: 27 testes passaram; build do frontend concluído.
+
+## Validação real em 15/11/2026
+
+BRAPI_TOKEN foi cadastrado como segredo no projeto Supabase pzaakefnbhwlhatgzgea, e a função corretora foi publicada via API. O frontend local recebeu a chave publicável real do mesmo projeto. Os arquivos .env.local e supabase/.env.local permanecem ignorados pelo Git. O comando npm run dev:edge agora carrega o arquivo de segredo explicitamente.
+
+| Consulta | API brapi direta | Edge Function com sessão |
+| --- | --- | --- |
+| Busca por PETR / Petrobras | 200 nas duas buscas | 200 para Petrobras |
+| PETR4 — ação | 200 | 200 |
+| BOVA11 — ETF | 200 | 200 |
+| HGLG11 — FII | 200 | 200 |
+
+As três cotações retornaram preço em BRL, tipo, fonte e horários. Isso confirma esses tickers com esta chave, sem garantir toda a cobertura do plano. Os headers de limites foram recebidos e registrados sem token. A busca hospedada omitiu corretamente os tickers fracionários.
+
+A chamada sem sessão retornou 401. O teste autenticado usou um usuário temporário, removido ao terminar, sem envio de e-mail ou operações financeiras. Não foram aplicadas migrações de banco. A navegação visual no navegador ainda deve ser conferida pelo usuário.

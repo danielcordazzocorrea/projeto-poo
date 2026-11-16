@@ -5,6 +5,7 @@ import { responderMercado } from '../supabase/functions/_shared/mercado-http.ts'
 
 const instante = Date.parse('2026-11-15T15:00:00Z');
 const stocks = [
+  { stock: 'PETR4F', name: 'Petrobras fracionario', type: 'stock', subType: 'stock' },
   { stock: 'PETR4', name: 'Petrobras', type: 'stock', subType: 'stock' },
   { stock: 'BOVA11', name: 'ETF Bovespa', type: 'fund', subType: 'etf' },
   { stock: 'HGLG11', name: 'Fundo imobiliário', type: 'fund', subType: 'fii' },
@@ -29,6 +30,7 @@ test('busca por nome normaliza tipos sem adivinhar fundos, pagina e reutiliza ca
   const resultado = await mercado.buscar('Petrobras', 2);
   assert.deepEqual(resultado.ativos.map(a => a.tipo), ['ACAO', 'ETF', 'FII']);
   assert.equal(resultado.pagina, 2);
+  assert.deepEqual(resultado.ativos.map(a => a.codigo), ['PETR4', 'BOVA11', 'HGLG11']);
   assert.ok(chamadas[0]?.includes('search=PETROBRAS'));
   await mercado.buscar(' petrobras ', 2);
   assert.equal(chamadas.length, 1);

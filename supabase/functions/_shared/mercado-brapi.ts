@@ -119,7 +119,7 @@ export class MercadoBrapi {
         const tipo = tipoAtivo(item);
         const codigo = texto(item.stock);
         const nome = texto(item.name);
-        if (tipo && codigo && nome) ativos.push({ codigo, nome, tipo });
+        if (tipo && codigo && /^[A-Z]{4}[0-9]{1,2}$/.test(codigo) && nome) ativos.push({ codigo, nome, tipo });
       }
       return { ativos, pagina, tem_proxima: dados.hasNextPage };
     });
