@@ -131,6 +131,17 @@ button:not(:disabled) { cursor: pointer; }
 .account-data dd { overflow-wrap: anywhere; }
 .account-verified { display: inline-flex; align-items: center; gap: 6px; }
 .account-detail-refresh { display: inline-flex; align-items: center; gap: 8px; margin-top: 28px; padding: 12px 18px; border-radius: 10px; background: #14291e; color: white; font-size: 13px; }
+.account-transactions { max-width: 760px; }
+.account-transactions-state { margin-top: 28px; padding: 20px; border: 1px dashed var(--account-line); border-radius: 14px; color: var(--account-muted); font-size: 14px; }
+.account-transaction-list { list-style: none; margin: 28px 0 0; padding: 0; border-top: 1px solid var(--account-line); }
+.account-transaction { display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(180px, auto); align-items: center; gap: 14px; padding: 18px 0; border-bottom: 1px solid var(--account-line); }
+.account-transaction-icon { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 13px; background: #e8f4e1; color: #3d8332; }
+.account-transaction-pix_enviado .account-transaction-icon { background: #f7ece6; color: #9a522a; }
+.account-transaction-pix_recebido .account-transaction-icon { background: #e7f3ef; color: #247563; }
+.account-transaction-main, .account-transaction-values { display: grid; gap: 4px; min-width: 0; }
+.account-transaction-main strong, .account-transaction-values strong { font-size: 14px; font-weight: 600; }
+.account-transaction-main span, .account-transaction-values span { color: var(--account-muted); font-size: 12px; line-height: 1.45; }
+.account-transaction-values { text-align: right; }
 .account-pix { max-width: 620px; }
 .account-pix-form { display: grid; gap: 9px; margin-top: 28px; }
 .account-pix-form h2 { margin-bottom: 8px; font-size: 20px; font-weight: 600; letter-spacing: -.4px; }
@@ -221,6 +232,10 @@ button:not(:disabled) { cursor: pointer; }
 .account-app[data-theme="dark"] .account-destination-profile .account-option-icon { background: #2c3043; color: #c5cefa; }
 .account-app[data-theme="dark"] .account-notice { background: #34271d; border-color: #8c6749; color: #f2d1af; }
 .account-app[data-theme="dark"] .account-detail-refresh { background: #9dff3a; color: #0c0d0c; }
+.account-app[data-theme="dark"] .account-transactions-state { border-color: #38513c; background: #17251a; }
+.account-app[data-theme="dark"] .account-transaction-icon { background: #253e29; color: #a5f36d; }
+.account-app[data-theme="dark"] .account-transaction-pix_enviado .account-transaction-icon { background: #432d21; color: #f1b184; }
+.account-app[data-theme="dark"] .account-transaction-pix_recebido .account-transaction-icon { background: #173b33; color: #78d7bd; }
 .account-app[data-theme="dark"] .investment-balances > div { background: #1a241b; }
 .account-app[data-theme="dark"] .investment-directions button.is-selected,
 .account-app[data-theme="dark"] .investment-receipt { background: #253726; color: #b8ef91; }
@@ -273,6 +288,8 @@ button:not(:disabled) { cursor: pointer; }
   .account-footer { flex-direction: column; gap: 8px; line-height: 1.6; }
   .account-detail { padding: 24px; }
   .account-data > div { grid-template-columns: 1fr; gap: 8px; }
+  .account-transaction { grid-template-columns: auto minmax(0, 1fr); }
+  .account-transaction-values { grid-column: 2; text-align: left; }
 }
 @media (prefers-reduced-motion: reduce) { .account-app *, .account-app *::before, .account-app *::after { animation: none !important; transition: none !important; } }
 

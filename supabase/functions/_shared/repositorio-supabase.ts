@@ -77,10 +77,10 @@ export class RepositorioSupabase implements RepositorioCorretora, RepositorioInv
     const [resultadoPosicoes, resultadoMovimentos, ativos, resultadoChavePix] = await Promise.all([
       // Lê as quantidades dos ativos pertencentes à conta encontrada.
       this.banco.from('posicoes').select('ativo_codigo,quantidade_micros').eq('conta_id', conta.id),
-      // Lê no máximo as 100 movimentações mais recentes da mesma conta.
+      // O histórico da conta é exibido integralmente na área de transações.
       this.banco.from('movimentacoes')
         .select('id,tipo,valor_centavos,ativo_codigo,quantidade_micros,criada_em,moeda,moeda_destino,valor_destino_centavos,cotacao_em')
-        .eq('conta_id', conta.id).order('criada_em', { ascending: false }).limit(100),
+        .eq('conta_id', conta.id).order('criada_em', { ascending: false }),
       // Busca os dados completos dos ativos usados para montar as posições.
       this.listarAtivos(),
       // A RLS permite ler somente a chave pertencente ao usuário da sessão.
