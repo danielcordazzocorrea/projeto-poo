@@ -1,7 +1,7 @@
 -- Preserva no histórico o primeiro nome da outra ponta do Pix para consulta posterior.
 alter table public.movimentacoes add column contraparte_nome text;
 
-create function public.transferir_pix_convertido(
+create or replace function public.transferir_pix_convertido(
   p_usuario_id uuid, p_chave_destino text, p_valor_centavos bigint,
   p_moeda_origem text, p_moeda_destino text, p_cotacoes jsonb
 ) returns jsonb language plpgsql security definer set search_path = '' as $$
