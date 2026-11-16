@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createClient, type Session, type SupabaseClient } from '@supabase/supabase-js';
 import { AccountHome } from './account-home';
 import { SmokeLogin } from '@/components/ui/smoke-login';
 import { CONFIGURATION_NOTICE, submitCredentials } from './auth';
 import { readSavedTheme, THEME_STORAGE_KEY, type Theme } from '@/lib/theme';
-import { type Conta, type PixReceipt, type TipoMoeda } from './moeda';
+import { type Conta, type ConversionReceipt, type PixReceipt, type TipoMoeda } from './moeda';
+import type { ContaInvestimento, DirecaoTransferencia, TransferenciaInvestimento } from './investment-account';
 
 type Notice = { text: string; kind: 'ok' | 'erro' | 'info' } | null;
 
@@ -18,8 +19,10 @@ export default function App() {
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [session, setSession] = useState<Session | null>(null);
   const [conta, setConta] = useState<Conta | null>(null);
+  const [investimento, setInvestimento] = useState<ContaInvestimento | null>(null);
   const [loadingAccount, setLoadingAccount] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
+  const pendingInvestment = useRef<{ key: string; id: string } | null>(null);
 
   useEffect(() => {
     document.documentElement.style.colorScheme = theme;
@@ -36,7 +39,7 @@ export default function App() {
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  useEffect(() => { if (session) void loadAccount(session); else setConta(null); }, [session]);
+  useEffect(() => { if (session) void loadAccount(session); else { setConta(null); setInvestimento(null); pendingInvestment.current = null; } }, [session]);
 
   async function readError(response: Response): Promise<string> {
     try {
@@ -51,7 +54,38 @@ export default function App() {
   async function requestAccount(method: 'GET' | 'POST', token: string): Promise<Response> {
     return fetch(`${url}/functions/v1/corretora/conta`, { method, headers: { apikey: chave, Authorization: `Bearer ${token}` } });
   }
-  async function convertBalance(moeda: TipoMoeda): Promise<void> {
+  async function requestInvestment(token: string): Promise<ContaInvestimento> {
+    const response = await fetch(`${url}/functions/v1/corretora/investimentos/conta`, {
+      headers: { apikey: chave, Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) throw new Error(await readError(response));
+    return await response.json() as ContaInvestimento;
+  }
+  async function transferInvestment(direcao: DirecaoTransferencia, valor: string): Promise<TransferenciaInvestimento> {
+    if (!session) throw new Error('Entre na conta para transferir.');
+    setLoadingAccount(true); setNotice(null);
+    try {
+      const key = `${session.user.id}:${direcao}:${valor}`;
+      if (pendingInvestment.current?.key !== key) pendingInvestment.current = { key, id: crypto.randomUUID() };
+      const response = await fetch(`${url}/functions/v1/corretora/investimentos/transferencias`, {
+        method: 'POST',
+        headers: { apikey: chave, Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ direcao, valor, requisicao_id: pendingInvestment.current.id }),
+      });
+      if (!response.ok) throw new Error(await readError(response));
+      const result = await response.json() as { conta: ContaInvestimento; comprovante: TransferenciaInvestimento };
+      setInvestimento(result.conta);
+      const principal = await requestAccount('GET', session.access_token);
+      if (!principal.ok) throw new Error(await readError(principal));
+      setConta(await principal.json() as Conta);
+      pendingInvestment.current = null;
+      return result.comprovante;
+    } catch (error) {
+      setNotice({ text: `Não foi possível concluir ou confirmar a transferência: ${error instanceof Error ? error.message : 'erro inesperado'}. Confira os saldos antes de tentar novamente.`, kind: 'erro' });
+      throw error;
+    } finally { setLoadingAccount(false); }
+  }
+  async function convertBalance(moeda: TipoMoeda): Promise<ConversionReceipt> {
     if (!session) throw new Error('Entre na conta para converter o saldo.');
     setLoadingAccount(true); setNotice(null);
     try {
@@ -63,10 +97,7 @@ export default function App() {
       if (!response.ok) throw new Error(await readError(response));
       const resultado = await response.json() as Conta & { comprovante?: { cotacao_em: string | null } };
       setConta(resultado);
-      const horario = resultado.comprovante?.cotacao_em;
-      setNotice({ text: horario
-        ? `Saldo convertido com cotação consultada em ${new Date(horario).toLocaleString('pt-BR')}.`
-        : 'Moeda do saldo atualizada.', kind: 'ok' });
+      return { conta: resultado, cotacaoEm: resultado.comprovante?.cotacao_em ?? null };
     } catch (error) {
       setNotice({ text: `Não foi possível converter o saldo: ${error instanceof Error ? error.message : 'erro inesperado'}`, kind: 'erro' });
       throw error;
@@ -99,6 +130,7 @@ export default function App() {
       if (response.status === 404 && (await readError(response)).includes('Conta não encontrada')) response = await requestAccount('POST', currentSession.access_token);
       if (!response.ok) throw new Error(await readError(response));
       setConta(await response.json() as Conta);
+      setInvestimento(await requestInvestment(currentSession.access_token));
     } catch (error) { setNotice({ text: `Login realizado, mas não foi possível carregar a conta: ${error instanceof Error ? error.message : 'erro inesperado'}`, kind: 'erro' }); }
     finally { setLoadingAccount(false); }
   }
@@ -114,7 +146,7 @@ export default function App() {
   }
   async function logout(): Promise<void> { if (!supabase) return; const { error } = await supabase.auth.signOut(); setNotice(error ? { text: error.message, kind: 'erro' } : { text: 'Você saiu da sua conta', kind: 'ok' }); }
 
-  if (session) return <AccountHome key={session.user.id} theme={theme} onThemeChange={setTheme} session={session} conta={conta} loading={loadingAccount} notice={notice} onRefresh={() => void loadAccount(session)} onPixTransfer={transferPix} onConvertBalance={convertBalance} onLogout={() => void logout()} />;
+  if (session) return <AccountHome key={session.user.id} theme={theme} onThemeChange={setTheme} session={session} conta={conta} investimento={investimento} loading={loadingAccount} notice={notice} onRefresh={() => void loadAccount(session)} onInvestmentRefresh={() => void loadAccount(session)} onPixTransfer={transferPix} onConvertBalance={convertBalance} onInvestmentTransfer={transferInvestment} onLogout={() => void logout()} />;
   const signingUp = mode === 'signup';
   return <SmokeLogin
     theme={theme}

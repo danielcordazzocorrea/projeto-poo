@@ -7,6 +7,11 @@ export type Conta = {
   moeda_saldo: TipoMoeda;
 };
 
+export type ConversionReceipt = {
+  conta: Conta;
+  cotacaoEm: string | null;
+};
+
 export function formatarSaldo(valor: string, moeda: TipoMoeda): string {
   const [inteiro = '0', centavos = '00'] = valor.split('.');
   const simbolo = { BRL: 'R$', USD: 'US$', EUR: '€' }[moeda];

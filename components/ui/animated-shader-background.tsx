@@ -51,8 +51,14 @@ const fragmentShader = `
     vec4 o = vec4(0.0);
     float f = 2.0 + fbm(p + vec2(iTime * 5.0, 0.0)) * 0.5;
 
-    for (float i = 0.0; i < 35.0; i++) {
-      v = p + cos(i * i + (iTime + p.x * 0.08) * 0.025 + i * vec2(13.0, 11.0)) * 3.5 + vec2(sin(iTime * 3.0 + i) * 0.003, cos(iTime * 3.5 - i) * 0.003);
+    for (float ray = 0.0; ray < 53.0; ray++) {
+      // Preserva os 35 raios originais e adiciona 18 à direita.
+      // Os novos raios usam índices distribuídos pela mesma faixa de brilho.
+      float i = ray < 35.0 ? ray : (ray - 35.0) * 2.0;
+      float horizontalOffset = ray < 35.0 ? 0.0 : 0.55;
+      vec2 originOffset = vec2(horizontalOffset * iResolution.x / iResolution.y, 0.0)
+        * mat2(6.0, -4.0, 4.0, 6.0);
+      v = p - originOffset + cos(i * i + (iTime + p.x * 0.08) * 0.025 + i * vec2(13.0, 11.0)) * 3.5 + vec2(sin(iTime * 3.0 + i) * 0.003, cos(iTime * 3.5 - i) * 0.003);
       float tailNoise = fbm(v + vec2(iTime * 0.5, i)) * 0.3 * (1.0 - (i / 35.0));
       vec3 brandGreen = mix(
         vec3(0.247, 0.561, 0.0),
