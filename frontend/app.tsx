@@ -6,6 +6,7 @@ import { CONFIGURATION_NOTICE, submitCredentials } from './auth';
 import { readSavedTheme, THEME_STORAGE_KEY, type Theme } from '@/lib/theme';
 import { type Conta, type ConversionReceipt, type PixReceipt, type TipoMoeda } from './moeda';
 import type { ContaInvestimento, DirecaoTransferencia, TransferenciaInvestimento } from './investment-account';
+import { requestPixTransfer } from './pix-transfer';
 
 type Notice = { text: string; kind: 'ok' | 'erro' | 'info' } | null;
 
@@ -150,20 +151,10 @@ export default function App() {
     if (!session) throw new Error('Entre na conta para enviar um Pix.');
     setLoadingAccount(true); setNotice(null);
     try {
-      const response = await fetch(`${url}/functions/v1/corretora/pix/transferencias`, {
-        method: 'POST',
-        headers: { apikey: chave, Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chave_destino: chaveDestino, valor }),
-      });
-      if (!response.ok) throw new Error(await readError(response));
-      const resultado = await response.json() as Conta & { comprovante?: { moeda_recebida: TipoMoeda; valor_recebido: string } };
+      const resultado = await requestPixTransfer({ url, apiKey: chave, token: session.access_token, key: chaveDestino, value: valor });
       setConta(resultado);
       const recebido = resultado.comprovante;
       return recebido ?? null;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'erro inesperado';
-      setNotice({ text: `Não foi possível enviar o Pix: ${message}`, kind: 'erro' });
-      throw error;
     } finally { setLoadingAccount(false); }
   }
   async function loadAccount(currentSession: Session): Promise<void> {
