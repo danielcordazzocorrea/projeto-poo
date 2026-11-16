@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import type { Theme } from '@/lib/theme';
 import { ArrowLeft, ArrowUpRight, ArrowRightLeft, ChartNoAxesCombined, Check, Eye, EyeOff, Landmark, LogOut, Moon, Sun, RefreshCw, UserRound } from 'lucide-react';
+import { AboutTivvo } from '@/components/ui/about-tivvo';
 import { formatarSaldo, type Conta, type ConversionReceipt, type PixReceipt, type TipoMoeda } from './moeda';
 import { InvestmentAccount, type ContaInvestimento, type DirecaoTransferencia, type TransferenciaInvestimento } from './investment-account';
 
@@ -120,9 +121,12 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
     <a className="account-skip" href="#account-content">Ir para o conteúdo</a>
     <header className="account-topbar">
       <div className="account-container account-topbar-inner">
-        <button className="account-brand" type="button" onClick={() => setArea('home')} aria-label="tivvo — início"><span className="account-brand-symbol"><Landmark size={22} aria-hidden /></span><span>ti<span className="account-brand-accent">vv</span>o</span></button>
+        <div className="account-brand-nav">
+          <button className="account-brand" type="button" onClick={() => setArea('home')} aria-label="tivvo — início"><span className="account-brand-symbol"><Landmark size={22} aria-hidden /></span><span>ti<span className="account-brand-accent">vv</span>o</span></button>
+          <AboutTivvo triggerClassName="account-about-trigger" theme={theme} />
+        </div>
         <div className="account-user">
-          <span className="account-user-email">{session.user.email ?? 'Minha conta'}</span>
+          <button className="account-profile-link" type="button" onClick={() => setArea('profile')} aria-current={area === 'profile' ? 'page' : undefined}><UserRound size={17} aria-hidden /><span>Meus dados</span></button>
           <button
             className="account-theme-toggle"
             type="button"
