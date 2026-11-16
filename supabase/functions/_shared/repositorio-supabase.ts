@@ -10,7 +10,7 @@ import {
 import type { Cotacoes } from './cotacoes.ts';
 // A classe abaixo promete cumprir o contrato que o serviço espera.
 import type { RepositorioCorretora } from './servico.ts';
-import type { ContaInvestimento, DirecaoTransferencia, RepositorioInvestimentos, TransferenciaInvestimento } from './investimentos.ts';
+import type { ComprovanteCompra, ContaInvestimento, DirecaoTransferencia, RepositorioInvestimentos, TransferenciaInvestimento } from './investimentos.ts';
 
 // Formato mínimo do erro que pode voltar de uma consulta Supabase.
 type ErroBanco = { code?: string; message: string } | null;
@@ -73,23 +73,35 @@ export class RepositorioSupabase implements RepositorioCorretora, RepositorioInv
     // A ausência da conta é diferente de falha de comunicação com o banco.
     if (!conta) throw new NaoEncontrado('Conta não encontrada. Abra uma conta primeiro.');
 
-    // Faz quatro leituras independentes em paralelo para reduzir a espera.
-    const [resultadoPosicoes, resultadoMovimentos, ativos, resultadoChavePix] = await Promise.all([
+    // Cada categoria carrega registros suficientes para seus próprios filtros.
+    const [resultadoPosicoes, resultadoPix, resultadoConversoes, ativos, resultadoChavePix, compras, vendas] = await Promise.all([
       // Lê as quantidades dos ativos pertencentes à conta encontrada.
       this.banco.from('posicoes').select('ativo_codigo,quantidade_micros').eq('conta_id', conta.id),
-      // Lê no máximo as 100 movimentações mais recentes da mesma conta.
+      // Pix e conversões têm seus próprios dez itens mais recentes para os filtros.
       this.banco.from('movimentacoes')
-        .select('id,tipo,valor_centavos,ativo_codigo,quantidade_micros,criada_em,moeda,moeda_destino,valor_destino_centavos,cotacao_em')
-        .eq('conta_id', conta.id).order('criada_em', { ascending: false }).limit(100),
+        .select('id,tipo,valor_centavos,ativo_codigo,quantidade_micros,criada_em,moeda,moeda_destino,valor_destino_centavos,cotacao_em,contraparte_nome')
+        .eq('conta_id', conta.id).in('tipo', ['PIX_ENVIADO', 'PIX_RECEBIDO']).order('criada_em', { ascending: false }).limit(10),
+      this.banco.from('movimentacoes')
+        .select('id,tipo,valor_centavos,ativo_codigo,quantidade_micros,criada_em,moeda,moeda_destino,valor_destino_centavos,cotacao_em,contraparte_nome')
+        .eq('conta_id', conta.id).eq('tipo', 'CONVERSAO').order('criada_em', { ascending: false }).limit(10),
       // Busca os dados completos dos ativos usados para montar as posições.
       this.listarAtivos(),
       // A RLS permite ler somente a chave pertencente ao usuário da sessão.
       this.banco.from('chaves_pix').select('chave').maybeSingle(),
+      this.banco.from('compras_investimento')
+        .select('id,ativo_codigo,quantidade_micros,custo_centavos,criada_em,cotacao_em')
+        .eq('conta_principal_id', conta.id).order('criada_em', { ascending: false }).limit(10),
+      this.banco.from('vendas_investimento')
+        .select('id,ativo_codigo,quantidade_micros,valor_centavos,criada_em')
+        .eq('conta_principal_id', conta.id).order('criada_em', { ascending: false }).limit(10),
     ]);
-    // Cada consulta pode falhar separadamente; as duas respostas SQL são conferidas.
+    // Cada consulta pode falhar separadamente; as três respostas SQL são conferidas.
     verificarErro(resultadoPosicoes.error);
-    verificarErro(resultadoMovimentos.error);
+    verificarErro(resultadoPix.error);
+    verificarErro(resultadoConversoes.error);
     verificarErro(resultadoChavePix.error);
+    verificarErro(compras.error);
+    verificarErro(vendas.error);
     if (!resultadoChavePix.data?.chave) {
       throw new FalhaDePersistencia('Chave Pix não encontrada para esta conta.');
     }
@@ -102,8 +114,11 @@ export class RepositorioSupabase implements RepositorioCorretora, RepositorioInv
       if (!ativo) throw new FalhaDePersistencia('Posição contém ativo desconhecido.');
       return new Posicao(ativo, Quantidade.doBanco(row.quantidade_micros));
     });
+    // Reúne as duas listas e mantém a ordem cronológica no filtro “Todos”.
+    const linhasMovimentos = [...(resultadoPix.data ?? []), ...(resultadoConversoes.data ?? [])]
+      .sort((a, b) => b.criada_em.localeCompare(a.criada_em));
     // Transforma cada linha do histórico em um objeto Movimentacao.
-    const movimentos = (resultadoMovimentos.data ?? []).map(row => new Movimentacao(
+    const movimentos = linhasMovimentos.map(row => new Movimentacao(
       // A ordem dos argumentos acompanha o construtor de Movimentacao.
       row.id,
       row.tipo as TipoMovimentacao,
@@ -116,7 +131,18 @@ export class RepositorioSupabase implements RepositorioCorretora, RepositorioInv
       row.moeda_destino === null ? null : validarTipoMoeda(row.moeda_destino),
       row.valor_destino_centavos === null ? null : Dinheiro.doBanco(row.valor_destino_centavos),
       row.cotacao_em,
+      row.contraparte_nome,
     ));
+    for (const compra of compras.data ?? []) {
+      movimentos.push(new Movimentacao(compra.id, 'COMPRA', Dinheiro.doBanco(compra.custo_centavos),
+        compra.criada_em, compra.ativo_codigo, Quantidade.doBanco(compra.quantidade_micros),
+        'BRL', null, null, compra.cotacao_em));
+    }
+    for (const venda of vendas.data ?? []) {
+      movimentos.push(new Movimentacao(venda.id, 'VENDA', Dinheiro.doBanco(venda.valor_centavos),
+        venda.criada_em, venda.ativo_codigo, Quantidade.doBanco(venda.quantidade_micros)));
+    }
+    movimentos.sort((a, b) => b.criadaEm.localeCompare(a.criadaEm));
     // Composição: Conta recebe seu saldo, suas posições e suas movimentações.
     return new Conta(
       conta.id,
@@ -209,7 +235,7 @@ export class RepositorioSupabase implements RepositorioCorretora, RepositorioInv
     const { data: principal, error: erroPrincipal } = await this.banco.from('contas').select('id').maybeSingle();
     verificarErro(erroPrincipal);
     if (!principal) throw new NaoEncontrado('Conta não encontrada.');
-    const [conta, posicoes, movimentos] = await Promise.all([
+    const [conta, posicoes, movimentos, compras] = await Promise.all([
       this.banco.from('contas_investimento').select('saldo_centavos')
         .eq('conta_principal_id', principal.id).maybeSingle(),
       this.banco.from('posicoes_investimento').select('ativo_codigo,quantidade_micros')
@@ -217,16 +243,35 @@ export class RepositorioSupabase implements RepositorioCorretora, RepositorioInv
       this.banco.from('transferencias_investimento')
         .select('id,direcao,valor_origem_centavos,moeda_origem,valor_destino_centavos,moeda_destino,cotacao_em,criada_em')
         .eq('conta_principal_id', principal.id).order('criada_em', { ascending: false }).limit(50),
+      this.banco.from('compras_investimento').select('ativo_codigo,quantidade_micros,custo_centavos').eq('conta_principal_id', principal.id),
     ]);
     verificarErro(conta.error);
     verificarErro(posicoes.error);
     verificarErro(movimentos.error);
+    verificarErro(compras.error);
     if (!conta.data) throw new NaoEncontrado('Conta de investimentos não encontrada.');
+    const comprasPorAtivo = new Map<string, { quantidade: bigint; custo: bigint }>();
+    for (const compra of compras.data ?? []) {
+      const anterior = comprasPorAtivo.get(compra.ativo_codigo) ?? { quantidade: 0n, custo: 0n };
+      comprasPorAtivo.set(compra.ativo_codigo, {
+        quantidade: anterior.quantidade + BigInt(compra.quantidade_micros),
+        custo: anterior.custo + BigInt(compra.custo_centavos),
+      });
+    }
+    const custoAcoesEmCarteira = (posicoes.data ?? []).reduce((total, posicao) => {
+      const comprasDoAtivo = comprasPorAtivo.get(posicao.ativo_codigo);
+      if (!comprasDoAtivo || comprasDoAtivo.quantidade === 0n) return total;
+      return total + comprasDoAtivo.custo * BigInt(posicao.quantidade_micros) / comprasDoAtivo.quantidade;
+    }, 0n);
     return {
       saldo: Dinheiro.doBanco(conta.data.saldo_centavos).formatar(), moeda: 'BRL',
+      acoes_investidas: Dinheiro.doBanco(custoAcoesEmCarteira.toString()).formatar(),
       posicoes: (posicoes.data ?? []).map(row => ({
         codigo_ativo: row.ativo_codigo,
         quantidade: Quantidade.doBanco(row.quantidade_micros).formatar(),
+        preco_medio_compra: comprasPorAtivo.get(row.ativo_codigo)?.quantidade
+          ? Dinheiro.doBanco((comprasPorAtivo.get(row.ativo_codigo)!.custo * 1000000n
+            / comprasPorAtivo.get(row.ativo_codigo)!.quantidade).toString()).formatar() : null,
       })),
       transferencias: (movimentos.data ?? []).map(row => ({
         id: row.id,
@@ -239,6 +284,32 @@ export class RepositorioSupabase implements RepositorioCorretora, RepositorioInv
         criada_em: row.criada_em,
       })),
     };
+  }
+
+  async comprarAtivo(codigo: string, quantidadeMicros: bigint, precoCentavos: bigint, requisicaoId: string, cotacaoEm: string | null): Promise<ComprovanteCompra> {
+    const { banco, usuarioId } = this.servico();
+    const { data, error } = await banco.rpc('comprar_ativo_com_comprovante', {
+      p_usuario_id: usuarioId, p_ativo_codigo: codigo, p_quantidade_micros: Number(quantidadeMicros),
+      p_preco_centavos: Number(precoCentavos), p_requisicao_id: requisicaoId, p_cotacao_em: cotacaoEm,
+    });
+    verificarErro(error);
+    if (!data) throw new FalhaDePersistencia('Compra sem comprovante.');
+    return {
+      id: data.id, codigo_ativo: data.ativo_codigo,
+      quantidade: Quantidade.doBanco(data.quantidade_micros).formatar(),
+      preco_unitario: Dinheiro.doBanco(data.preco_centavos).formatar(),
+      total_pago: Dinheiro.doBanco(data.custo_centavos).formatar(),
+      cotacao_em: data.cotacao_em ?? null, criada_em: data.criada_em,
+    };
+  }
+
+  async venderAtivo(codigo: string, quantidadeMicros: bigint, precoCentavos: bigint, requisicaoId: string): Promise<void> {
+    const { banco, usuarioId } = this.servico();
+    const { error } = await banco.rpc('vender_ativo_investimento', {
+      p_usuario_id: usuarioId, p_ativo_codigo: codigo, p_quantidade_micros: Number(quantidadeMicros),
+      p_preco_centavos: Number(precoCentavos), p_requisicao_id: requisicaoId,
+    });
+    verificarErro(error);
   }
 
   async transferirInvestimento(direcao: DirecaoTransferencia, centavos: bigint,

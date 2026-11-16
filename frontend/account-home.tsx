@@ -1,12 +1,15 @@
-import { MercadoAtivos } from './mercado-ativos';
+import type { ComprovanteCompra } from './investment-account';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import type { Theme } from '@/lib/theme';
-import { ArrowLeft, ArrowUpRight, ArrowRightLeft, ChartNoAxesCombined, Check, Eye, EyeOff, Landmark, LogOut, Moon, Sun, RefreshCw, UserRound } from 'lucide-react';
-import { formatarSaldo, type Conta, type ConversionReceipt, type PixReceipt, type TipoMoeda } from './moeda';
+import { ArrowDownLeft, ArrowLeft, ArrowUpRight, ArrowRightLeft, ChartNoAxesCombined, Check, Eye, EyeOff, History, Landmark, LogOut, Moon, Sun, RefreshCw, UserRound } from 'lucide-react';
+import { AboutTivvo } from '@/components/ui/about-tivvo';
+import { LiveOrb } from './live-orb';
+import { formatarSaldo, type Conta, type ConversionReceipt, type Movimentacao, type PixReceipt, type TipoMoeda } from './moeda';
 import { InvestmentAccount, type ContaInvestimento, type DirecaoTransferencia, type TransferenciaInvestimento } from './investment-account';
 
-type Area = 'home' | 'investments' | 'pix' | 'profile' | 'currencies';
+type Area = 'home' | 'investments' | 'pix' | 'profile' | 'history' | 'currencies';
+type TransactionFilter = 'all' | 'pix' | 'conversion' | 'stocks';
 type AccountHomeProps = {
   theme: Theme;
   onThemeChange: (theme: Theme) => void;
@@ -19,6 +22,8 @@ type AccountHomeProps = {
   onPixTransfer: (chaveDestino: string, valor: string) => Promise<PixReceipt>;
   onConvertBalance: (moeda: TipoMoeda) => Promise<ConversionReceipt>;
   onInvestmentTransfer: (direcao: DirecaoTransferencia, valor: string) => Promise<TransferenciaInvestimento>;
+  onInvestmentPurchase: (codigoAtivo: string, quantidade: string) => Promise<ComprovanteCompra>;
+  onInvestmentSale: (codigoAtivo: string, quantidade: string) => Promise<void>;
   onInvestmentRefresh: () => void;
   onLogout: () => void;
 };
@@ -27,8 +32,14 @@ const destinations = [
   { id: 'investments', title: 'Investimentos', description: 'Seu espaço para acompanhar ativos e construir sua carteira simulada', action: 'Explorar investimentos' },
   { id: 'pix', title: 'Pix', description: 'Um lugar para suas transferências e chaves', action: 'Conhecer a área Pix' },
   { id: 'currencies', title: 'Moedas', description: 'Converta seu saldo entre real, dólar e euro com cotação atualizada', action: 'Converter saldo' },
-  { id: 'profile', title: 'Dados da conta', description: 'Consulte seu cadastro, e-mail e informações da sua conta em um só lugar', action: 'Ver meus dados' },
+  { id: 'history', title: 'Histórico de transações', description: 'Acompanhe conversões de moeda e Pix enviados ou recebidos', action: 'Ver histórico' },
 ] as const;
+const transactionFilters: { id: TransactionFilter; label: string }[] = [
+  { id: 'all', label: 'Todos' },
+  { id: 'pix', label: 'Pix' },
+  { id: 'conversion', label: 'Conversões' },
+  { id: 'stocks', label: 'Ações' },
+];
 
 function formatDateBr(value: unknown): string {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return 'Não informado';
@@ -43,10 +54,18 @@ function formatDateTimeBr(value: string | null): string {
 }
 
 function PixLogo() {
-  return <img className="account-pix-logo" src="/pix-logo.svg" alt="" />;
+  return <span className="account-pix-logo" aria-hidden />;
 }
 
-export function AccountHome({ theme, onThemeChange, session, conta, investimento, loading, notice, onRefresh, onPixTransfer, onConvertBalance, onInvestmentTransfer, onInvestmentRefresh, onLogout }: AccountHomeProps) {
+function transactionLabel(transaction: Movimentacao): string {
+  if (transaction.tipo === 'COMPRA') return 'Compra de ativo';
+  if (transaction.tipo === 'VENDA') return 'Venda de ativo';
+  if (transaction.tipo === 'CONVERSAO') return 'Saldo convertido';
+  if (transaction.tipo === 'PIX_ENVIADO') return 'Pix enviado';
+  return 'Pix recebido';
+}
+
+export function AccountHome({ theme, onThemeChange, session, conta, investimento, loading, notice, onRefresh, onPixTransfer, onConvertBalance, onInvestmentTransfer, onInvestmentPurchase, onInvestmentSale, onInvestmentRefresh, onLogout }: AccountHomeProps) {
   const [area, setArea] = useState<Area>('home');
   const [balanceVisible, setBalanceVisible] = useState(true);
   const [pixKey, setPixKey] = useState('');
@@ -55,6 +74,7 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
   const [pixSuccess, setPixSuccess] = useState<{ chave: string; valor: string; moeda: TipoMoeda; recebido: PixReceipt } | null>(null);
   const [targetCurrency, setTargetCurrency] = useState<TipoMoeda>('USD');
   const [converting, setConverting] = useState(false);
+  const [historyFilter, setHistoryFilter] = useState<TransactionFilter>('all');
   const [conversionSuccess, setConversionSuccess] = useState<{ saldoAnterior: string; moedaAnterior: TipoMoeda; recibo: ConversionReceipt } | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const previousArea = useRef(area);
@@ -80,12 +100,17 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
   const created = new Date(session.user.created_at);
   const createdLabel = Number.isNaN(created.getTime()) ? 'Não informado' : created.toLocaleDateString('pt-BR');
   const selected = destinations.find(item => item.id === area);
+  const areaTitle = area === 'profile' ? 'Meus dados' : selected?.title;
   const savedName: unknown = session.user.user_metadata?.first_name;
   const firstName = typeof savedName === 'string' ? savedName.trim().split(/\s+/)[0] : '';
   const savedLastName: unknown = session.user.user_metadata?.last_name;
   const lastName = typeof savedLastName === 'string' ? savedLastName.trim() : '';
   const fullName = [firstName, lastName].filter(Boolean).join(' ') || 'Não informado';
   const birthDate = formatDateBr(session.user.user_metadata?.birth_date);
+  const transactionHistory = conta?.movimentacoes.filter(transaction => ['CONVERSAO', 'PIX_ENVIADO', 'PIX_RECEBIDO', 'COMPRA', 'VENDA'].includes(transaction.tipo)) ?? [];
+  const filteredTransactionHistory = (historyFilter === 'all' ? transactionHistory : transactionHistory
+    .filter(transaction => historyFilter === 'pix' ? transaction.tipo.startsWith('PIX_') : historyFilter === 'stocks'
+      ? transaction.tipo === 'COMPRA' || transaction.tipo === 'VENDA' : transaction.tipo === 'CONVERSAO')).slice(0, 10);
 
   async function submitPix(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -120,9 +145,12 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
     <a className="account-skip" href="#account-content">Ir para o conteúdo</a>
     <header className="account-topbar">
       <div className="account-container account-topbar-inner">
-        <button className="account-brand" type="button" onClick={() => setArea('home')} aria-label="tivvo — início"><span className="account-brand-symbol"><Landmark size={22} aria-hidden /></span><span>ti<span className="account-brand-accent">vv</span>o</span></button>
+        <div className="account-brand-nav">
+          <button className="account-brand" type="button" onClick={() => setArea('home')} aria-label="tivvo — início"><span className="account-brand-symbol"><Landmark size={22} aria-hidden /></span><span>ti<span className="account-brand-accent">vv</span>o</span></button>
+          <AboutTivvo triggerClassName="account-about-trigger" theme={theme} />
+        </div>
         <div className="account-user">
-          <span className="account-user-email">{session.user.email ?? 'Minha conta'}</span>
+          <button className="account-profile-link" type="button" onClick={() => setArea('profile')} aria-current={area === 'profile' ? 'page' : undefined}><UserRound size={17} aria-hidden /><span>Meus dados</span></button>
           <button
             className="account-theme-toggle"
             type="button"
@@ -139,7 +167,7 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
     </header>
 
     <main id="account-content" className="account-container account-main">
-      <nav aria-label="Localização" className="account-breadcrumb"><button type="button" onClick={() => setArea('home')} aria-current={area === 'home' ? 'page' : undefined}>Início</button>{selected && <><span aria-hidden>/</span><span aria-current="page">{selected.title}</span></>}</nav>
+      <nav aria-label="Localização" className="account-breadcrumb"><button type="button" onClick={() => setArea('home')} aria-current={area === 'home' ? 'page' : undefined}>Início</button>{areaTitle && <><span aria-hidden>/</span><span aria-current="page">{areaTitle}</span></>}</nav>
 
       {area === 'home' ? <>
         <section className="account-overview" aria-labelledby="home-title">
@@ -153,15 +181,15 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
         <section className="account-options" aria-labelledby="options-title">
           <div className="account-section-heading"><h2 id="options-title">Sua conta, por aqui</h2><span>O que você precisa, em um lugar</span></div>
           <div className="account-destinations">{destinations.map(({ id, title, description, action }) => <button key={id} type="button" className={`account-destination account-destination-${id}`} onClick={() => setArea(id)}>
-            <span className="account-destination-top"><span className="account-option-icon">{id === 'pix' ? <PixLogo /> : id === 'currencies' ? <ArrowRightLeft size={26} strokeWidth={1.6} aria-hidden /> : id === 'investments' ? <ChartNoAxesCombined size={26} strokeWidth={1.6} aria-hidden /> : <UserRound size={26} strokeWidth={1.6} aria-hidden />}</span><ArrowUpRight size={20} aria-hidden /></span>
+            <span className="account-destination-top"><span className="account-option-icon">{id === 'pix' ? <PixLogo /> : id === 'currencies' ? <ArrowRightLeft size={26} strokeWidth={1.6} aria-hidden /> : id === 'investments' ? <ChartNoAxesCombined size={26} strokeWidth={1.6} aria-hidden /> : <History size={26} strokeWidth={1.6} aria-hidden />}</span><ArrowUpRight size={20} aria-hidden /></span>
             <h3>{title}</h3><p>{description}</p><span className="account-destination-action">{action}</span>
           </button>)}</div>
         </section>
       </> : <section className="account-detail" aria-labelledby="area-title">
         <button className="account-back" type="button" onClick={() => setArea('home')}><ArrowLeft size={17} aria-hidden />Voltar ao início</button>
-        <h1 id="area-title" ref={heading} tabIndex={-1}>{selected?.title}</h1>
+        <h1 id="area-title" ref={heading} tabIndex={-1}>{areaTitle}</h1>
         {area === 'currencies' ? <div className="account-currency-area">
-          <p className="account-detail-intro">Seu saldo está em <strong>{conta?.moeda_saldo ?? 'BRL'}</strong>. Ao converter, todo o saldo passa para a moeda escolhida com a cotação mais recente da API. Os valores são simulados.</p>
+          <p className="account-detail-intro">Seu saldo está em <strong>{conta?.moeda_saldo ?? 'BRL'}</strong>. Ao converter, todo o saldo passa para a moeda escolhida.</p>
           <div className="account-currency-balance"><span>Saldo atual</span><p className="account-currency-current" aria-live="polite">{conta ? formatarSaldo(conta.saldo, conta.moeda_saldo) : 'Carregando saldo…'}</p></div>
           <form className="account-pix-form" onSubmit={event => void submitConversion(event)} aria-busy={converting}>
             <fieldset className="account-currency-options" disabled={loading || converting}>
@@ -175,7 +203,7 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
             </fieldset>
             <button type="submit" className="account-pix-submit" disabled={loading || converting || !conta || targetCurrency === conta.moeda_saldo}>{converting && <RefreshCw size={16} className="account-spin" aria-hidden />}{converting ? 'Convertendo…' : targetCurrency === conta?.moeda_saldo ? `Saldo já está em ${targetCurrency}` : 'Converter saldo'}</button>
           </form>
-          <p className="account-pix-note">A conversão usa a cotação de referência consultada na API e trunca frações menores que um centavo. O Pix é enviado na moeda do seu saldo e chega na moeda da conta de destino. A transferência para investimentos converte automaticamente para BRL.</p>
+          <p className="account-pix-note">A conversão é realizada automaticamente com base na cotação de referência consultada na API, desconsiderando frações inferiores a um centavo. As transferências via Pix são convertidas automaticamente para a sua moeda.</p>
         </div> : area === 'profile' ? <>
           <p className="account-detail-intro">Confira seus dados de cadastro e as informações da sua conta tivvo</p>
           <dl className="account-data">
@@ -186,7 +214,20 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
             <div><dt>Verificação do e-mail</dt><dd>{session.user.email_confirmed_at ? <span className="account-verified"><Check size={16} aria-hidden />Confirmado</span> : 'Pendente'}</dd></div>
           </dl>
           <button type="button" className="account-detail-refresh" onClick={onRefresh} disabled={loading}><RefreshCw size={16} className={loading ? 'account-spin' : ''} aria-hidden />{loading ? 'Atualizando…' : 'Atualizar dados'}</button>
-        </> : area === 'pix' ? <div className="account-pix">
+        </> : area === 'history' ? <div className="account-transactions">
+          <p className="account-detail-intro">Consulte conversões, Pix e compras ou vendas de ações da sua conta.</p>
+          <div className="account-transaction-filters" role="group" aria-label="Filtrar transações">
+            {transactionFilters.map(filter => <button key={filter.id} type="button" className="account-transaction-filter" aria-pressed={historyFilter === filter.id} onClick={() => setHistoryFilter(filter.id)}>{filter.label}</button>)}
+          </div>
+          {loading ? <p className="account-transactions-state" role="status">Carregando histórico…</p> : filteredTransactionHistory.length === 0 ? <p className="account-transactions-state">{historyFilter === 'all' ? 'Ainda não há transações para mostrar.' : historyFilter === 'pix' ? 'Ainda não há Pix para mostrar.' : historyFilter === 'stocks' ? 'Ainda não há compras ou vendas de ações para mostrar.' : 'Ainda não há conversões para mostrar.'}</p> : <ul className="account-transaction-list" aria-label="Transações da conta">
+            {filteredTransactionHistory.map(transaction => <li className={`account-transaction account-transaction-${transaction.tipo.toLowerCase()}`} key={transaction.id}>
+              <span className="account-transaction-icon">{transaction.tipo === 'CONVERSAO' ? <ArrowRightLeft size={20} aria-hidden /> : (transaction.tipo === 'PIX_ENVIADO' || transaction.tipo === 'VENDA') ? <ArrowUpRight size={20} aria-hidden /> : <ArrowDownLeft size={20} aria-hidden />}</span>
+              <div className="account-transaction-main"><strong>{transactionLabel(transaction)}</strong><span>{formatDateTimeBr(transaction.criada_em)}</span></div>
+              <div className="account-transaction-values">{transaction.tipo === 'CONVERSAO' ? <><strong>{formatarSaldo(transaction.valor, transaction.moeda)} → {transaction.valor_destino && transaction.moeda_destino ? formatarSaldo(transaction.valor_destino, transaction.moeda_destino) : transaction.moeda_destino ?? transaction.moeda}</strong><span>{transaction.moeda} para {transaction.moeda_destino ?? transaction.moeda}</span></> : <><strong>{(transaction.tipo === 'PIX_ENVIADO' || transaction.tipo === 'COMPRA') ? '−' : '+'}{formatarSaldo(transaction.valor, transaction.moeda)}</strong><span>{transaction.tipo === 'COMPRA' || transaction.tipo === 'VENDA' ? `${transaction.codigo_ativo ?? 'Ativo'} · ${Number(transaction.quantidade ?? '0').toLocaleString('pt-BR', { maximumFractionDigits: 6 })} unidades` : transaction.tipo === 'PIX_ENVIADO' ? `Destinatário: ${transaction.contraparte_nome ?? 'conta de destino'}` : `Remetente: ${transaction.contraparte_nome ?? 'remetente'}`}</span></>}</div>
+            </li>)}
+          </ul>}
+          <button type="button" className="account-detail-refresh" onClick={onRefresh} disabled={loading}><RefreshCw size={16} className={loading ? 'account-spin' : ''} aria-hidden />{loading ? 'Atualizando…' : 'Atualizar histórico'}</button>
+        </div> : area === 'pix' ? <div className="account-pix">
           <p className="account-detail-intro">Envie saldo simulado para outra conta tivvo usando a chave Pix de e-mail.</p>
           <form className="account-pix-form" onSubmit={event => void submitPix(event)} aria-busy={sendingPix}>
             <h2>Enviar Pix</h2>
@@ -198,11 +239,7 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
           </form>
           <p className="account-pix-note">O envio é imediato neste ambiente de demonstração. Confira a chave e o valor antes de confirmar.</p>
         </div> : <>
-          <InvestmentAccount principal={conta} investimento={investimento} loading={loading} onRefresh={onInvestmentRefresh} onTransfer={onInvestmentTransfer} />
-          <section aria-labelledby="market-title">
-            <div className="investment-history-heading"><h2 id="market-title">Consultar ativos</h2></div>
-            <MercadoAtivos token={session.access_token} />
-          </section>
+          <InvestmentAccount principal={conta} investimento={investimento} loading={loading} token={session.access_token} onRefresh={onInvestmentRefresh} onTransfer={onInvestmentTransfer} onPurchase={onInvestmentPurchase} onSale={onInvestmentSale} />
         </>}
       </section>}
 
@@ -243,5 +280,6 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
         <span className="account-pix-progress-bar" aria-hidden />
       </div>}
     </dialog>
+    <LiveOrb theme={theme} />
   </div>;
 }

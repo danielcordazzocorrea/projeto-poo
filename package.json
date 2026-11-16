@@ -8,7 +8,8 @@
     "dev": "vite",
     "dev:edge": "npx supabase functions serve corretora --env-file supabase/.env.local",
     "build:front": "tsc -p tsconfig.frontend.json && vite build --outDir web-dist",
-    "test": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && npm run build && node --test --experimental-test-isolation=none dist/tests/*.test.js"
+    "test": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && npm run build && node --test --experimental-test-isolation=none dist/tests/*.test.js",
+    "test:edge": "deno test supabase/tests"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.5",

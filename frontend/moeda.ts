@@ -1,10 +1,25 @@
 export type TipoMoeda = 'BRL' | 'USD' | 'EUR';
 export type PixReceipt = { moeda_recebida: TipoMoeda; valor_recebido: string } | null;
+export type TipoMovimentacao = 'DEPOSITO' | 'COMPRA' | 'VENDA' | 'PIX_ENVIADO' | 'PIX_RECEBIDO' | 'CONVERSAO';
+export type Movimentacao = {
+  id: string;
+  tipo: TipoMovimentacao;
+  valor: string;
+  moeda: TipoMoeda;
+  moeda_destino: TipoMoeda | null;
+  valor_destino: string | null;
+  cotacao_em: string | null;
+  contraparte_nome: string | null;
+  criada_em: string;
+  codigo_ativo?: string | null;
+  quantidade?: string | null;
+};
 export type Conta = {
   id: string;
   saldo: string;
   saldo_brl: string | null;
   moeda_saldo: TipoMoeda;
+  movimentacoes: Movimentacao[];
 };
 
 export type ConversionReceipt = {

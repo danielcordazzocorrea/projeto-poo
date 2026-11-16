@@ -155,6 +155,7 @@ export class Movimentacao {
     readonly moedaDestino: TipoMoeda | null = null,
     readonly valorDestino: Dinheiro | null = null,
     readonly cotacaoEm: string | null = null,
+    readonly contraparteNome: string | null = null,
   ) {}
   // Monta a forma pública da movimentação para a API.
   paraJson() {
@@ -169,6 +170,7 @@ export class Movimentacao {
       moeda_destino: this.moedaDestino,
       valor_destino: this.valorDestino?.formatar() ?? null,
       cotacao_em: this.cotacaoEm,
+      contraparte_nome: this.contraparteNome,
       criada_em: this.criadaEm,
       codigo_ativo: this.codigoAtivo,
       // `?.` só chama formatar quando há quantidade; `??` devolve null se não há.

@@ -1,7 +1,16 @@
-import { Dinheiro, RegraDeNegocio, type TipoMoeda } from './dominio.ts';
+import { Dinheiro, Quantidade, RegraDeNegocio, type TipoMoeda } from './dominio.ts';
 import { buscarCotacoes, type Cotacoes } from './cotacoes.ts';
 
 export type DirecaoTransferencia = 'PARA_INVESTIMENTOS' | 'PARA_PRINCIPAL';
+export type ComprovanteCompra = {
+  id: string;
+  codigo_ativo: string;
+  quantidade: string;
+  preco_unitario: string;
+  total_pago: string;
+  cotacao_em: string | null;
+  criada_em: string;
+};
 export type TransferenciaInvestimento = {
   id: string;
   direcao: DirecaoTransferencia;
@@ -15,7 +24,8 @@ export type TransferenciaInvestimento = {
 export type ContaInvestimento = {
   saldo: string;
   moeda: 'BRL';
-  posicoes: Array<{ codigo_ativo: string; quantidade: string }>;
+  acoes_investidas: string;
+  posicoes: Array<{ codigo_ativo: string; quantidade: string; preco_medio_compra?: string | null }>;
   transferencias: TransferenciaInvestimento[];
 };
 
@@ -24,6 +34,8 @@ export interface RepositorioInvestimentos {
   consultarMoedaPrincipal(): Promise<TipoMoeda>;
   transferirInvestimento(direcao: DirecaoTransferencia, centavos: bigint,
     moedaPrincipal: TipoMoeda, cotacoes: Cotacoes | null, requisicaoId: string): Promise<TransferenciaInvestimento>;
+  comprarAtivo(codigo: string, quantidadeMicros: bigint, precoCentavos: bigint, requisicaoId: string, cotacaoEm: string | null): Promise<ComprovanteCompra>;
+  venderAtivo(codigo: string, quantidadeMicros: bigint, precoCentavos: bigint, requisicaoId: string): Promise<void>;
 }
 
 export class Investimentos {
@@ -49,5 +61,28 @@ export class Investimentos {
       direcao, centavos, moedaPrincipal, cotacoes, requisicaoId,
     );
     return { conta: await this.consultarConta(), comprovante };
+  }
+
+  async comprarAtivo(codigo: unknown, quantidade: unknown, preco: unknown, requisicaoId: unknown, cotacaoEm: string | null = null) {
+    if (typeof codigo !== 'string' || !/^[A-Z]{4}[0-9]{1,2}$/.test(codigo)
+      || typeof requisicaoId !== 'string' || !requisicaoId.trim()) {
+      throw new RegraDeNegocio('Dados da compra inválidos.');
+    }
+    const comprovante = await this.repositorio.comprarAtivo(
+      codigo, Quantidade.positiva(quantidade).micros, Dinheiro.positivo(preco).centavos, requisicaoId, cotacaoEm,
+    );
+    return { conta: await this.consultarConta(), comprovante };
+  }
+
+  async venderAtivo(codigo: unknown, quantidade: unknown, preco: unknown, requisicaoId: unknown) {
+    if (typeof codigo !== 'string' || !/^[A-Z]{4}[0-9]{1,2}$/.test(codigo)
+      || typeof requisicaoId !== 'string' || !requisicaoId.trim()
+      ) {
+      throw new RegraDeNegocio('Dados da venda inválidos.');
+    }
+    await this.repositorio.venderAtivo(
+      codigo, Quantidade.positiva(quantidade).micros, Dinheiro.positivo(preco).centavos, requisicaoId,
+    );
+    return this.consultarConta();
   }
 }

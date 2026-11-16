@@ -50,6 +50,22 @@ Deno.serve(withSupabase({ auth: 'user' }, async (req, ctx) => {
       const dados = await lerJson(req);
       return json(200, await investimentos().transferir(dados.direcao, dados.valor, dados.requisicao_id));
     }
+    if (req.method === 'POST' && caminho === '/investimentos/compras') {
+      const dados = await lerJson(req);
+      if (typeof dados.codigo_ativo !== 'string') throw new RegraDeNegocio('Código de ativo inválido.');
+      const cotacao = await mercado.cotar(dados.codigo_ativo);
+      return json(200, await investimentos().comprarAtivo(
+        cotacao.codigo, dados.quantidade, cotacao.preco_brl, dados.requisicao_id, cotacao.cotacao_em,
+      ));
+    }
+    if (req.method === 'POST' && caminho === '/investimentos/vendas') {
+      const dados = await lerJson(req);
+      if (typeof dados.codigo_ativo !== 'string') throw new RegraDeNegocio('Código de ativo inválido.');
+      const cotacao = await mercado.cotar(dados.codigo_ativo);
+      return json(200, await investimentos().venderAtivo(
+        cotacao.codigo, dados.quantidade, cotacao.preco_brl, dados.requisicao_id,
+      ));
+    }
     if (req.method === 'POST' && caminho === '/conta') {
       return json(201, await corretora.abrirConta());
     }
