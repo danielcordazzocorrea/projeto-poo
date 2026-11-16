@@ -24,7 +24,7 @@ type AccountHomeProps = {
 
 const destinations = [
   { id: 'investments', title: 'Investimentos', description: 'Seu espaço para acompanhar ativos e construir sua carteira simulada', action: 'Explorar investimentos' },
-  { id: 'pix', title: 'Pix', description: 'Um lugar para suas transferências e chaves — estamos preparando essa área', action: 'Conhecer a área Pix' },
+  { id: 'pix', title: 'Pix', description: 'Um lugar para suas transferências e chaves', action: 'Conhecer a área Pix' },
   { id: 'currencies', title: 'Moedas', description: 'Converta seu saldo entre real, dólar e euro com cotação atualizada', action: 'Converter saldo' },
   { id: 'profile', title: 'Dados da conta', description: 'Consulte seu cadastro, e-mail e informações da sua conta em um só lugar', action: 'Ver meus dados' },
 ] as const;
@@ -33,12 +33,6 @@ function formatDateBr(value: unknown): string {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return 'Não informado';
   const [year, month, day] = value.split('-');
   return `${day}/${month}/${year}`;
-}
-
-function formatDateTimeBr(value: string | null): string {
-  if (!value) return 'Não informado';
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? 'Não informado' : date.toLocaleString('pt-BR');
 }
 
 function PixLogo() {
@@ -54,11 +48,9 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
   const [pixSuccess, setPixSuccess] = useState<{ chave: string; valor: string; moeda: TipoMoeda; recebido: PixReceipt } | null>(null);
   const [targetCurrency, setTargetCurrency] = useState<TipoMoeda>('USD');
   const [converting, setConverting] = useState(false);
-  const [conversionSuccess, setConversionSuccess] = useState<{ saldoAnterior: string; moedaAnterior: TipoMoeda; recibo: ConversionReceipt } | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const previousArea = useRef(area);
   const successDialog = useRef<HTMLDialogElement>(null);
-  const conversionSuccessDialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     if (previousArea.current !== area) heading.current?.focus();
     previousArea.current = area;
@@ -66,9 +58,6 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
   useEffect(() => {
     if (pixSuccess && !successDialog.current?.open) successDialog.current?.showModal();
   }, [pixSuccess]);
-  useEffect(() => {
-    if (conversionSuccess && !conversionSuccessDialog.current?.open) conversionSuccessDialog.current?.showModal();
-  }, [conversionSuccess]);
   const balance = conta ? formatarSaldo(conta.saldo, conta.moeda_saldo) : 'Indisponível';
   const created = new Date(session.user.created_at);
   const createdLabel = Number.isNaN(created.getTime()) ? 'Não informado' : created.toLocaleDateString('pt-BR');
@@ -99,12 +88,7 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
   async function submitConversion(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     setConverting(true);
-    try {
-      const saldoAnterior = conta?.saldo ?? '0';
-      const moedaAnterior = conta?.moeda_saldo ?? 'BRL';
-      const recibo = await onConvertBalance(targetCurrency);
-      setConversionSuccess({ saldoAnterior, moedaAnterior, recibo });
-    }
+    try { await onConvertBalance(targetCurrency); }
     catch { /* O aviso compartilhado mostra o erro. */ }
     finally { setConverting(false); }
   }
@@ -206,20 +190,6 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
         <p className="account-pix-success-amount">{formatarSaldo(pixSuccess.valor, pixSuccess.moeda)}</p>
         <div className="account-pix-success-details"><div><span>Enviado para</span><strong>{pixSuccess.chave}</strong></div>{pixSuccess.recebido && <div><span>Recebido pelo destinatário</span><strong>{formatarSaldo(pixSuccess.recebido.valor_recebido, pixSuccess.recebido.moeda_recebida)}</strong></div>}</div>
         <button type="button" className="account-pix-success-close" onClick={() => successDialog.current?.close()}>Concluir</button>
-      </div>}
-    </dialog>
-    <dialog ref={conversionSuccessDialog} className="account-pix-dialog" aria-labelledby="conversion-success-title" onClose={() => setConversionSuccess(null)}>
-      {conversionSuccess && <div className="account-pix-dialog-content">
-        <span className="account-pix-success-icon"><Check size={30} strokeWidth={2.5} aria-hidden /></span>
-        <span className="account-pix-success-eyebrow">Conversão concluída</span>
-        <h2 id="conversion-success-title">Saldo convertido com sucesso</h2>
-        <p className="account-pix-success-amount">{formatarSaldo(conversionSuccess.recibo.conta.saldo, conversionSuccess.recibo.conta.moeda_saldo)}</p>
-        <div className="account-pix-success-details">
-          <div><span>Convertido de</span><strong>{formatarSaldo(conversionSuccess.saldoAnterior, conversionSuccess.moedaAnterior)}</strong></div>
-          <div><span>Nova moeda</span><strong>{conversionSuccess.recibo.conta.moeda_saldo}</strong></div>
-          <div><span>Cotação consultada em</span><strong>{formatDateTimeBr(conversionSuccess.recibo.cotacaoEm)}</strong></div>
-        </div>
-        <button type="button" className="account-pix-success-close" onClick={() => conversionSuccessDialog.current?.close()}>Concluir</button>
       </div>}
     </dialog>
   </div>;
