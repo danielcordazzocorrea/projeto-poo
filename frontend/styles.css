@@ -38,6 +38,16 @@ button:not(:disabled) { cursor: pointer; }
 .tivvo-about-features dd { margin-top: 6px; font-size: 13px; color: #adb3a9; line-height: 1.65; }
 .tivvo-about .tivvo-about-note { font-size: 12px; }
 .tivvo-about-done { width: 100%; margin-top: 24px; min-height: 44px; padding: 12px 18px; border-radius: 14px; background: #9dff3a; color: #0c0d0c; font-size: 14px; font-weight: 600; }
+.tivvo-about--light { border-color: #dbe5dc; background: #fff; color: #14291e; color-scheme: light; box-shadow: 0 24px 80px #07120c33; }
+.tivvo-about--light .tivvo-about-close { border-color: #dbe5dc; }
+.tivvo-about--light .tivvo-about-close:hover { background: #eef4e9; }
+.tivvo-about--light p { color: #5e7165; }
+.tivvo-about--light .tivvo-about-lead { color: #14291e; }
+.tivvo-about--light .tivvo-about-features > div { border-color: #dbe5dc; }
+.tivvo-about--light .tivvo-about-features svg { color: #3d8332; }
+.tivvo-about--light .tivvo-about-features dt span { color: #5e7165; }
+.tivvo-about--light .tivvo-about-done { background: #14291e; color: #fff; }
+.tivvo-about--light button:focus-visible { outline-color: #4c9330; }
 @media (max-width: 480px) { .tivvo-about { padding: 24px; } }
 .login-form-panel { width: 100%; max-width: 480px; justify-self: end; padding: clamp(28px, 3.2vw, 48px); border: 1px solid #262925; border-radius: 28px; background: #0c0d0c; color: #ecede8; box-shadow: 0 24px 80px rgb(0 0 0 / .35); }
 /* Cadastro compacto, com espaço para avisos sem deslocar o formulário. */
@@ -66,14 +76,19 @@ button:not(:disabled) { cursor: pointer; }
 .account-skip:focus { top: 12px; }
 .account-topbar { background: white; border-bottom: 1px solid var(--account-line); }
 .account-topbar-inner { min-height: 88px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+.account-brand-nav { display: flex; align-items: center; gap: 24px; min-width: 0; }
 .account-brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; letter-spacing: -.6px; }
 .account-brand-accent { color: #3f8f00; }
 .account-brand-symbol { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 12px; background: var(--account-ink); color: #b8ef91; }
 .account-brand-suffix { font-size: 12px; font-weight: 500; color: var(--account-muted); letter-spacing: 0; }
+.account-about-trigger { display: inline-flex; flex: none; align-items: center; justify-content: center; min-height: 40px; padding: 8px 12px; border: 1px solid var(--account-line); border-radius: 20px; color: var(--account-ink); font-size: 13px; text-decoration: none; }
+.tivvo-about-trigger.account-about-trigger:hover { border-color: var(--account-muted); color: var(--account-ink); text-decoration: none; }
 .account-user { display: flex; align-items: center; gap: 24px; min-width: 0; font-size: 13px; }
 .account-theme-toggle { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-width: 40px; min-height: 40px; padding: 8px 12px; flex-shrink: 0; border: 1px solid var(--account-line); border-radius: 20px; color: var(--account-ink); }
 .account-theme-toggle:hover { border-color: var(--account-muted); }
-.account-user-email { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--account-muted); }
+.account-profile-link { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-width: 40px; min-height: 40px; padding: 8px 12px; border: 1px solid var(--account-line); border-radius: 20px; color: var(--account-ink); font-size: 13px; }
+.account-profile-link:hover { border-color: var(--account-muted); }
+.account-profile-link[aria-current="page"] { font-weight: 600; }
 .account-logout { display: inline-flex; align-items: center; gap: 8px; padding: 10px 0 10px 22px; border-left: 1px solid var(--account-line); }
 .account-breadcrumb { display: flex; gap: 12px; align-items: center; padding-block: 30px 24px; font-size: 13px; color: var(--account-muted); }
 .account-breadcrumb [aria-current="page"] { color: var(--account-ink); }
@@ -235,14 +250,15 @@ button:not(:disabled) { cursor: pointer; }
   .account-destinations { gap: 12px; }
   .account-destination { padding: 20px; }
   .account-section-heading > span { display: none; }
-  .account-user-email { max-width: 180px; }
 }
 @media (max-width: 600px) {
   .investment-balances, .investment-directions { grid-template-columns: 1fr; }
   .investment-history li { flex-direction: column; gap: 7px; }
   .account-topbar-inner { min-height: 76px; gap: 12px; }
-  .account-user-email { display: none; }
+  .account-brand-nav { gap: 14px; }
   .account-user { gap: 10px; }
+  .account-profile-link { padding: 8px; }
+  .account-profile-link > span { display: none; }
   .account-theme-toggle { padding: 8px; }
   .account-theme-toggle > span { display: none; }
   .account-logout { border: 0; padding: 10px; }
