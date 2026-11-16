@@ -1,4 +1,3 @@
-import { MercadoAtivos } from './mercado-ativos';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import type { Theme } from '@/lib/theme';
@@ -21,6 +20,8 @@ type AccountHomeProps = {
   onPixTransfer: (chaveDestino: string, valor: string) => Promise<PixReceipt>;
   onConvertBalance: (moeda: TipoMoeda) => Promise<ConversionReceipt>;
   onInvestmentTransfer: (direcao: DirecaoTransferencia, valor: string) => Promise<TransferenciaInvestimento>;
+  onInvestmentPurchase: (codigoAtivo: string, quantidade: string) => Promise<void>;
+  onInvestmentSale: (codigoAtivo: string, quantidade: string) => Promise<void>;
   onInvestmentRefresh: () => void;
   onLogout: () => void;
 };
@@ -59,7 +60,7 @@ function transactionLabel(transaction: Movimentacao): string {
   return 'Pix recebido';
 }
 
-export function AccountHome({ theme, onThemeChange, session, conta, investimento, loading, notice, onRefresh, onPixTransfer, onConvertBalance, onInvestmentTransfer, onInvestmentRefresh, onLogout }: AccountHomeProps) {
+export function AccountHome({ theme, onThemeChange, session, conta, investimento, loading, notice, onRefresh, onPixTransfer, onConvertBalance, onInvestmentTransfer, onInvestmentPurchase, onInvestmentSale, onInvestmentRefresh, onLogout }: AccountHomeProps) {
   const [area, setArea] = useState<Area>('home');
   const [balanceVisible, setBalanceVisible] = useState(true);
   const [pixKey, setPixKey] = useState('');
@@ -182,7 +183,7 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
         <button className="account-back" type="button" onClick={() => setArea('home')}><ArrowLeft size={17} aria-hidden />Voltar ao início</button>
         <h1 id="area-title" ref={heading} tabIndex={-1}>{areaTitle}</h1>
         {area === 'currencies' ? <div className="account-currency-area">
-          <p className="account-detail-intro">Seu saldo está em <strong>{conta?.moeda_saldo ?? 'BRL'}</strong>. Ao converter, todo o saldo passa para a moeda escolhida com a cotação mais recente da API. Os valores são simulados.</p>
+          <p className="account-detail-intro">Seu saldo está em <strong>{conta?.moeda_saldo ?? 'BRL'}</strong>. Ao converter, todo o saldo passa para a moeda escolhida.</p>
           <div className="account-currency-balance"><span>Saldo atual</span><p className="account-currency-current" aria-live="polite">{conta ? formatarSaldo(conta.saldo, conta.moeda_saldo) : 'Carregando saldo…'}</p></div>
           <form className="account-pix-form" onSubmit={event => void submitConversion(event)} aria-busy={converting}>
             <fieldset className="account-currency-options" disabled={loading || converting}>
@@ -196,7 +197,7 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
             </fieldset>
             <button type="submit" className="account-pix-submit" disabled={loading || converting || !conta || targetCurrency === conta.moeda_saldo}>{converting && <RefreshCw size={16} className="account-spin" aria-hidden />}{converting ? 'Convertendo…' : targetCurrency === conta?.moeda_saldo ? `Saldo já está em ${targetCurrency}` : 'Converter saldo'}</button>
           </form>
-          <p className="account-pix-note">A conversão usa a cotação de referência consultada na API e trunca frações menores que um centavo. O Pix é enviado na moeda do seu saldo e chega na moeda da conta de destino. A transferência para investimentos converte automaticamente para BRL.</p>
+          <p className="account-pix-note">A conversão é realizada automaticamente com base na cotação de referência consultada na API, desconsiderando frações inferiores a um centavo. As transferências via Pix são convertidas automaticamente para a sua moeda.</p>
         </div> : area === 'profile' ? <>
           <p className="account-detail-intro">Confira seus dados de cadastro e as informações da sua conta tivvo</p>
           <dl className="account-data">
@@ -232,11 +233,7 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
           </form>
           <p className="account-pix-note">O envio é imediato neste ambiente de demonstração. Confira a chave e o valor antes de confirmar.</p>
         </div> : <>
-          <InvestmentAccount principal={conta} investimento={investimento} loading={loading} onRefresh={onInvestmentRefresh} onTransfer={onInvestmentTransfer} />
-          <section aria-labelledby="market-title">
-            <div className="investment-history-heading"><h2 id="market-title">Consultar ativos</h2></div>
-            <MercadoAtivos token={session.access_token} />
-          </section>
+          <InvestmentAccount principal={conta} investimento={investimento} loading={loading} token={session.access_token} onRefresh={onInvestmentRefresh} onTransfer={onInvestmentTransfer} onPurchase={onInvestmentPurchase} onSale={onInvestmentSale} />
         </>}
       </section>}
 

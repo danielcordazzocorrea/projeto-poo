@@ -23,6 +23,8 @@ export default function App() {
   const [loadingAccount, setLoadingAccount] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
   const pendingInvestment = useRef<{ key: string; id: string } | null>(null);
+  const pendingPurchase = useRef<{ key: string; id: string } | null>(null);
+  const pendingSale = useRef<{ key: string; id: string } | null>(null);
 
   useEffect(() => {
     document.documentElement.style.colorScheme = theme;
@@ -39,7 +41,7 @@ export default function App() {
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  useEffect(() => { if (session) void loadAccount(session); else { setConta(null); setInvestimento(null); pendingInvestment.current = null; } }, [session]);
+  useEffect(() => { if (session) void loadAccount(session); else { setConta(null); setInvestimento(null); pendingInvestment.current = null; pendingPurchase.current = null; pendingSale.current = null; } }, [session]);
 
   async function readError(response: Response): Promise<string> {
     try {
@@ -82,6 +84,47 @@ export default function App() {
       return result.comprovante;
     } catch (error) {
       setNotice({ text: `Não foi possível concluir ou confirmar a transferência: ${error instanceof Error ? error.message : 'erro inesperado'}. Confira os saldos antes de tentar novamente.`, kind: 'erro' });
+      throw error;
+    } finally { setLoadingAccount(false); }
+  }
+  async function purchaseInvestment(codigoAtivo: string, quantidade: string): Promise<void> {
+    if (!session) throw new Error('Entre na conta para comprar.');
+    setLoadingAccount(true); setNotice(null);
+    try {
+      const key = `${session.user.id}:${codigoAtivo}:${quantidade}`;
+      if (pendingPurchase.current?.key !== key) pendingPurchase.current = { key, id: crypto.randomUUID() };
+      const response = await fetch(`${url}/functions/v1/corretora/investimentos/compras`, {
+        method: 'POST',
+        headers: { apikey: chave, Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ codigo_ativo: codigoAtivo, quantidade, requisicao_id: pendingPurchase.current.id }),
+      });
+      if (!response.ok) throw new Error(await readError(response));
+      setInvestimento(await response.json() as ContaInvestimento);
+      pendingPurchase.current = null;
+    } catch (error) {
+      setNotice({ text: `Não foi possível concluir a compra: ${error instanceof Error ? error.message : 'erro inesperado'}`, kind: 'erro' });
+      throw error;
+    } finally { setLoadingAccount(false); }
+  }
+  async function sellInvestment(codigoAtivo: string, quantidade: string): Promise<void> {
+    if (!session) throw new Error('Entre na conta para vender.');
+    setLoadingAccount(true); setNotice(null);
+    try {
+      const key = `${session.user.id}:${codigoAtivo}:${quantidade}`;
+      if (pendingSale.current?.key !== key) pendingSale.current = { key, id: crypto.randomUUID() };
+      const response = await fetch(`${url}/functions/v1/corretora/investimentos/vendas`, {
+        method: 'POST',
+        headers: { apikey: chave, Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ codigo_ativo: codigoAtivo, quantidade, requisicao_id: pendingSale.current.id }),
+      });
+      if (!response.ok) throw new Error(await readError(response));
+      setInvestimento(await response.json() as ContaInvestimento);
+      const principal = await requestAccount('GET', session.access_token);
+      if (!principal.ok) throw new Error(await readError(principal));
+      setConta(await principal.json() as Conta);
+      pendingSale.current = null;
+    } catch (error) {
+      setNotice({ text: `Não foi possível concluir a venda: ${error instanceof Error ? error.message : 'erro inesperado'}`, kind: 'erro' });
       throw error;
     } finally { setLoadingAccount(false); }
   }
@@ -146,7 +189,7 @@ export default function App() {
   }
   async function logout(): Promise<void> { if (!supabase) return; const { error } = await supabase.auth.signOut(); setNotice(error ? { text: error.message, kind: 'erro' } : { text: 'Você saiu da sua conta', kind: 'ok' }); }
 
-  if (session) return <AccountHome key={session.user.id} theme={theme} onThemeChange={setTheme} session={session} conta={conta} investimento={investimento} loading={loadingAccount} notice={notice} onRefresh={() => void loadAccount(session)} onInvestmentRefresh={() => void loadAccount(session)} onPixTransfer={transferPix} onConvertBalance={convertBalance} onInvestmentTransfer={transferInvestment} onLogout={() => void logout()} />;
+  if (session) return <AccountHome key={session.user.id} theme={theme} onThemeChange={setTheme} session={session} conta={conta} investimento={investimento} loading={loadingAccount} notice={notice} onRefresh={() => void loadAccount(session)} onInvestmentRefresh={() => void loadAccount(session)} onPixTransfer={transferPix} onConvertBalance={convertBalance} onInvestmentTransfer={transferInvestment} onInvestmentPurchase={purchaseInvestment} onInvestmentSale={sellInvestment} onLogout={() => void logout()} />;
   const signingUp = mode === 'signup';
   return <SmokeLogin
     theme={theme}

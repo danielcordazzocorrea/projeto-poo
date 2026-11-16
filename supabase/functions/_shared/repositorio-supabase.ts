@@ -217,7 +217,7 @@ export class RepositorioSupabase implements RepositorioCorretora, RepositorioInv
     const { data: principal, error: erroPrincipal } = await this.banco.from('contas').select('id').maybeSingle();
     verificarErro(erroPrincipal);
     if (!principal) throw new NaoEncontrado('Conta não encontrada.');
-    const [conta, posicoes, movimentos] = await Promise.all([
+    const [conta, posicoes, movimentos, compras] = await Promise.all([
       this.banco.from('contas_investimento').select('saldo_centavos')
         .eq('conta_principal_id', principal.id).maybeSingle(),
       this.banco.from('posicoes_investimento').select('ativo_codigo,quantidade_micros')
@@ -225,13 +225,29 @@ export class RepositorioSupabase implements RepositorioCorretora, RepositorioInv
       this.banco.from('transferencias_investimento')
         .select('id,direcao,valor_origem_centavos,moeda_origem,valor_destino_centavos,moeda_destino,cotacao_em,criada_em')
         .eq('conta_principal_id', principal.id).order('criada_em', { ascending: false }).limit(50),
+      this.banco.from('compras_investimento').select('ativo_codigo,quantidade_micros,custo_centavos').eq('conta_principal_id', principal.id),
     ]);
     verificarErro(conta.error);
     verificarErro(posicoes.error);
     verificarErro(movimentos.error);
+    verificarErro(compras.error);
     if (!conta.data) throw new NaoEncontrado('Conta de investimentos não encontrada.');
+    const comprasPorAtivo = new Map<string, { quantidade: bigint; custo: bigint }>();
+    for (const compra of compras.data ?? []) {
+      const anterior = comprasPorAtivo.get(compra.ativo_codigo) ?? { quantidade: 0n, custo: 0n };
+      comprasPorAtivo.set(compra.ativo_codigo, {
+        quantidade: anterior.quantidade + BigInt(compra.quantidade_micros),
+        custo: anterior.custo + BigInt(compra.custo_centavos),
+      });
+    }
+    const custoAcoesEmCarteira = (posicoes.data ?? []).reduce((total, posicao) => {
+      const comprasDoAtivo = comprasPorAtivo.get(posicao.ativo_codigo);
+      if (!comprasDoAtivo || comprasDoAtivo.quantidade === 0n) return total;
+      return total + comprasDoAtivo.custo * BigInt(posicao.quantidade_micros) / comprasDoAtivo.quantidade;
+    }, 0n);
     return {
       saldo: Dinheiro.doBanco(conta.data.saldo_centavos).formatar(), moeda: 'BRL',
+      acoes_investidas: Dinheiro.doBanco(custoAcoesEmCarteira.toString()).formatar(),
       posicoes: (posicoes.data ?? []).map(row => ({
         codigo_ativo: row.ativo_codigo,
         quantidade: Quantidade.doBanco(row.quantidade_micros).formatar(),
@@ -247,6 +263,24 @@ export class RepositorioSupabase implements RepositorioCorretora, RepositorioInv
         criada_em: row.criada_em,
       })),
     };
+  }
+
+  async comprarAtivo(codigo: string, quantidadeMicros: bigint, precoCentavos: bigint, requisicaoId: string): Promise<void> {
+    const { banco, usuarioId } = this.servico();
+    const { error } = await banco.rpc('comprar_ativo_investimento', {
+      p_usuario_id: usuarioId, p_ativo_codigo: codigo, p_quantidade_micros: Number(quantidadeMicros),
+      p_preco_centavos: Number(precoCentavos), p_requisicao_id: requisicaoId,
+    });
+    verificarErro(error);
+  }
+
+  async venderAtivo(codigo: string, quantidadeMicros: bigint, precoCentavos: bigint, requisicaoId: string): Promise<void> {
+    const { banco, usuarioId } = this.servico();
+    const { error } = await banco.rpc('vender_ativo_investimento', {
+      p_usuario_id: usuarioId, p_ativo_codigo: codigo, p_quantidade_micros: Number(quantidadeMicros),
+      p_preco_centavos: Number(precoCentavos), p_requisicao_id: requisicaoId,
+    });
+    verificarErro(error);
   }
 
   async transferirInvestimento(direcao: DirecaoTransferencia, centavos: bigint,

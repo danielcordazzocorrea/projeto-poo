@@ -1,4 +1,4 @@
-import { Dinheiro, RegraDeNegocio, type TipoMoeda } from './dominio.ts';
+import { Dinheiro, Quantidade, RegraDeNegocio, type TipoMoeda } from './dominio.ts';
 import { buscarCotacoes, type Cotacoes } from './cotacoes.ts';
 
 export type DirecaoTransferencia = 'PARA_INVESTIMENTOS' | 'PARA_PRINCIPAL';
@@ -15,6 +15,7 @@ export type TransferenciaInvestimento = {
 export type ContaInvestimento = {
   saldo: string;
   moeda: 'BRL';
+  acoes_investidas: string;
   posicoes: Array<{ codigo_ativo: string; quantidade: string }>;
   transferencias: TransferenciaInvestimento[];
 };
@@ -24,6 +25,8 @@ export interface RepositorioInvestimentos {
   consultarMoedaPrincipal(): Promise<TipoMoeda>;
   transferirInvestimento(direcao: DirecaoTransferencia, centavos: bigint,
     moedaPrincipal: TipoMoeda, cotacoes: Cotacoes | null, requisicaoId: string): Promise<TransferenciaInvestimento>;
+  comprarAtivo(codigo: string, quantidadeMicros: bigint, precoCentavos: bigint, requisicaoId: string): Promise<void>;
+  venderAtivo(codigo: string, quantidadeMicros: bigint, precoCentavos: bigint, requisicaoId: string): Promise<void>;
 }
 
 export class Investimentos {
@@ -49,5 +52,28 @@ export class Investimentos {
       direcao, centavos, moedaPrincipal, cotacoes, requisicaoId,
     );
     return { conta: await this.consultarConta(), comprovante };
+  }
+
+  async comprarAtivo(codigo: unknown, quantidade: unknown, preco: unknown, requisicaoId: unknown) {
+    if (typeof codigo !== 'string' || !/^[A-Z]{4}[0-9]{1,2}$/.test(codigo)
+      || typeof requisicaoId !== 'string' || !requisicaoId.trim()) {
+      throw new RegraDeNegocio('Dados da compra inválidos.');
+    }
+    await this.repositorio.comprarAtivo(
+      codigo, Quantidade.positiva(quantidade).micros, Dinheiro.positivo(preco).centavos, requisicaoId,
+    );
+    return this.consultarConta();
+  }
+
+  async venderAtivo(codigo: unknown, quantidade: unknown, preco: unknown, requisicaoId: unknown) {
+    if (typeof codigo !== 'string' || !/^[A-Z]{4}[0-9]{1,2}$/.test(codigo)
+      || typeof requisicaoId !== 'string' || !requisicaoId.trim()
+      ) {
+      throw new RegraDeNegocio('Dados da venda inválidos.');
+    }
+    await this.repositorio.venderAtivo(
+      codigo, Quantidade.positiva(quantidade).micros, Dinheiro.positivo(preco).centavos, requisicaoId,
+    );
+    return this.consultarConta();
   }
 }
