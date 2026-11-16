@@ -10,6 +10,7 @@ import {
 import type { Cotacoes } from './cotacoes.ts';
 // A classe abaixo promete cumprir o contrato que o serviço espera.
 import type { RepositorioCorretora } from './servico.ts';
+import type { ContaInvestimento, DirecaoTransferencia, RepositorioInvestimentos, TransferenciaInvestimento } from './investimentos.ts';
 
 // Formato mínimo do erro que pode voltar de uma consulta Supabase.
 type ErroBanco = { code?: string; message: string } | null;
@@ -32,7 +33,7 @@ function verificarErro(erro: ErroBanco): void {
 }
 
 // Adaptador: implementa o contrato RepositorioCorretora usando Supabase.
-export class RepositorioSupabase implements RepositorioCorretora {
+export class RepositorioSupabase implements RepositorioCorretora, RepositorioInvestimentos {
   // O cliente recebido representa a sessão do usuário desta requisição.
   constructor(private readonly banco: SupabaseClient,
     private readonly admin?: SupabaseClient, private readonly usuarioId?: string) {}
@@ -195,5 +196,72 @@ export class RepositorioSupabase implements RepositorioCorretora {
     return { moeda_recebida: validarTipoMoeda(data.moeda_recebida),
       valor_recebido: Dinheiro.doBanco(data.valor_recebido_centavos).formatar(),
       cotacao_em: data.cotacao_em ?? null };
+  }
+
+  async consultarMoedaPrincipal(): Promise<TipoMoeda> {
+    const { data, error } = await this.banco.from('contas').select('moeda_saldo').maybeSingle();
+    verificarErro(error);
+    if (!data) throw new NaoEncontrado('Conta não encontrada.');
+    return validarTipoMoeda(data.moeda_saldo);
+  }
+
+  async consultarInvestimentos(): Promise<ContaInvestimento> {
+    const { data: principal, error: erroPrincipal } = await this.banco.from('contas').select('id').maybeSingle();
+    verificarErro(erroPrincipal);
+    if (!principal) throw new NaoEncontrado('Conta não encontrada.');
+    const [conta, posicoes, movimentos] = await Promise.all([
+      this.banco.from('contas_investimento').select('saldo_centavos')
+        .eq('conta_principal_id', principal.id).maybeSingle(),
+      this.banco.from('posicoes_investimento').select('ativo_codigo,quantidade_micros')
+        .eq('conta_principal_id', principal.id).order('ativo_codigo'),
+      this.banco.from('transferencias_investimento')
+        .select('id,direcao,valor_origem_centavos,moeda_origem,valor_destino_centavos,moeda_destino,cotacao_em,criada_em')
+        .eq('conta_principal_id', principal.id).order('criada_em', { ascending: false }).limit(50),
+    ]);
+    verificarErro(conta.error);
+    verificarErro(posicoes.error);
+    verificarErro(movimentos.error);
+    if (!conta.data) throw new NaoEncontrado('Conta de investimentos não encontrada.');
+    return {
+      saldo: Dinheiro.doBanco(conta.data.saldo_centavos).formatar(), moeda: 'BRL',
+      posicoes: (posicoes.data ?? []).map(row => ({
+        codigo_ativo: row.ativo_codigo,
+        quantidade: Quantidade.doBanco(row.quantidade_micros).formatar(),
+      })),
+      transferencias: (movimentos.data ?? []).map(row => ({
+        id: row.id,
+        direcao: row.direcao as DirecaoTransferencia,
+        valor_origem: Dinheiro.doBanco(row.valor_origem_centavos).formatar(),
+        moeda_origem: validarTipoMoeda(row.moeda_origem),
+        valor_destino: Dinheiro.doBanco(row.valor_destino_centavos).formatar(),
+        moeda_destino: validarTipoMoeda(row.moeda_destino),
+        cotacao_em: row.cotacao_em,
+        criada_em: row.criada_em,
+      })),
+    };
+  }
+
+  async transferirInvestimento(direcao: DirecaoTransferencia, centavos: bigint,
+    moedaPrincipal: TipoMoeda, cotacoes: Cotacoes | null, requisicaoId: string): Promise<TransferenciaInvestimento> {
+    const { banco, usuarioId } = this.servico();
+    const { data, error } = await banco.rpc('transferir_conta_investimento', {
+      p_usuario_id: usuarioId,
+      p_direcao: direcao,
+      p_valor_centavos: Number(centavos),
+      p_moeda_principal: moedaPrincipal,
+      p_cotacoes: cotacoes ?? {},
+      p_requisicao_id: requisicaoId,
+    });
+    verificarErro(error);
+    if (!data) throw new FalhaDePersistencia('Transferência sem comprovante.');
+    return {
+      id: data.id,
+      direcao: data.direcao,
+      valor_origem: Dinheiro.doBanco(data.valor_origem_centavos).formatar(),
+      moeda_origem: validarTipoMoeda(data.moeda_origem),
+      valor_destino: Dinheiro.doBanco(data.valor_destino_centavos).formatar(),
+      moeda_destino: validarTipoMoeda(data.moeda_destino),
+      cotacao_em: data.cotacao_em ?? null,
+    };
   }
 }

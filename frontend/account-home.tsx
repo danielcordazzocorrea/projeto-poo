@@ -3,6 +3,7 @@ import type { Session } from '@supabase/supabase-js';
 import type { Theme } from '@/lib/theme';
 import { ArrowLeft, ArrowUpRight, ArrowRightLeft, ChartNoAxesCombined, Check, Eye, EyeOff, Landmark, LogOut, Moon, Sun, RefreshCw, UserRound } from 'lucide-react';
 import { formatarSaldo, type Conta, type PixReceipt, type TipoMoeda } from './moeda';
+import { InvestmentAccount, type ContaInvestimento, type DirecaoTransferencia, type TransferenciaInvestimento } from './investment-account';
 
 type Area = 'home' | 'investments' | 'pix' | 'profile' | 'currencies';
 type AccountHomeProps = {
@@ -10,11 +11,14 @@ type AccountHomeProps = {
   onThemeChange: (theme: Theme) => void;
   session: Session;
   conta: Conta | null;
+  investimento: ContaInvestimento | null;
   loading: boolean;
   notice: { text: string; kind: 'ok' | 'erro' | 'info' } | null;
   onRefresh: () => void;
   onPixTransfer: (chaveDestino: string, valor: string) => Promise<PixReceipt>;
   onConvertBalance: (moeda: TipoMoeda) => Promise<void>;
+  onInvestmentTransfer: (direcao: DirecaoTransferencia, valor: string) => Promise<TransferenciaInvestimento>;
+  onInvestmentRefresh: () => void;
   onLogout: () => void;
 };
 
@@ -35,7 +39,7 @@ function PixLogo() {
   return <img className="account-pix-logo" src="/pix-logo.svg" alt="" />;
 }
 
-export function AccountHome({ theme, onThemeChange, session, conta, loading, notice, onRefresh, onPixTransfer, onConvertBalance, onLogout }: AccountHomeProps) {
+export function AccountHome({ theme, onThemeChange, session, conta, investimento, loading, notice, onRefresh, onPixTransfer, onConvertBalance, onInvestmentTransfer, onInvestmentRefresh, onLogout }: AccountHomeProps) {
   const [area, setArea] = useState<Area>('home');
   const [balanceVisible, setBalanceVisible] = useState(true);
   const [pixKey, setPixKey] = useState('');
@@ -148,7 +152,7 @@ export function AccountHome({ theme, onThemeChange, session, conta, loading, not
             </fieldset>
             <button type="submit" className="account-pix-submit" disabled={loading || converting || !conta || targetCurrency === conta.moeda_saldo}>{converting ? 'Convertendo…' : targetCurrency === conta?.moeda_saldo ? `Saldo já está em ${targetCurrency}` : 'Converter saldo'}</button>
           </form>
-          <p className="account-pix-note">A conversão usa a cotação de referência consultada na API e trunca frações menores que um centavo. O Pix é enviado na moeda do seu saldo e chega na moeda da conta de destino. Depósitos e investimentos atuais exigem saldo em BRL.</p>
+          <p className="account-pix-note">A conversão usa a cotação de referência consultada na API e trunca frações menores que um centavo. O Pix é enviado na moeda do seu saldo e chega na moeda da conta de destino. A transferência para investimentos converte automaticamente para BRL.</p>
         </div> : area === 'profile' ? <>
           <p className="account-detail-intro">Confira seus dados de cadastro e as informações da sua conta tivvo</p>
           <dl className="account-data">
@@ -171,12 +175,7 @@ export function AccountHome({ theme, onThemeChange, session, conta, loading, not
           </form>
           {sendingPix && <div className="account-pix-progress" role="status" aria-live="polite"><span className="account-pix-progress-icon"><ArrowRightLeft size={22} aria-hidden /></span><div><strong>Transferência em andamento</strong><p>Estamos enviando seu Pix. Aguarde a confirmação.</p></div><span className="account-pix-progress-bar" aria-hidden /></div>}
           <p className="account-pix-note">O envio é imediato neste ambiente de demonstração. Confira a chave e o valor antes de confirmar.</p>
-        </div> : <div className="account-coming-soon">
-          <span className="account-coming-icon"><ChartNoAxesCombined size={40} strokeWidth={1.4} aria-hidden /></span>
-          <span className="account-soon-label">Em breve</span>
-          <h2>O próximo passo para sua carteira</h2>
-          <p>Estamos preparando a consulta de ativos e a gestão da sua carteira — as operações de investimento ainda não estão disponíveis nesta tela</p>
-        </div>}
+        </div> : <InvestmentAccount principal={conta} investimento={investimento} loading={loading} onRefresh={onInvestmentRefresh} onTransfer={onInvestmentTransfer} />}
       </section>}
 
       {notice && <p className="account-notice" role={notice.kind === 'erro' ? 'alert' : 'status'}>{notice.text}</p>}

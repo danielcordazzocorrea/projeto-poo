@@ -1,5 +1,6 @@
 import { withSupabase } from 'npm:@supabase/server@1';
 import { Corretora } from '../_shared/servico.ts';
+import { Investimentos } from '../_shared/investimentos.ts';
 import { RepositorioSupabase } from '../_shared/repositorio-supabase.ts';
 import { FalhaDePersistencia, NaoEncontrado, RegraDeNegocio } from '../_shared/dominio.ts';
 
@@ -26,10 +27,22 @@ Deno.serve(withSupabase({ auth: 'user' }, async (req, ctx) => {
     if (!usuarioId) throw new RegraDeNegocio('Sessão inválida. Entre novamente.');
     return new Corretora(new RepositorioSupabase(ctx.supabase, ctx.supabaseAdmin, usuarioId));
   }
+  function investimentos(): Investimentos {
+    const usuarioId = ctx.userClaims?.id;
+    if (!usuarioId) throw new RegraDeNegocio('Sessão inválida. Entre novamente.');
+    return new Investimentos(new RepositorioSupabase(ctx.supabase, ctx.supabaseAdmin, usuarioId));
+  }
   const caminho = new URL(req.url).pathname.match(/\/corretora(\/.*)?$/)?.[1] ?? '/';
   try {
     if (req.method === 'GET' && caminho === '/ativos') {
       return json(200, await corretora.listarAtivos());
+    }
+    if (req.method === 'GET' && caminho === '/investimentos/conta') {
+      return json(200, await investimentos().consultarConta());
+    }
+    if (req.method === 'POST' && caminho === '/investimentos/transferencias') {
+      const dados = await lerJson(req);
+      return json(200, await investimentos().transferir(dados.direcao, dados.valor, dados.requisicao_id));
     }
     if (req.method === 'POST' && caminho === '/conta') {
       return json(201, await corretora.abrirConta());
