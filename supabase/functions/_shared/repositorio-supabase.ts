@@ -73,22 +73,26 @@ export class RepositorioSupabase implements RepositorioCorretora, RepositorioInv
     // A ausência da conta é diferente de falha de comunicação com o banco.
     if (!conta) throw new NaoEncontrado('Conta não encontrada. Abra uma conta primeiro.');
 
-    // Faz quatro leituras independentes em paralelo para reduzir a espera.
-    const [resultadoPosicoes, resultadoMovimentos, ativos, resultadoChavePix] = await Promise.all([
+    // Faz cinco leituras independentes em paralelo para reduzir a espera.
+    const [resultadoPosicoes, resultadoPix, resultadoConversoes, ativos, resultadoChavePix] = await Promise.all([
       // Lê as quantidades dos ativos pertencentes à conta encontrada.
       this.banco.from('posicoes').select('ativo_codigo,quantidade_micros').eq('conta_id', conta.id),
-      // A tela mostra as dez transações de moeda e Pix mais recentes.
+      // Pix e conversões têm seus próprios dez itens mais recentes para os filtros.
       this.banco.from('movimentacoes')
         .select('id,tipo,valor_centavos,ativo_codigo,quantidade_micros,criada_em,moeda,moeda_destino,valor_destino_centavos,cotacao_em,contraparte_nome')
-        .eq('conta_id', conta.id).in('tipo', ['CONVERSAO', 'PIX_ENVIADO', 'PIX_RECEBIDO']).order('criada_em', { ascending: false }).limit(10),
+        .eq('conta_id', conta.id).in('tipo', ['PIX_ENVIADO', 'PIX_RECEBIDO']).order('criada_em', { ascending: false }).limit(10),
+      this.banco.from('movimentacoes')
+        .select('id,tipo,valor_centavos,ativo_codigo,quantidade_micros,criada_em,moeda,moeda_destino,valor_destino_centavos,cotacao_em,contraparte_nome')
+        .eq('conta_id', conta.id).eq('tipo', 'CONVERSAO').order('criada_em', { ascending: false }).limit(10),
       // Busca os dados completos dos ativos usados para montar as posições.
       this.listarAtivos(),
       // A RLS permite ler somente a chave pertencente ao usuário da sessão.
       this.banco.from('chaves_pix').select('chave').maybeSingle(),
     ]);
-    // Cada consulta pode falhar separadamente; as duas respostas SQL são conferidas.
+    // Cada consulta pode falhar separadamente; as três respostas SQL são conferidas.
     verificarErro(resultadoPosicoes.error);
-    verificarErro(resultadoMovimentos.error);
+    verificarErro(resultadoPix.error);
+    verificarErro(resultadoConversoes.error);
     verificarErro(resultadoChavePix.error);
     if (!resultadoChavePix.data?.chave) {
       throw new FalhaDePersistencia('Chave Pix não encontrada para esta conta.');
@@ -102,8 +106,11 @@ export class RepositorioSupabase implements RepositorioCorretora, RepositorioInv
       if (!ativo) throw new FalhaDePersistencia('Posição contém ativo desconhecido.');
       return new Posicao(ativo, Quantidade.doBanco(row.quantidade_micros));
     });
+    // Reúne as duas listas e mantém a ordem cronológica no filtro “Todos”.
+    const linhasMovimentos = [...(resultadoPix.data ?? []), ...(resultadoConversoes.data ?? [])]
+      .sort((a, b) => b.criada_em.localeCompare(a.criada_em));
     // Transforma cada linha do histórico em um objeto Movimentacao.
-    const movimentos = (resultadoMovimentos.data ?? []).map(row => new Movimentacao(
+    const movimentos = linhasMovimentos.map(row => new Movimentacao(
       // A ordem dos argumentos acompanha o construtor de Movimentacao.
       row.id,
       row.tipo as TipoMovimentacao,

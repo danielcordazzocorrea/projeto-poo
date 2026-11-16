@@ -101,8 +101,9 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
   const lastName = typeof savedLastName === 'string' ? savedLastName.trim() : '';
   const fullName = [firstName, lastName].filter(Boolean).join(' ') || 'Não informado';
   const birthDate = formatDateBr(session.user.user_metadata?.birth_date);
-  const transactionHistory = (conta?.movimentacoes.filter(transaction => ['CONVERSAO', 'PIX_ENVIADO', 'PIX_RECEBIDO'].includes(transaction.tipo)) ?? []).slice(0, 10);
-  const filteredTransactionHistory = transactionHistory.filter(transaction => historyFilter === 'all' || (historyFilter === 'pix' ? transaction.tipo.startsWith('PIX_') : transaction.tipo === 'CONVERSAO'));
+  const transactionHistory = conta?.movimentacoes.filter(transaction => ['CONVERSAO', 'PIX_ENVIADO', 'PIX_RECEBIDO'].includes(transaction.tipo)) ?? [];
+  const filteredTransactionHistory = (historyFilter === 'all' ? transactionHistory : transactionHistory
+    .filter(transaction => historyFilter === 'pix' ? transaction.tipo.startsWith('PIX_') : transaction.tipo === 'CONVERSAO')).slice(0, 10);
 
   async function submitPix(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
