@@ -3,6 +3,7 @@ import type { Session } from '@supabase/supabase-js';
 import type { Theme } from '@/lib/theme';
 import { ArrowDownLeft, ArrowLeft, ArrowUpRight, ArrowRightLeft, ChartNoAxesCombined, Check, Eye, EyeOff, History, Landmark, LogOut, Moon, Sun, RefreshCw, UserRound } from 'lucide-react';
 import { AboutTivvo } from '@/components/ui/about-tivvo';
+import { LiveOrb } from './live-orb';
 import { formatarSaldo, type Conta, type ConversionReceipt, type Movimentacao, type PixReceipt, type TipoMoeda } from './moeda';
 import { InvestmentAccount, type ContaInvestimento, type DirecaoTransferencia, type TransferenciaInvestimento } from './investment-account';
 
@@ -274,5 +275,6 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
         <span className="account-pix-progress-bar" aria-hidden />
       </div>}
     </dialog>
+    <LiveOrb theme={theme} />
   </div>;
 }
