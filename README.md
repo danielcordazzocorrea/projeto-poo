@@ -64,6 +64,8 @@ O caminho base é `/functions/v1/corretora`. Envie o JWT de sessão do Supabase 
 | `POST` | `/compras` | `{"codigo_ativo":"ACAO1","quantidade":"2"}` |
 | `POST` | `/vendas` | `{"codigo_ativo":"ACAO1","quantidade":"1"}` |
 | `POST` | `/pix/transferencias` | `{"chave_destino":"pessoa@exemplo.com","valor":"25.00"}` |
+| `GET` | `/investimentos/conta` | — |
+| `POST` | `/investimentos/transferencias` | `{"direcao":"PARA_INVESTIMENTOS","valor":"10.00","requisicao_id":"UUID"}` |
 
 Valores monetários e quantidades são texto decimal. A resposta da conta traz saldo, sua `chave_pix`, posições e as 100 movimentações mais recentes. Os preços `ACAO1` e `USD` são fixos e fictícios. O depósito adiciona saldo **simulado**, sem integração de pagamentos. O Pix simulado encontra a conta destinatária pela chave, rejeita a própria chave e saldo insuficiente, e grava o débito e o crédito na mesma transação do Postgres.
 
@@ -78,6 +80,8 @@ npm test
 Os testes do Node verificam as classes de domínio e o serviço. Um teste completo das Edge Functions, RLS e transações SQL exige a pilha Supabase local ou um projeto de testes.
 
 ## Equipe
+
+A [conta de investimentos vinculada](docs/conta-investimentos.md) tem saldo BRL próprio e transferências com conversão automática. As [instruções de integração com a brapi](docs/integracao-brapi.md) estão separadas para quem implementa a busca de ativos.
 
 As tarefas sugeridas para cinco pessoas estão em `docs/plano-equipe.md`.
 
