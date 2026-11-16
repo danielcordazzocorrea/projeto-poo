@@ -4,7 +4,7 @@ import { AccountHome } from './account-home';
 import { SmokeLogin } from '@/components/ui/smoke-login';
 import { CONFIGURATION_NOTICE, submitCredentials } from './auth';
 import { readSavedTheme, THEME_STORAGE_KEY, type Theme } from '@/lib/theme';
-import { type Conta, type PixReceipt, type TipoMoeda } from './moeda';
+import { type Conta, type ConversionReceipt, type PixReceipt, type TipoMoeda } from './moeda';
 import type { ContaInvestimento, DirecaoTransferencia, TransferenciaInvestimento } from './investment-account';
 
 type Notice = { text: string; kind: 'ok' | 'erro' | 'info' } | null;
@@ -85,7 +85,7 @@ export default function App() {
       throw error;
     } finally { setLoadingAccount(false); }
   }
-  async function convertBalance(moeda: TipoMoeda): Promise<void> {
+  async function convertBalance(moeda: TipoMoeda): Promise<ConversionReceipt> {
     if (!session) throw new Error('Entre na conta para converter o saldo.');
     setLoadingAccount(true); setNotice(null);
     try {
@@ -97,10 +97,7 @@ export default function App() {
       if (!response.ok) throw new Error(await readError(response));
       const resultado = await response.json() as Conta & { comprovante?: { cotacao_em: string | null } };
       setConta(resultado);
-      const horario = resultado.comprovante?.cotacao_em;
-      setNotice({ text: horario
-        ? `Saldo convertido com cotação consultada em ${new Date(horario).toLocaleString('pt-BR')}.`
-        : 'Moeda do saldo atualizada.', kind: 'ok' });
+      return { conta: resultado, cotacaoEm: resultado.comprovante?.cotacao_em ?? null };
     } catch (error) {
       setNotice({ text: `Não foi possível converter o saldo: ${error instanceof Error ? error.message : 'erro inesperado'}`, kind: 'erro' });
       throw error;
