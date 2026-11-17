@@ -1,3 +1,4 @@
+import { aceitaEntradaDecimal } from './moeda';
 import { ValorInput } from './valor-input';
 import { SaldoDisponivel } from './saldo-disponivel';
 
@@ -226,7 +227,7 @@ export function InvestmentAccount({ principal, investimento, loading, token, cat
         </div>
         <form className="account-pix-form" onSubmit={event => { if (ativoParaVenda) void vender(event, ativoParaVenda); else event.preventDefault(); }}>
           <label htmlFor="sell-dialog-quantity">Qual quantidade você quer vender?</label>
-          <input id="sell-dialog-quantity" type="text" inputMode="decimal" value={quantidadeVenda} onChange={event => setQuantidadeVenda(event.target.value)} placeholder="0" required disabled={vendendo || consultandoVenda} />
+          <input id="sell-dialog-quantity" type="text" inputMode="decimal" value={quantidadeVenda} onChange={event => aceitaEntradaDecimal(event.target.value, 6) && setQuantidadeVenda(event.target.value)} placeholder="0" required disabled={vendendo || consultandoVenda} />
           {erroVenda && <p className="investment-sale-error" role="alert">{erroVenda}</p>}
           <p className="account-pix-note">O valor será creditado na sua conta de investimentos pela cotação consultada na confirmação.</p>
           <button type="submit" className="account-pix-success-close" disabled={vendendo || consultandoVenda || !cotacaoVenda || !quantidadeVenda.trim()}>{vendendo ? 'Vendendo…' : 'Confirmar venda'}</button>
@@ -236,9 +237,9 @@ export function InvestmentAccount({ principal, investimento, loading, token, cat
     </dialog>
   </section>;
 
-  return <section className="investment-selected-content" aria-busy={loading}>
+  return <section className="investment-selected-content investment-variable-income-content" aria-busy={loading}>
     <button type="button" className="account-back" onClick={() => onCategoryChange(null)}><ArrowLeft size={17} aria-hidden />Voltar às categorias</button>
-    <h2>Ações, BDRs, EFTs</h2><MercadoAtivos token={token} onPurchase={onPurchase}
+    <MercadoAtivos token={token} onPurchase={onPurchase}
       onTransferFunds={() => { setDirecao('PARA_INVESTIMENTOS'); setReceipt(null); onCategoryChange('transferir'); }}
       saldoInvestimentos={investimento ? formatarSaldo(investimento.saldo, 'BRL') : 'Carregando…'}
       contaCarregada={Boolean(investimento) && !loading} />

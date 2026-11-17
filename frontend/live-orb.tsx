@@ -45,11 +45,11 @@ export function LiveOrb({ theme }: { theme: Theme }) {
         <button type="button" onClick={close} aria-label="Fechar chat"><X size={19} aria-hidden /></button>
       </header>
       <div className="mascot-chat-messages" role="log" aria-label="Mensagens do chat" aria-live="polite">
-        <p className="mascot-chat-message mascot-chat-message-assistant">Olá! Você já pode escrever suas perguntas por aqui. As respostas automáticas estarão disponíveis em breve.</p>
+        <p className="mascot-chat-message mascot-chat-message-assistant">Olá! Este é seu espaço para registrar perguntas sobre a tivvo.</p>
         {messages.map((message, index) => <p key={index} className="mascot-chat-message mascot-chat-message-user"><span className="sr-only">Você: </span>{message}</p>)}
         <div ref={end} />
       </div>
-      <p className="mascot-chat-status">Respostas automáticas em preparação</p>
+      <p className="mascot-chat-status">As perguntas ficam nesta conversa. Não há respostas automáticas.</p>
       <form className="mascot-chat-composer" onSubmit={send}>
         <label className="sr-only" htmlFor="tivvo-chat-question">Sua pergunta</label>
         <input ref={input} id="tivvo-chat-question" value={question} onChange={event => setQuestion(event.target.value)} maxLength={2000} placeholder="Digite sua pergunta…" autoComplete="off" />
