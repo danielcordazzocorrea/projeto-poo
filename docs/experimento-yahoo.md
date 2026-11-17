@@ -1,6 +1,19 @@
 # Experimento Yahoo Finance
 
-Branch: `experiment/yahoo-finance`, criada a partir de `feature/mercado-brapi`.
+Implementação iniciada em `experiment/yahoo-finance` e integrada à `feature/mercado-brapi`.
+
+## Integração publicada em 17/11/2026
+
+O frontend normal agora consulta `GET /functions/v1/yahoo-historico?ticker=BBAS3&periodo=6mo`
+no projeto definido por `VITE_SUPABASE_URL`, enviando `apikey` publicável e o JWT da sessão.
+A função já publicada foi validada; não foi necessário republicá-la nesta etapa.
+Busca, cotação e operações continuam na função `corretora` e na brapi.
+O seletor normal libera os períodos longos do Yahoo e remove os cadeados do plano brapi.
+`3 M` permanece fora da interface. Não há troca silenciosa para brapi em caso de erro.
+
+Para testar esse fluxo, rode `npm.cmd run dev` e faça login no endereço do Vite.
+O build normal também usa a função Yahoo; a publicação do frontend é uma etapa separada.
+Não é necessário secret ou chave Yahoo. A função exige uma sessão válida.
 
 ## Executar
 
@@ -33,17 +46,19 @@ aceitos apenas preços BRL. Cache em memória por ticker/período, de cinco minu
 para intradiário e uma hora para os demais; fila de consultas, limite de entradas
 e compartilhamento de chamadas simultâneas reduzem requisições repetidas.
 
-`npm.cmd run dev` e o build comum continuam usando brapi para o histórico.
-O modo experimental local não existe no site hospedado após um build comum.
+`npm.cmd run dev:yahoo` continua usando o middleware local, como alternativa para diagnóstico.
+O middleware local não existe no site hospedado após um build comum.
 A biblioteca Yahoo fica no servidor, fora do bundle do navegador.
 
-## Edge Function preparada, sem publicação
+## Edge Function independente
 
 Há uma função independente `yahoo-historico`, autenticada com `withSupabase`,
-reutilizando o mesmo adaptador. Ela não substitui `corretora`. Ainda precisa ser
-validada no runtime Supabase antes de adoção; sucesso local não garante acesso a
-partir dos IPs do Supabase. O frontend de teste local usa o middleware do Vite,
-não essa função. Nenhuma função foi publicada nem migração foi aplicada nesta experiência.
+reutilizando o mesmo adaptador. Ela não substitui `corretora`. O usuário publicou
+a versão 1, confirmada como ACTIVE em 17/11/2026. A validação autenticada via
+cliente HTTP do frontend retornou 128 pontos de seis meses para BBAS3, BOVA11 e
+HGLG11. A conta temporária usada no teste foi removida sem envio de e-mail ou
+operações financeiras. Sem sessão, a função retornou 401; o preflight CORS retornou
+204 com origem permitida. A tela após login ainda deve ser conferida pelo usuário.
 
 ## Verificação
 
