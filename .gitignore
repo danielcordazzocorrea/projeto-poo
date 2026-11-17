@@ -6,3 +6,4 @@ dist/
 supabase/.temp/
 supabase/.branches/
 web-dist/
+AGENTS.md

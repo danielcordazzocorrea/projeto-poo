@@ -127,6 +127,48 @@ test('períodos intradiários preservam pontos do mesmo dia e expiram em cinco m
   assert.equal(chamadas.length, 4);
 });
 
+test('período curto usa pontos diários quando o plano não libera intradiário', async () => {
+  const chamadas: string[] = [];
+  const mercado = new MercadoBrapi('segredo', { agora: () => instante, fetch: async input => {
+    const url = new URL(String(input));
+    if (url.pathname === '/api/quote/list') return Response.json({ stocks: [
+      { stock: 'PETR4', name: 'Petrobras', type: 'stock' }], hasNextPage: false });
+    const intervalo = url.searchParams.get('interval')!;
+    chamadas.push(intervalo);
+    if (intervalo === '5m') return Response.json({ message: 'Plano não permite' }, { status: 400 });
+    return Response.json({ results: [{ symbol: 'PETR4', data: {
+      usedRange: '1d', usedInterval: '1d', historicalDataPrice: [{ date: dia('2026-11-16'), close: 42 }],
+    } }] });
+  } });
+  const historico = await mercado.historico('PETR4', '1d');
+  assert.equal(historico.intervalo, '1d');
+  assert.deepEqual(historico.pontos, [{ data: '2026-11-16', preco_brl: '42.00' }]);
+  assert.deepEqual(chamadas, ['5m', '1d']);
+});
+
+test('cotação e histórico compartilham uma fila para respeitar limite de simultaneidade', async () => {
+  let ativas = 0;
+  let maxAtivas = 0;
+  const mercado = new MercadoBrapi('segredo', { agora: () => instante, fetch: async input => {
+    ativas++;
+    maxAtivas = Math.max(maxAtivas, ativas);
+    await new Promise(resolve => setTimeout(resolve, 5));
+    const url = new URL(String(input));
+    ativas--;
+    if (maxAtivas > 1) return Response.json({ message: 'Muitas chamadas simultâneas' }, { status: 429 });
+    if (url.pathname === '/api/quote/list') return Response.json({ stocks: [
+      { stock: 'PETR4', name: 'Petrobras', type: 'stock' }], hasNextPage: false });
+    if (url.pathname.endsWith('/quote')) return Response.json({ results: [{ symbol: 'PETR4', data: {
+      currency: 'BRL', regularMarketPrice: 42,
+    } }] });
+    return Response.json(resposta());
+  } });
+  const [cotacao, historico] = await Promise.all([mercado.cotar('PETR4'), mercado.historico('PETR4')]);
+  assert.equal(cotacao.preco_brl, '42.00');
+  assert.equal(historico.pontos.length, 2);
+  assert.equal(maxAtivas, 1);
+});
+
 test('rejeita períodos desconhecidos antes da API, incluindo propriedades de Object', async () => {
   const { mercado, chamadas } = criar();
   for (const periodo of ['', '2y', '__proto__', 'constructor', 'toString']) {

@@ -12,6 +12,7 @@ import { ArrowDownToLine, ArrowLeft, ArrowUpFromLine, Check, ChevronRight, HandC
 import { MercadoAtivos, consultarCotacao } from './mercado-ativos';
 import type { CotacaoAtivo } from '../supabase/functions/_shared/mercado-brapi';
 import { formatarSaldo, type Conta, type TipoMoeda } from './moeda';
+import type { InvestmentCategory } from './rotas';
 
 export type DirecaoTransferencia = 'PARA_INVESTIMENTOS' | 'PARA_PRINCIPAL';
 export type TransferenciaInvestimento = {
@@ -37,6 +38,8 @@ type Props = {
   investimento: ContaInvestimento | null;
   loading: boolean;
   token: string;
+  category: InvestmentCategory;
+  onCategoryChange: (category: InvestmentCategory) => void;
   onRefresh: () => void;
   onTransfer: (direcao: DirecaoTransferencia, valor: string) => Promise<TransferenciaInvestimento>;
   onPurchase: (codigoAtivo: string, quantidade: string) => Promise<ComprovanteCompra>;
@@ -53,8 +56,7 @@ function GrowthHomeIcon() {
   </svg>;
 }
 
-export function InvestmentAccount({ principal, investimento, loading, token, onRefresh, onTransfer, onPurchase, onSale }: Props) {
-  const [categoria, setCategoria] = useState<'renda-fixa' | 'acoes' | 'compradas' | null>(null);
+export function InvestmentAccount({ principal, investimento, loading, token, category: categoria, onCategoryChange, onRefresh, onTransfer, onPurchase, onSale }: Props) {
   const [direcao, setDirecao] = useState<DirecaoTransferencia>('PARA_INVESTIMENTOS');
   const [valor, setValor] = useState('');
   const [sending, setSending] = useState(false);
@@ -118,10 +120,10 @@ export function InvestmentAccount({ principal, investimento, loading, token, onR
 
   if (!categoria) return <div className="investment-account" aria-busy={loading}>
     <section className="investment-categories" aria-label="Categorias de investimento">
-      <button type="button" className="investment-category" onClick={() => setCategoria('renda-fixa')}>
-        <span className="investment-category-icon"><HandCoins size={27} strokeWidth={2.3} aria-hidden /></span><h2>Renda fixa</h2>
+      <button type="button" className="investment-category" onClick={() => onCategoryChange('transferir')}>
+        <span className="investment-category-icon"><HandCoins size={27} strokeWidth={2.3} aria-hidden /></span><h2>Transferir dinheiro</h2>
       </button>
-      <button type="button" className="investment-category" onClick={() => setCategoria('acoes')}>
+      <button type="button" className="investment-category" onClick={() => onCategoryChange('acoes')}>
         <span className="investment-category-icon"><GrowthHomeIcon /></span><h2>Renda variável</h2>
       </button>
     </section>
@@ -136,7 +138,7 @@ export function InvestmentAccount({ principal, investimento, loading, token, onR
       </div>
       <dl className="investment-portfolio-breakdown">
         <div>
-          <dt><span className="investment-portfolio-marker investment-portfolio-marker-fixed" />Renda fixa</dt>
+          <dt><span className="investment-portfolio-marker investment-portfolio-marker-fixed" />Saldo disponível</dt>
           <dd><strong>{loading ? '—' : formatarSaldo(rendaFixa.toFixed(2), 'BRL')}</strong><span>{porcentagem(rendaFixa)}%</span></dd>
         </div>
         <div>
@@ -145,18 +147,18 @@ export function InvestmentAccount({ principal, investimento, loading, token, onR
         </div>
       </dl>
     </section>
-    <button type="button" className="investment-positions-trigger" onClick={() => setCategoria('compradas')}>
+    <button type="button" className="investment-positions-trigger" onClick={() => onCategoryChange('compradas')}>
       <span className="investment-positions-trigger-icon"><GrowthHomeIcon /></span>
       <span><strong>Ver ações compradas</strong><small>{investimento?.posicoes.length ?? 0} {investimento?.posicoes.length === 1 ? 'ativo na carteira' : 'ativos na carteira'}</small></span>
       <ChevronRight size={21} aria-hidden />
     </button>
   </div>;
 
-  if (categoria === 'renda-fixa') {
+  if (categoria === 'transferir') {
     const moedaOrigem = direcao === 'PARA_INVESTIMENTOS' ? principal?.moeda_saldo ?? 'BRL' : 'BRL';
     return <section className="investment-selected-content investment-fixed-income-content" aria-busy={loading || sending}>
-      <button type="button" className="account-back" onClick={() => setCategoria(null)}><ArrowLeft size={17} aria-hidden />Voltar às categorias</button>
-      <h2>Renda fixa</h2>
+      <button type="button" className="account-back" onClick={() => onCategoryChange(null)}><ArrowLeft size={17} aria-hidden />Voltar às categorias</button>
+      <h2>Transferir dinheiro</h2>
       <div className="investment-account">
         <p className="account-detail-intro">Sua conta de investimentos tem saldo próprio em reais. Transfira entre ela e sua conta principal para organizar seu dinheiro simulado.</p>
         <div className="investment-balances">
@@ -181,7 +183,7 @@ export function InvestmentAccount({ principal, investimento, loading, token, onR
   }
 
   if (categoria === 'compradas') return <section className="investment-selected-content" aria-busy={loading}>
-    <button type="button" className="account-back" onClick={() => setCategoria(null)}><ArrowLeft size={17} aria-hidden />Voltar às categorias</button>
+    <button type="button" className="account-back" onClick={() => onCategoryChange(null)}><ArrowLeft size={17} aria-hidden />Voltar às categorias</button>
     <h2>Ações compradas</h2>
     <p className="account-detail-intro">Confira os ativos que já fazem parte da sua carteira.</p>
     {!investimento?.posicoes.length ? <p className="investment-positions-empty">Você ainda não comprou ações, BDRs ou ETFs.</p> : <ul className="investment-positions-list" aria-label="Ativos comprados">
@@ -203,7 +205,7 @@ export function InvestmentAccount({ principal, investimento, loading, token, onR
           <div><span>Ativo</span><strong>{vendaConcluida.codigo}</strong></div>
           <div><span>Quantidade vendida</span><strong>{Number(vendaConcluida.quantidade).toLocaleString('pt-BR', { maximumFractionDigits: 6 })}</strong></div>
         </div>
-        <p className="account-pix-note">O valor da venda foi creditado na sua conta principal. Sua carteira foi atualizada.</p>
+        <p className="account-pix-note">O valor da venda foi creditado na sua conta de investimentos. Sua carteira foi atualizada.</p>
         <button type="button" className="account-pix-success-close" onClick={() => vendaDialog.current?.close()}>Concluir</button>
       </div> : <div className="account-pix-dialog-content">
         <span className="account-pix-success-icon"><ArrowUpFromLine size={30} aria-hidden /></span>
@@ -219,7 +221,7 @@ export function InvestmentAccount({ principal, investimento, loading, token, onR
           <label htmlFor="sell-dialog-quantity">Qual quantidade você quer vender?</label>
           <input id="sell-dialog-quantity" type="text" inputMode="decimal" value={quantidadeVenda} onChange={event => setQuantidadeVenda(event.target.value)} placeholder="0" required disabled={vendendo || consultandoVenda} />
           {erroVenda && <p className="investment-sale-error" role="alert">{erroVenda}</p>}
-          <p className="account-pix-note">O valor será creditado na sua conta principal pela cotação consultada na confirmação.</p>
+          <p className="account-pix-note">O valor será creditado na sua conta de investimentos pela cotação consultada na confirmação.</p>
           <button type="submit" className="account-pix-success-close" disabled={vendendo || consultandoVenda || !cotacaoVenda || !quantidadeVenda.trim()}>{vendendo ? 'Vendendo…' : 'Confirmar venda'}</button>
           <button type="button" className="account-back" disabled={vendendo} onClick={() => vendaDialog.current?.close()}>Cancelar</button>
         </form>
@@ -228,9 +230,9 @@ export function InvestmentAccount({ principal, investimento, loading, token, onR
   </section>;
 
   return <section className="investment-selected-content" aria-busy={loading}>
-    <button type="button" className="account-back" onClick={() => setCategoria(null)}><ArrowLeft size={17} aria-hidden />Voltar às categorias</button>
+    <button type="button" className="account-back" onClick={() => onCategoryChange(null)}><ArrowLeft size={17} aria-hidden />Voltar às categorias</button>
     <h2>Ações, BDRs, EFTs</h2><MercadoAtivos token={token} onPurchase={onPurchase}
-      saldoPrincipal={principal ? formatarSaldo(principal.saldo, principal.moeda_saldo) : 'Carregando…'}
-      moedaPrincipal={principal?.moeda_saldo ?? 'BRL'} />
+      saldoInvestimentos={investimento ? formatarSaldo(investimento.saldo, 'BRL') : 'Carregando…'}
+      contaCarregada={Boolean(investimento) && !loading} />
   </section>;
 }

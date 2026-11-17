@@ -7,8 +7,8 @@ import { AboutTivvo } from '@/components/ui/about-tivvo';
 import { LiveOrb } from './live-orb';
 import { formatarSaldo, type Conta, type ConversionReceipt, type Movimentacao, type PixReceipt, type TipoMoeda } from './moeda';
 import { InvestmentAccount, type ContaInvestimento, type DirecaoTransferencia, type TransferenciaInvestimento } from './investment-account';
+import { pathForRoute, routeFromPath, type AccountRoute, type Area, type InvestmentCategory } from './rotas';
 
-type Area = 'home' | 'investments' | 'pix' | 'profile' | 'history' | 'currencies';
 type TransactionFilter = 'all' | 'pix' | 'conversion' | 'stocks';
 type AccountHomeProps = {
   theme: Theme;
@@ -66,7 +66,8 @@ function transactionLabel(transaction: Movimentacao): string {
 }
 
 export function AccountHome({ theme, onThemeChange, session, conta, investimento, loading, notice, onRefresh, onPixTransfer, onConvertBalance, onInvestmentTransfer, onInvestmentPurchase, onInvestmentSale, onInvestmentRefresh, onLogout }: AccountHomeProps) {
-  const [area, setArea] = useState<Area>('home');
+  const [route, setRoute] = useState<AccountRoute>(() => routeFromPath(window.location.pathname));
+  const area = route.area;
   const [balanceVisible, setBalanceVisible] = useState(true);
   const [pixKey, setPixKey] = useState('');
   const [pixValue, setPixValue] = useState('');
@@ -82,6 +83,17 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
   const conversionSuccessDialog = useRef<HTMLDialogElement>(null);
   const loadingDialog = useRef<HTMLDialogElement>(null);
   const operationLoading = sendingPix ? 'pix' : converting ? 'conversion' : null;
+  useEffect(() => {
+    const onPopState = () => setRoute(routeFromPath(window.location.pathname));
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+  function navigate(nextArea: Area, category: InvestmentCategory = null) {
+    const nextRoute: AccountRoute = { area: nextArea, category: nextArea === 'investments' ? category : null };
+    const nextPath = pathForRoute(nextRoute);
+    if (window.location.pathname !== nextPath) window.history.pushState(null, '', nextPath);
+    setRoute(nextRoute);
+  }
   useEffect(() => {
     if (previousArea.current !== area) heading.current?.focus();
     previousArea.current = area;
@@ -146,11 +158,11 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
     <header className="account-topbar">
       <div className="account-container account-topbar-inner">
         <div className="account-brand-nav">
-          <button className="account-brand" type="button" onClick={() => setArea('home')} aria-label="tivvo — início"><span className="account-brand-symbol"><Landmark size={22} aria-hidden /></span><span>ti<span className="account-brand-accent">vv</span>o</span></button>
+          <button className="account-brand" type="button" onClick={() => navigate('home')} aria-label="tivvo — início"><span className="account-brand-symbol"><Landmark size={22} aria-hidden /></span><span>ti<span className="account-brand-accent">vv</span>o</span></button>
           <AboutTivvo triggerClassName="account-about-trigger" theme={theme} />
         </div>
         <div className="account-user">
-          <button className="account-profile-link" type="button" onClick={() => setArea('profile')} aria-current={area === 'profile' ? 'page' : undefined}><UserRound size={17} aria-hidden /><span>Meus dados</span></button>
+          <button className="account-profile-link" type="button" onClick={() => navigate('profile')} aria-current={area === 'profile' ? 'page' : undefined}><UserRound size={17} aria-hidden /><span>Meus dados</span></button>
           <button
             className="account-theme-toggle"
             type="button"
@@ -167,7 +179,7 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
     </header>
 
     <main id="account-content" className="account-container account-main">
-      <nav aria-label="Localização" className="account-breadcrumb"><button type="button" onClick={() => setArea('home')} aria-current={area === 'home' ? 'page' : undefined}>Início</button>{areaTitle && <><span aria-hidden>/</span><span aria-current="page">{areaTitle}</span></>}</nav>
+      <nav aria-label="Localização" className="account-breadcrumb"><button type="button" onClick={() => navigate('home')} aria-current={area === 'home' ? 'page' : undefined}>Início</button>{areaTitle && <><span aria-hidden>/</span><span aria-current="page">{areaTitle}</span></>}</nav>
 
       {area === 'home' ? <>
         <section className="account-overview" aria-labelledby="home-title">
@@ -180,13 +192,13 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
         </section>
         <section className="account-options" aria-labelledby="options-title">
           <div className="account-section-heading"><h2 id="options-title">Sua conta, por aqui</h2><span>O que você precisa, em um lugar</span></div>
-          <div className="account-destinations">{destinations.map(({ id, title, description, action }) => <button key={id} type="button" className={`account-destination account-destination-${id}`} onClick={() => setArea(id)}>
+          <div className="account-destinations">{destinations.map(({ id, title, description, action }) => <button key={id} type="button" className={`account-destination account-destination-${id}`} onClick={() => navigate(id)}>
             <span className="account-destination-top"><span className="account-option-icon">{id === 'pix' ? <PixLogo /> : id === 'currencies' ? <ArrowRightLeft size={26} strokeWidth={1.6} aria-hidden /> : id === 'investments' ? <ChartNoAxesCombined size={26} strokeWidth={1.6} aria-hidden /> : <History size={26} strokeWidth={1.6} aria-hidden />}</span><ArrowUpRight size={20} aria-hidden /></span>
             <h3>{title}</h3><p>{description}</p><span className="account-destination-action">{action}</span>
           </button>)}</div>
         </section>
       </> : <section className="account-detail" aria-labelledby="area-title">
-        <button className="account-back" type="button" onClick={() => setArea('home')}><ArrowLeft size={17} aria-hidden />Voltar ao início</button>
+        <button className="account-back" type="button" onClick={() => navigate('home')}><ArrowLeft size={17} aria-hidden />Voltar ao início</button>
         <h1 id="area-title" ref={heading} tabIndex={-1}>{areaTitle}</h1>
         {area === 'currencies' ? <div className="account-currency-area">
           <p className="account-detail-intro">Seu saldo está em <strong>{conta?.moeda_saldo ?? 'BRL'}</strong>. Ao converter, todo o saldo passa para a moeda escolhida.</p>
@@ -239,7 +251,7 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
           </form>
           <p className="account-pix-note">O envio é imediato neste ambiente de demonstração. Confira a chave e o valor antes de confirmar.</p>
         </div> : <>
-          <InvestmentAccount principal={conta} investimento={investimento} loading={loading} token={session.access_token} onRefresh={onInvestmentRefresh} onTransfer={onInvestmentTransfer} onPurchase={onInvestmentPurchase} onSale={onInvestmentSale} />
+          <InvestmentAccount principal={conta} investimento={investimento} loading={loading} token={session.access_token} category={route.category} onCategoryChange={category => navigate('investments', category)} onRefresh={onInvestmentRefresh} onTransfer={onInvestmentTransfer} onPurchase={onInvestmentPurchase} onSale={onInvestmentSale} />
         </>}
       </section>}
 

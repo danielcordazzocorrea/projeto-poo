@@ -53,6 +53,7 @@ export class MercadoBrapi {
   private readonly log: (headers: Record<string, string>) => void;
   private cache = new Map<string, { vence: number; valor: unknown }>();
   private pendentes = new Map<string, Promise<unknown>>();
+  private proximaConsulta: Promise<void> = Promise.resolve();
   private bloqueadoAte = 0;
 
   constructor(private readonly token: string, opcoes: Opcoes = {}) {
@@ -78,6 +79,17 @@ export class MercadoBrapi {
   }
 
   private async consultar(caminho: string, parametros: Record<string, string>): Promise<Registro> {
+    // O plano gratuito aceita uma chamada simultânea. A fila também evita que
+    // cotação e histórico do mesmo ativo disputem esse limite ao abrir o gráfico.
+    const anterior = this.proximaConsulta;
+    let liberar!: () => void;
+    this.proximaConsulta = new Promise<void>(resolve => { liberar = resolve; });
+    await anterior;
+    try { return await this.consultarProvedor(caminho, parametros); }
+    finally { liberar(); }
+  }
+
+  private async consultarProvedor(caminho: string, parametros: Record<string, string>): Promise<Registro> {
     if (!this.token.trim()) throw new ErroMercado(503, 'NAO_CONFIGURADO', 'Consulta de mercado ainda não configurada.');
     if (this.bloqueadoAte > this.agora()) throw new ErroMercado(429, 'LIMITE_BRAPI', 'Limite de consultas atingido. Tente novamente mais tarde.');
     const url = new URL(caminho, 'https://brapi.dev');
@@ -158,15 +170,26 @@ export class MercadoBrapi {
     const intradiario = intervalo === '5m' || intervalo === '60m';
     return this.memorizar(`historico:${codigo}:${periodo}:${intervalo}`, intradiario ? 300_000 : 3_600_000, async () => {
       await this.identificar(codigo);
-      const dados = await this.consultar('/api/v2/stocks/historical', {
-        symbols: codigo, range: periodo, interval: intervalo, sortOrder: 'asc',
-      });
+      let intervaloUsado: IntervaloHistorico = intervalo;
+      let dados: Registro;
+      try {
+        dados = await this.consultar('/api/v2/stocks/historical', {
+          symbols: codigo, range: periodo, interval: intervaloUsado, sortOrder: 'asc',
+        });
+      } catch (erro) {
+        if (!intradiario || !(erro instanceof ErroMercado) || erro.codigo !== 'PERIODO_INDISPONIVEL') throw erro;
+        // Alguns planos permitem o período curto, mas apenas pontos diários.
+        intervaloUsado = '1d';
+        dados = await this.consultar('/api/v2/stocks/historical', {
+          symbols: codigo, range: periodo, interval: intervaloUsado, sortOrder: 'asc',
+        });
+      }
       if (!Array.isArray(dados.results)) throw new ErroMercado(502, 'RESPOSTA_INVALIDA', 'Histórico inválido.');
       const resultado = dados.results.map(objeto).find(item => item.symbol === codigo);
       if (!resultado) throw new ErroMercado(404, 'HISTORICO_INDISPONIVEL', 'Histórico não disponível para este ativo.');
       const serie = objeto(resultado.data);
       if (!Array.isArray(serie.historicalDataPrice) || serie.historicalDataPrice.length > 5000 ||
-          serie.usedInterval !== intervalo || serie.usedRange !== periodo) {
+          serie.usedInterval !== intervaloUsado || serie.usedRange !== periodo) {
         throw new ErroMercado(502, 'RESPOSTA_INVALIDA', 'Série de preços incompatível com o período solicitado.');
       }
       const porData = new Map<string, string>();
@@ -180,14 +203,14 @@ export class MercadoBrapi {
           throw new ErroMercado(502, 'RESPOSTA_INVALIDA', 'Ponto do histórico inválido.');
         }
         const instante = new Date(ponto.date * 1000).toISOString();
-        const data = intradiario ? instante : instante.slice(0, 10);
+        const data = intervaloUsado === '5m' || intervaloUsado === '60m' ? instante : instante.slice(0, 10);
         const preco = ponto.close.toFixed(2);
         if (porData.has(data) && porData.get(data) !== preco) {
           throw new ErroMercado(502, 'RESPOSTA_INVALIDA', 'Preços conflitantes na mesma data.');
         }
         porData.set(data, preco);
       }
-      return { codigo, periodo, intervalo,
+      return { codigo, periodo, intervalo: intervaloUsado,
         pontos: [...porData].sort(([a], [b]) => a.localeCompare(b)).map(([data, preco_brl]) => ({ data, preco_brl })),
         consultado_em: new Date(this.agora()).toISOString(), fonte: 'brapi' };
     });

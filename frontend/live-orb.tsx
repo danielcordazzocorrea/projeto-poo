@@ -3,11 +3,10 @@ import type { Theme } from '@/lib/theme';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { MessageCircle, Send, X } from 'lucide-react';
 
-// White/green clouds in light mode; black/green clouds in dark mode.
-const palettes = {
-  light: ['#83c96e', '#ffffff', '#b8ef91'],
-  dark: ['#0c0d0c', '#4c9330', '#14291e'],
-};
+const orbColors = {
+  light: { body: '#a9c9a3', eyes: '#172b1d' },
+  dark: { body: '#466a4c', eyes: '#f4f6f2' },
+} as const;
 
 export function LiveOrb({ theme }: { theme: Theme }) {
   const [open, setOpen] = useState(false);
@@ -61,10 +60,10 @@ export function LiveOrb({ theme }: { theme: Theme }) {
       aria-expanded={open} aria-controls="tivvo-chat" aria-haspopup="dialog" onClick={() => open ? close() : setOpen(true)}>
       <span aria-hidden><Orb
         className="live-orb-character"
-        variant="webgl"
+        variant="custom"
         theme={theme}
-        colors={palettes[theme]}
-        eyeColor={theme === 'dark' ? '#ffffff' : '#0c0d0c'}
+        color={orbColors[theme].body}
+        eyeColor={orbColors[theme].eyes}
       /></span>
     </button>
   </aside>;

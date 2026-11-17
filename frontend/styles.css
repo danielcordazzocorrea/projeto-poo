@@ -69,7 +69,7 @@ button:not(:disabled) { cursor: pointer; }
 
 .account-app { --account-ink: #14291e; --account-muted: #5e7165; --account-line: #dbe5dc; min-height: 100dvh; background: #f4f6f2; color: var(--account-ink); font-family: "Avenir Next", Avenir, "Segoe UI", sans-serif; }
 .account-app button { -webkit-tap-highlight-color: transparent; }
-.live-orb { position: fixed; right: 20px; bottom: 20px; z-index: 10; width: clamp(88px, 10vw, 132px); aspect-ratio: 1; pointer-events: none; }
+.live-orb { position: fixed; right: 20px; bottom: 20px; z-index: 10; width: clamp(66px, 7.5vw, 99px); aspect-ratio: 1; pointer-events: none; }
 .live-orb canvas { display: block; width: 100%; height: 100%; }
 .live-orb-character { width: 100%; height: 100%; }
 .live-orb-trigger { display: block; width: 100%; height: 100%; border: 0; border-radius: 50%; background: transparent; pointer-events: auto; filter: drop-shadow(0 12px 18px rgb(7 18 12 / .18)); }
@@ -500,13 +500,6 @@ button:not(:disabled) { cursor: pointer; }
 .market-history-selector input { width: 100%; accent-color: #4c9330; }
 .market-history-note { line-height: 1.5; margin-block: 12px; }
 .market-history-card button { border: 1px solid var(--account-line); border-radius: 8px; padding: 8px 12px; }
-.market-history-periods { display: flex; margin-top: 18px; border-bottom: 1px solid var(--account-line); overflow-x: auto; }
-.market-history-periods button { position: relative; flex: 1 0 46px; padding: 12px 8px; border: 0; border-radius: 0; background: transparent; color: var(--account-muted); font-size: 13px; font-weight: 600; cursor: pointer; }
-.market-history-periods button + button::before { content: ''; position: absolute; left: 0; top: 12px; bottom: 12px; border-left: 1px solid var(--account-line); }
-.market-history-periods button[aria-pressed="true"] { color: #326e20; }
-.market-history-periods button[aria-pressed="true"]::after { content: ''; position: absolute; bottom: 0; height: 3px; left: 25%; right: 25%; border-radius: 3px 3px 0 0; background: currentColor; }
-.market-history-periods button:focus-visible { outline: 2px solid currentColor; outline-offset: -3px; }
-.account-app[data-theme="dark"] .market-history-periods button[aria-pressed="true"] { color: #9dff3a; }
 .account-app[data-theme="dark"] .market-history-line { stroke: #9dff3a; }
 .account-app[data-theme="dark"] .market-history-point { fill: #9dff3a; }
 .account-app[data-theme="dark"] .market-history-area { fill: #9dff3a19; }

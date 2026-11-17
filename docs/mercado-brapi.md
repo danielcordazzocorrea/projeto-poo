@@ -19,7 +19,9 @@ Base: `/functions/v1/corretora`. As rotas exigem a sessão Supabase
 - `GET /mercado/ativos/PETR4/historico?periodo=1mo` retorna
   `{ codigo, periodo: "1mo", intervalo: "1d", pontos: [{ data: "2026-11-13", preco_brl: "42.50" }], consultado_em, fonte: "brapi" }`.
   O período padrão é `1mo`. Aceita `1d`, `5d`, `1mo`, `6mo`, `ytd`, `1y`, `5y` e `max`.
-  Os intervalos são, respectivamente, `5m`, `60m`, `1d`, `1d`, `1d`, `1d`, `1wk` e `1mo`.
+  Os intervalos solicitados são, respectivamente, `5m`, `60m`, `1d`, `1d`, `1d`, `1d`, `1wk` e `1mo`.
+  Se o plano recusar `5m` ou `60m`, a função tenta novamente com pontos diários (`1d`)
+  e informa esse intervalo na resposta.
   Nos períodos intradiários, `data` é ISO UTC com horário; nos demais, `YYYY-MM-DD`.
   A interface exibe horários de Brasília. Datas ficam em ordem crescente, sem
   duplicatas; preços nulos são omitidos, sem interpolar lacunas. Uma série vazia
@@ -31,15 +33,17 @@ conforme a cobertura da chave. A fonte do gráfico é `close`, que pode conter
 ajustes do provedor; não é uma série de retorno calculada pela aplicação.
 Referência: [histórico de preços](https://brapi.dev/docs/acoes/historico).
 
-O frontend carrega o histórico ao selecionar um ativo ou período, em requisição
+O frontend carrega o histórico de um mês ao selecionar um ativo, em requisição
 separada da cotação, sem atualização automática. Uma falha exibe mensagem e
 botão para tentar novamente. Trocar de ativo cancela a consulta anterior e
 descarta respostas antigas. O gráfico SVG não adiciona dependências; permite
 explorar preços por ponteiro ou controle de datas pelo teclado. Não há tabela de preços.
-O seletor mantém todos os períodos visíveis. Uma negativa HTTP 400 da brapi
-retorna 422 `PERIODO_INDISPONIVEL`, explicando a possível restrição do plano.
-403 continua como `ACESSO_NEGADO`. Não há troca silenciosa para outro período.
-Respostas cujo período/intervalo difere do solicitado são rejeitadas.
+Na interface, apenas `1 M` aparece. A API ainda aceita os períodos listados acima.
+Uma negativa HTTP 400 da brapi para período longo retorna 422
+`PERIODO_INDISPONIVEL`, explicando a possível restrição do plano. Nos períodos
+curtos, somente o intervalo pode cair para `1d`; a janela solicitada é preservada.
+403 continua como `ACESSO_NEGADO`.
+Respostas cujo período difere do solicitado ou cujo intervalo difere do efetivamente enviado são rejeitadas.
 
 A listagem usa páginas de 20 do provedor e filtra tipos fora do escopo.
 Por isso uma página pode ter menos de 20 itens, inclusive zero, e ainda permitir
@@ -53,23 +57,11 @@ A busca usa `/api/quote/list`. Apenas campos básicos são solicitados.
 Referências: [listagem](https://brapi.dev/docs/acoes/list),
 [cotação](https://brapi.dev/docs/acoes/cotacao).
 
-## Segredo e ambiente de teste
+## Segredo e publicação
 
-1. Crie sua conta e chave gratuita no [painel brapi](https://brapi.dev/dashboard).
-2. Para a pilha local, crie `supabase/.env.local` contendo `BRAPI_TOKEN=<sua-chave>`.
-   Esse nome é ignorado pelo Git. Nunca use variável VITE, URL ou código-fonte
-   para armazenar a chave.
-3. Com Docker e a pilha Supabase local configurados, sirva a função:
-   `npx supabase functions serve corretora --env-file supabase/.env.local`.
-   Configure o frontend com URL e chave publicável desse mesmo ambiente.
-4. Em um projeto hospedado de TESTE, cadastre `BRAPI_TOKEN` em
-   Edge Functions → Secrets no painel Supabase. Alternativamente use
-   `npx supabase secrets set --env-file supabase/.env.local --remote=REF_DE_TESTE`.
-   Revise o projeto antes de executar. A publicação da função é uma etapa separada:
-   `npx supabase functions deploy corretora --remote=REF_DE_TESTE --use-api`.
-
-Não há migração nova. Leia o aviso do README sobre o histórico divergente do
-projeto hospedado antes de qualquer operação de banco. Esta atividade não precisa de db push.
+`BRAPI_TOKEN` fica em Edge Functions → Secrets no projeto Supabase hospedado.
+Nunca use variável VITE, URL ou código-fonte para armazenar a chave. A função
+`corretora` é publicada pela CLI com `--use-api`, sem infraestrutura local.
 
 ## Cache e falhas
 
@@ -78,6 +70,8 @@ Cache em memória por instância da Edge Function, limitado a 200 entradas:
 e 1 hora para os demais históricos. A chave inclui ticker, período e intervalo. Requisições simultâneas
 iguais compartilham a chamada. Reinícios e instâncias distintas não compartilham
 cache; ele não representa uma cota global. Erros não são armazenados.
+As chamadas à brapi são serializadas por instância para respeitar planos que
+permitem uma única requisição simultânea.
 Um 429 suspende novas chamadas nessa instância pelo Retry-After em segundos
 (até uma hora), ou por 60 segundos quando ausente/inválido.
 
@@ -115,20 +109,14 @@ A chave real foi configurada e validada em 15/11/2026. A lista abaixo mantém o 
 
 Não há atualização automática por segundo. A tela informa que há atraso,
 possivelmente de cerca de 30 minutos no plano gratuito, e exibe o horário da fonte.
-Os dados de mercado ainda não alimentam compra/venda: essa integração exige
-validação de preço no servidor e registro de horário e fonte com a pessoa da conta.
+O preço da cotação consultada no servidor é usado nas compras e vendas simuladas
+da conta de investimentos.
 
 O histórico acrescenta testes de ordenação, cache de uma hora, chamadas simultâneas,
 ETF/FII, séries vazias, lacunas, dados inválidos, isolamento de falhas e rota HTTP.
-Para verificar a interface, selecione um ativo e explore o gráfico pelo mouse,
-controle de datas; repita com janela estreita e tema escuro. Teste todos os períodos,
-incluindo negativas do plano e trocas rápidas entre períodos. Em uma
+Para verificar a interface, selecione um ativo e explore o gráfico de um mês pelo mouse
+ou controle de datas; repita com janela estreita e tema escuro. Em uma
 troca rápida de ativo, não devem aparecer preços do ativo anterior.
-
-O novo endpoint precisa estar publicado na Edge Function do ambiente usado pelo
-frontend. Rodar apenas `npm run dev` contra uma função antiga não disponibiliza
-o histórico. Não é necessário alterar o banco nem configurar um novo segredo:
-ele reutiliza `BRAPI_TOKEN`. A implementação na branch não publica a função.
 
 ## Validação real em 15/11/2026
 

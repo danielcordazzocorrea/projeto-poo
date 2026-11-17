@@ -17,7 +17,7 @@ const supabase: SupabaseClient | null = configurado ? createClient(url, chave) :
 
 export default function App() {
   const [theme, setTheme] = useState<Theme>(readSavedTheme);
-  const [mode, setMode] = useState<'login' | 'signup'>('login');
+  const [mode, setMode] = useState<'login' | 'signup'>(() => window.location.pathname === '/cadastro' ? 'signup' : 'login');
   const [session, setSession] = useState<Session | null>(null);
   const [conta, setConta] = useState<Conta | null>(null);
   const [investimento, setInvestimento] = useState<ContaInvestimento | null>(null);
@@ -34,6 +34,22 @@ export default function App() {
       window.localStorage.setItem(THEME_STORAGE_KEY, theme);
     } catch { /* Theme changes still work when browser storage is unavailable. */ }
   }, [theme]);
+
+  useEffect(() => {
+    const onPopState = () => {
+      if (session && window.location.pathname === '/cadastro') window.history.replaceState(null, '', '/');
+      setMode(window.location.pathname === '/cadastro' ? 'signup' : 'login');
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, [session]);
+
+  useEffect(() => {
+    if (session && window.location.pathname === '/cadastro') {
+      window.history.replaceState(null, '', '/');
+      setMode('login');
+    }
+  }, [session]);
 
   useEffect(() => {
     if (!supabase) return;
@@ -103,9 +119,6 @@ export default function App() {
       const resultado = await response.json() as { conta: ContaInvestimento; comprovante: ComprovanteCompra };
       setInvestimento(resultado.conta);
       pendingPurchase.current = null;
-      // Keep the receipt available even if refreshing the principal balance fails.
-      const principal = await requestAccount('GET', session.access_token).catch(() => null);
-      if (principal?.ok) setConta(await principal.json() as Conta);
       return resultado.comprovante;
     } catch (error) {
       setNotice({ text: `Não foi possível concluir a compra: ${error instanceof Error ? error.message : 'erro inesperado'}`, kind: 'erro' });
@@ -125,9 +138,6 @@ export default function App() {
       });
       if (!response.ok) throw new Error(await readError(response));
       setInvestimento(await response.json() as ContaInvestimento);
-      const principal = await requestAccount('GET', session.access_token);
-      if (!principal.ok) throw new Error(await readError(principal));
-      setConta(await principal.json() as Conta);
       pendingSale.current = null;
     } catch (error) {
       setNotice({ text: `Não foi possível concluir a venda: ${error instanceof Error ? error.message : 'erro inesperado'}`, kind: 'erro' });
@@ -193,7 +203,7 @@ export default function App() {
       setNotice({ text: error instanceof Error ? error.message : 'Não foi possível concluir o envio — tente novamente', kind: 'erro' });
     }
   }
-  async function logout(): Promise<void> { if (!supabase) return; const { error } = await supabase.auth.signOut(); setNotice(error ? { text: error.message, kind: 'erro' } : { text: 'Você saiu da sua conta', kind: 'ok' }); }
+  async function logout(): Promise<void> { if (!supabase) return; const { error } = await supabase.auth.signOut(); if (!error) { window.history.replaceState(null, '', '/'); setMode('login'); } setNotice(error ? { text: error.message, kind: 'erro' } : { text: 'Você saiu da sua conta', kind: 'ok' }); }
 
   if (session) return <AccountHome key={session.user.id} theme={theme} onThemeChange={setTheme} session={session} conta={conta} investimento={investimento} loading={loadingAccount} notice={notice} onRefresh={() => void loadAccount(session)} onInvestmentRefresh={() => void loadAccount(session)} onPixTransfer={transferPix} onConvertBalance={convertBalance} onInvestmentTransfer={transferInvestment} onInvestmentPurchase={purchaseInvestment} onInvestmentSale={sellInvestment} onLogout={() => void logout()} />;
   const signingUp = mode === 'signup';
@@ -207,6 +217,6 @@ export default function App() {
     disabled={!configurado}
     notice={!configurado ? { text: CONFIGURATION_NOTICE, kind: 'info' } : notice}
     onSubmit={authenticate}
-    onSignUpClick={() => { setMode(signingUp ? 'login' : 'signup'); setNotice(null); }}
+    onSignUpClick={() => { const nextMode = signingUp ? 'login' : 'signup'; window.history.pushState(null, '', nextMode === 'signup' ? '/cadastro' : '/'); setMode(nextMode); setNotice(null); }}
   />;
 }
