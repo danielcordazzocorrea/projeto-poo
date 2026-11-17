@@ -70,7 +70,7 @@ function transactionLabel(transaction: Movimentacao): string {
 export function AccountHome({ theme, onThemeChange, session, conta, investimento, loading, notice, onRefresh, onPixTransfer, onConvertBalance, onInvestmentTransfer, onInvestmentPurchase, onInvestmentSale, onInvestmentRefresh, onLogout }: AccountHomeProps) {
   const [route, setRoute] = useState<AccountRoute>(() => routeFromPath(window.location.pathname));
   const area = route.area;
-  const [balanceVisible, setBalanceVisible] = useState(true);
+  const [balanceVisible, setBalanceVisible] = useState(false);
   const [pixKey, setPixKey] = useState('');
   const [pixValue, setPixValue] = useState('');
   const [sendingPix, setSendingPix] = useState(false);
