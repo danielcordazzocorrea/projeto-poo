@@ -27,7 +27,13 @@ export function GraficoAtivo({ historico }: { historico: HistoricoAtivo }) {
 
   return <div className="market-history-chart">
     <p className="market-history-value" aria-live="polite">{descricao}</p>
-    <svg viewBox="0 0 600 225" role="img" aria-label={`Histórico de ${historico.codigo}. ${PERIODOS_HISTORICO[historico.periodo].descricao}. ${descricao}`}
+    <svg viewBox="0 0 600 225" role="img" tabIndex={0} aria-label={`Histórico de ${historico.codigo}. ${PERIODOS_HISTORICO[historico.periodo].descricao}. ${descricao}. Use as setas para explorar as datas.`}
+      onKeyDown={event => {
+        if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+        event.preventDefault();
+        setSelecionado(event.key === 'Home' ? 0 : event.key === 'End' ? pontos.length - 1
+          : Math.max(0, Math.min(pontos.length - 1, indice + (event.key === 'ArrowLeft' ? -1 : 1))));
+      }}
       onPointerMove={event => {
         const limites = event.currentTarget.getBoundingClientRect();
         const posicao = (event.clientX - limites.left) / limites.width * 600;
@@ -43,11 +49,6 @@ export function GraficoAtivo({ historico }: { historico: HistoricoAtivo }) {
       <text x="80" y="216">{dataBr(pontos[0]!.data)}</text>
       {pontos.length > 1 && <text x="570" y="216" textAnchor="end">{dataBr(pontos[pontos.length - 1]!.data)}</text>}
     </svg>
-    {pontos.length > 1 && <label className="market-history-selector">Explorar datas
-      <input type="range" min="0" max={pontos.length - 1} value={indice}
-        aria-label="Data do histórico" aria-valuetext={descricao}
-        onChange={event => setSelecionado(Number(event.target.value))} />
-    </label>}
     <p className="market-history-note">Preços em BRL com intervalo de {intervalos[historico.intervalo]}, conforme informado pela brapi; podem incluir ajustes por proventos e desdobramentos.
       {(historico.intervalo === '5m' || historico.intervalo === '60m') && ' Horários de Brasília.'}</p>
   </div>;

@@ -121,7 +121,8 @@ export default function App() {
       pendingPurchase.current = null;
       return resultado.comprovante;
     } catch (error) {
-      setNotice({ text: `Não foi possível concluir a compra: ${error instanceof Error ? error.message : 'erro inesperado'}`, kind: 'erro' });
+      const mensagem = error instanceof Error ? error.message : 'erro inesperado';
+      setNotice(/saldo insuficiente/i.test(mensagem) ? null : { text: `Não foi possível concluir a compra: ${mensagem}`, kind: 'erro' });
       throw error;
     } finally { setLoadingAccount(false); }
   }
