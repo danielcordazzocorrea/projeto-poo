@@ -232,6 +232,7 @@ export function InvestmentAccount({ principal, investimento, loading, token, cat
   return <section className="investment-selected-content" aria-busy={loading}>
     <button type="button" className="account-back" onClick={() => onCategoryChange(null)}><ArrowLeft size={17} aria-hidden />Voltar às categorias</button>
     <h2>Ações, BDRs, EFTs</h2><MercadoAtivos token={token} onPurchase={onPurchase}
+      onTransferFunds={() => { setDirecao('PARA_INVESTIMENTOS'); setReceipt(null); onCategoryChange('transferir'); }}
       saldoInvestimentos={investimento ? formatarSaldo(investimento.saldo, 'BRL') : 'Carregando…'}
       contaCarregada={Boolean(investimento) && !loading} />
   </section>;

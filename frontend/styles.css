@@ -219,6 +219,8 @@ button:not(:disabled) { cursor: pointer; }
 .account-loading-dialog-content h2 { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: -.4px; }
 .account-loading-dialog-content p { margin-top: 4px; color: var(--account-muted); font-size: 14px; line-height: 1.5; }
 .account-pix-success-icon { display: grid; place-items: center; width: 64px; height: 64px; margin-bottom: 22px; border-radius: 20px; background: #e8f4e1; color: #3d8332; animation: account-pix-arrive .36s ease-out both; }
+.account-pix-success-icon.account-purchase-error-icon { background: #fbe9e9; color: #bd3434; }
+.account-app[data-theme="dark"] .account-pix-success-icon.account-purchase-error-icon { background: #452424; color: #ff9999; }
 .account-pix-success-eyebrow { color: #52775a; font-size: 12px; font-weight: 600; }
 .account-pix-dialog h2 { margin-top: 6px; font-size: 26px; font-weight: 600; letter-spacing: -.7px; line-height: 1.2; }
 .account-pix-success-amount { margin-top: 18px; font-size: clamp(28px, 7vw, 36px); letter-spacing: -1px; font-variant-numeric: tabular-nums; }
@@ -449,6 +451,7 @@ button:not(:disabled) { cursor: pointer; }
 .market-buy-form > div { display: flex; gap: 8px; }
 .market-buy-form input { width: 100%; min-width: 0; height: 40px; padding: 8px 10px; border: 1px solid #395344; border-radius: 9px; outline: 0; background: #0c0d0c; color: #f4f6f2; font-size: 13px; }
 .market-buy-form input:focus { border-color: #9dff3a; box-shadow: 0 0 0 2px #9dff3a1f; }
+.market-buy-form input:focus-visible { outline: 0; }
 .market-buy-form button { flex: none; min-height: 40px; padding: 8px 13px; border-radius: 9px; background: #9dff3a; color: #102016; font-size: 12px; font-weight: 700; }
 .market-buy-success, .market-buy-error { display: block; margin-top: 10px; font-size: 11px; line-height: 1.4; }
 .market-buy-success { color: #c9edae; }
@@ -496,8 +499,6 @@ button:not(:disabled) { cursor: pointer; }
 .market-history-line { fill: none; stroke: #4c9330; stroke-width: 2.5; vector-effect: non-scaling-stroke; }
 .market-history-area { fill: #4c93301c; }
 .market-history-point { fill: #4c9330; }
-.market-history-selector { display: grid; gap: 6px; font-size: 12px; color: var(--account-muted); }
-.market-history-selector input { width: 100%; accent-color: #4c9330; }
 .market-history-note { line-height: 1.5; margin-block: 12px; }
 .market-history-card button { border: 1px solid var(--account-line); border-radius: 8px; padding: 8px 12px; }
 .account-app[data-theme="dark"] .market-history-line { stroke: #9dff3a; }

@@ -1,7 +1,7 @@
 import { GraficoAtivo } from './mercado-grafico';
 import type { ComprovanteCompra } from './investment-account';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { BarChart3, Check, Clock3, Search } from 'lucide-react';
+import { BarChart3, Check, Clock3, Search, TriangleAlert } from 'lucide-react';
 import type { BuscaAtivos, CotacaoAtivo, HistoricoAtivo } from '../supabase/functions/_shared/mercado-brapi';
 
 const url = import.meta.env.VITE_SUPABASE_URL?.trim() || 'https://pzaakefnbhwlhatgzgea.supabase.co';
@@ -25,9 +25,10 @@ function preco(valor: string): string {
   return Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
-export function MercadoAtivos({ token, onPurchase, saldoInvestimentos, contaCarregada }: {
+export function MercadoAtivos({ token, onPurchase, onTransferFunds, saldoInvestimentos, contaCarregada }: {
   token: string;
   onPurchase: (codigoAtivo: string, quantidade: string) => Promise<ComprovanteCompra>;
+  onTransferFunds: () => void;
   saldoInvestimentos: string;
   contaCarregada: boolean;
 }) {
@@ -50,6 +51,11 @@ export function MercadoAtivos({ token, onPurchase, saldoInvestimentos, contaCarr
   const [compraConcluida, setCompraConcluida] = useState(false);
   const [comprovante, setComprovante] = useState<ComprovanteCompra | null>(null);
   const dialog = useRef<HTMLDialogElement>(null);
+  const erroDialog = useRef<HTMLDialogElement>(null);
+  const saldoInsuficiente = /saldo insuficiente/i.test(erroCompra);
+  useEffect(() => {
+    if (saldoInsuficiente && !erroDialog.current?.open) erroDialog.current?.showModal();
+  }, [saldoInsuficiente, erroCompra]);
   useEffect(() => {
     if (comprovante && !dialog.current?.open) dialog.current?.showModal();
   }, [comprovante]);
@@ -162,6 +168,19 @@ export function MercadoAtivos({ token, onPurchase, saldoInvestimentos, contaCarr
         <button type="button" className="account-pix-success-close" onClick={() => dialog.current?.close()}>Concluir</button>
       </div>}
     </dialog>
+    <dialog ref={erroDialog} className="account-pix-dialog" aria-labelledby="purchase-error-title" onClose={() => setErroCompra('')}>
+      <div className="account-pix-dialog-content">
+        <span className="account-pix-success-icon account-purchase-error-icon"><TriangleAlert size={30} aria-hidden /></span>
+        <span className="account-pix-success-eyebrow">Compra não realizada</span>
+        <h2 id="purchase-error-title">Saldo insuficiente</h2>
+        <p className="account-pix-note">Você não tem saldo suficiente na conta de investimentos para essa compra. Transfira dinheiro da sua conta principal para continuar.</p>
+        <div className="account-pix-success-details">
+          <div><span>Saldo disponível para investir</span><strong>{saldoInvestimentos}</strong></div>
+        </div>
+        <button type="button" className="account-pix-success-close" onClick={() => { erroDialog.current?.close(); onTransferFunds(); }}>Transferir para investimentos</button>
+        <button type="button" className="account-back" onClick={() => erroDialog.current?.close()}>Voltar</button>
+      </div>
+    </dialog>
     {ticker && <section className="market-quote-grid" aria-label="Cotação do ativo" aria-live="polite">
       {cotacao && <article className="market-quote-card market-price-card">
         <div className="market-card-heading"><span>Cotação atual</span><span className="market-live-indicator">Referência</span></div>
@@ -175,7 +194,7 @@ export function MercadoAtivos({ token, onPurchase, saldoInvestimentos, contaCarr
             <button type="submit" disabled={comprando || !contaCarregada}>{comprando ? 'Comprando…' : 'Comprar ativo'}</button></div>
         </form>
         {compraConcluida && <span className="market-buy-success" role="status">Compra concluída. Sua carteira foi atualizada.</span>}
-        {erroCompra && <span className="market-buy-error" role="alert">{erroCompra}</span>}
+        {erroCompra && !saldoInsuficiente && <span className="market-buy-error" role="alert">{erroCompra}</span>}
       </article>}
 
     {ticker && <section className="market-history-card market-quote-card" aria-label={`Evolução do preço de ${ticker}`} aria-busy={carregandoHistorico}>
