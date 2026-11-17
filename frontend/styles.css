@@ -507,6 +507,9 @@ button:not(:disabled) { cursor: pointer; }
 
 .account-operation-balance { margin-top: 8px; color: var(--account-muted); font-size: 13px; line-height: 1.5; }
 .account-operation-balance strong { color: var(--account-ink); font-variant-numeric: tabular-nums; }
+.operation-balance-toggle { display: flex; align-items: center; gap: 8px; }
+.operation-balance-toggle .operation-balance-visibility { display: inline-flex; flex: none; align-items: center; justify-content: center; min-width: 36px; min-height: 36px; padding: 6px; border: 0; border-radius: 8px; background: transparent; color: inherit; }
+.operation-balance-visibility:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 .market-quote-grid > .market-history-card { margin-top: 0; }
 .market-history-periods button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
 .market-history-periods button.is-premium { opacity: .6; }

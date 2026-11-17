@@ -1,5 +1,6 @@
 import type { ComprovanteCompra } from './investment-account';
 import { ValorInput } from './valor-input';
+import { SaldoDisponivel } from './saldo-disponivel';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import type { Theme } from '@/lib/theme';
@@ -248,7 +249,7 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
             <input id="pix-key" type="email" value={pixKey} onChange={event => setPixKey(event.target.value)} placeholder="pessoa@exemplo.com" autoComplete="email" required disabled={sendingPix || loading} />
             <label htmlFor="pix-value">Valor em {conta?.moeda_saldo ?? 'BRL'}</label>
             <div className="account-pix-value"><span>{conta?.moeda_saldo === 'USD' ? 'US$' : conta?.moeda_saldo === 'EUR' ? '€' : 'R$'}</span><ValorInput id="pix-value" value={pixValue} onValueChange={setPixValue} aria-describedby="pix-available-balance pix-value-help" placeholder="0,00" required disabled={sendingPix || loading || !conta} /></div>
-            <p id="pix-available-balance" className="account-operation-balance">Saldo disponível: <strong>{conta ? balance : 'Carregando…'}</strong></p>
+            <SaldoDisponivel id="pix-available-balance" saldo={conta ? balance : 'Carregando…'} />
             <p id="pix-value-help" className="account-pix-note">Digite apenas os números. Ex.: 1234 vira 12,34.</p>
             <button type="submit" className="account-pix-submit" disabled={sendingPix || loading}>{sendingPix && <RefreshCw size={16} className="account-spin" aria-hidden />}{sendingPix ? 'Enviando Pix…' : 'Enviar Pix'}</button>
           </form>
