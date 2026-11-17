@@ -1,3 +1,4 @@
+import { aceitaEntradaDecimal } from './moeda';
 import { GraficoAtivo } from './mercado-grafico';
 import { PERIODOS_HISTORICO, periodoPremium, type PeriodoHistorico } from '../supabase/functions/_shared/mercado-periodos';
 import type { ComprovanteCompra } from './investment-account';
@@ -194,7 +195,7 @@ export function MercadoAtivos({ token, onPurchase, onTransferFunds, saldoInvesti
         <span className="market-main-balance">Saldo da conta de investimentos: <strong>{saldoInvestimentos}</strong></span>
         <form className="market-buy-form" onSubmit={event => void comprar(event)}>
           <label htmlFor="market-quantity">Quantidade</label>
-          <div><input id="market-quantity" type="text" inputMode="decimal" value={quantidade} onChange={event => setQuantidade(event.target.value)} placeholder="1" required disabled={comprando} />
+          <div><input id="market-quantity" type="text" inputMode="decimal" value={quantidade} onChange={event => aceitaEntradaDecimal(event.target.value, 6) && setQuantidade(event.target.value)} placeholder="1" required disabled={comprando} />
             <button type="submit" disabled={comprando || !contaCarregada}>{comprando ? 'Comprando…' : 'Comprar ativo'}</button></div>
         </form>
         {compraConcluida && <span className="market-buy-success" role="status">Compra concluída. Sua carteira foi atualizada.</span>}
@@ -203,6 +204,7 @@ export function MercadoAtivos({ token, onPurchase, onTransferFunds, saldoInvesti
 
     {ticker && <section className="market-history-card market-quote-card" aria-label={`Evolução do preço de ${ticker}`} aria-busy={carregandoHistorico}>
       <div className="market-history-heading"><h3>Evolução do preço · {ticker}</h3><span>{PERIODOS_HISTORICO[periodoGrafico].descricao}</span></div>
+      <div className="market-history-layout">
       <div className="market-history-periods" role="group" aria-label="Período do gráfico">
         {(Object.keys(PERIODOS_HISTORICO) as PeriodoHistorico[]).filter(periodo => periodo !== '3mo').map(periodo => {
           const bloqueado = periodoPremium(ticker, periodo);
@@ -225,6 +227,7 @@ export function MercadoAtivos({ token, onPurchase, onTransferFunds, saldoInvesti
           </button>;
         })}
       </div>
+      <div className="market-history-content">
       <p className="market-history-note">{periodoPremium(ticker, '6mo')
         ? 'Nesta demonstração, consulte até 1 mês no plano gratuito. Períodos com cadeado são exclusivos Premium.'
         : 'Ativo de teste da brapi: períodos estendidos liberados para demonstração.'}</p>
@@ -233,6 +236,8 @@ export function MercadoAtivos({ token, onPurchase, onTransferFunds, saldoInvesti
         <button type="button" onClick={() => setTentativaHistorico(valor => valor + 1)}>Tentar novamente</button>
       </div>}
       {historico?.codigo === ticker && historico.periodo === periodoGrafico && !carregandoHistorico && !erroHistorico && <GraficoAtivo key={`${ticker}:${periodoGrafico}:${historico.consultado_em}`} historico={historico} />}
+      </div>
+      </div>
     </section>}
 
       {cotacao && <article className="market-quote-card market-details-card">

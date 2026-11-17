@@ -1,3 +1,4 @@
+import { aceitaEntradaDecimal } from './moeda';
 export type ComprovanteCompra = {
   id: string;
   codigo_ativo: string;
@@ -172,7 +173,7 @@ export function InvestmentAccount({ principal, investimento, loading, token, cat
             <button type="button" className={direcao === 'PARA_PRINCIPAL' ? 'is-selected' : ''} aria-pressed={direcao === 'PARA_PRINCIPAL'} onClick={() => { setDirecao('PARA_PRINCIPAL'); setReceipt(null); }}><ArrowUpFromLine size={17} aria-hidden />Para conta principal</button>
           </div>
           <label htmlFor="investment-value">Valor em {moedaOrigem}</label>
-          <input id="investment-value" type="text" inputMode="decimal" value={valor} onChange={event => setValor(event.target.value)} placeholder="0,00" required disabled={loading || sending || !principal || !investimento} />
+          <input id="investment-value" type="text" inputMode="decimal" value={valor} onChange={event => aceitaEntradaDecimal(event.target.value, 2) && setValor(event.target.value)} placeholder="0,00" required disabled={loading || sending || !principal || !investimento} />
           {principal?.moeda_saldo !== 'BRL' && <p className="account-pix-note">A conversão entre {principal?.moeda_saldo} e BRL é automática nesta transferência. O valor convertido será mostrado no comprovante.</p>}
           <button type="submit" className="account-pix-submit" disabled={loading || sending || !principal || !investimento}>{sending && <RefreshCw size={16} className="account-spin" aria-hidden />}{sending ? 'Transferindo…' : 'Confirmar transferência'}</button>
         </form>
@@ -219,7 +220,7 @@ export function InvestmentAccount({ principal, investimento, loading, token, cat
         </div>
         <form className="account-pix-form" onSubmit={event => { if (ativoParaVenda) void vender(event, ativoParaVenda); else event.preventDefault(); }}>
           <label htmlFor="sell-dialog-quantity">Qual quantidade você quer vender?</label>
-          <input id="sell-dialog-quantity" type="text" inputMode="decimal" value={quantidadeVenda} onChange={event => setQuantidadeVenda(event.target.value)} placeholder="0" required disabled={vendendo || consultandoVenda} />
+          <input id="sell-dialog-quantity" type="text" inputMode="decimal" value={quantidadeVenda} onChange={event => aceitaEntradaDecimal(event.target.value, 6) && setQuantidadeVenda(event.target.value)} placeholder="0" required disabled={vendendo || consultandoVenda} />
           {erroVenda && <p className="investment-sale-error" role="alert">{erroVenda}</p>}
           <p className="account-pix-note">O valor será creditado na sua conta de investimentos pela cotação consultada na confirmação.</p>
           <button type="submit" className="account-pix-success-close" disabled={vendendo || consultandoVenda || !cotacaoVenda || !quantidadeVenda.trim()}>{vendendo ? 'Vendendo…' : 'Confirmar venda'}</button>
