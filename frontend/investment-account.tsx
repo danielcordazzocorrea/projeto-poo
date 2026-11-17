@@ -1,3 +1,5 @@
+import { ValorInput } from './valor-input';
+
 export type ComprovanteCompra = {
   id: string;
   codigo_ativo: string;
@@ -172,7 +174,11 @@ export function InvestmentAccount({ principal, investimento, loading, token, cat
             <button type="button" className={direcao === 'PARA_PRINCIPAL' ? 'is-selected' : ''} aria-pressed={direcao === 'PARA_PRINCIPAL'} onClick={() => { setDirecao('PARA_PRINCIPAL'); setReceipt(null); }}><ArrowUpFromLine size={17} aria-hidden />Para conta principal</button>
           </div>
           <label htmlFor="investment-value">Valor em {moedaOrigem}</label>
-          <input id="investment-value" type="text" inputMode="decimal" value={valor} onChange={event => setValor(event.target.value)} placeholder="0,00" required disabled={loading || sending || !principal || !investimento} />
+          <ValorInput id="investment-value" value={valor} onValueChange={setValor} aria-describedby="investment-available-balance investment-value-help" placeholder="0,00" required disabled={loading || sending || !principal || !investimento} />
+          <p id="investment-available-balance" className="account-operation-balance">Saldo disponível na {direcao === 'PARA_INVESTIMENTOS' ? 'conta principal' : 'conta de investimentos'}: <strong>{direcao === 'PARA_INVESTIMENTOS'
+            ? principal ? formatarSaldo(principal.saldo, principal.moeda_saldo) : 'Carregando…'
+            : investimento ? formatarSaldo(investimento.saldo, 'BRL') : 'Carregando…'}</strong></p>
+          <p id="investment-value-help" className="account-pix-note">Digite apenas os números. Ex.: 1234 vira 12,34.</p>
           {principal?.moeda_saldo !== 'BRL' && <p className="account-pix-note">A conversão entre {principal?.moeda_saldo} e BRL é automática nesta transferência. O valor convertido será mostrado no comprovante.</p>}
           <button type="submit" className="account-pix-submit" disabled={loading || sending || !principal || !investimento}>{sending && <RefreshCw size={16} className="account-spin" aria-hidden />}{sending ? 'Transferindo…' : 'Confirmar transferência'}</button>
         </form>

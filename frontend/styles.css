@@ -505,6 +505,8 @@ button:not(:disabled) { cursor: pointer; }
 .account-app[data-theme="dark"] .market-history-point { fill: #9dff3a; }
 .account-app[data-theme="dark"] .market-history-area { fill: #9dff3a19; }
 
+.account-operation-balance { margin-top: 8px; color: var(--account-muted); font-size: 13px; line-height: 1.5; }
+.account-operation-balance strong { color: var(--account-ink); font-variant-numeric: tabular-nums; }
 .market-quote-grid > .market-history-card { margin-top: 0; }
 .market-history-periods button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
 .market-history-periods button.is-premium { opacity: .6; }
