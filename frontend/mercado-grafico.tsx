@@ -49,7 +49,7 @@ export function GraficoAtivo({ historico }: { historico: HistoricoAtivo }) {
       <text x="80" y="216">{dataBr(pontos[0]!.data)}</text>
       {pontos.length > 1 && <text x="570" y="216" textAnchor="end">{dataBr(pontos[pontos.length - 1]!.data)}</text>}
     </svg>
-    <p className="market-history-note">Preços em BRL com intervalo de {intervalos[historico.intervalo]}, conforme informado pela brapi; podem incluir ajustes por proventos e desdobramentos.
+    <p className="market-history-note">Fonte: {historico.fonte === 'yahoo' ? 'Yahoo Finance (acesso não oficial)' : 'brapi'}. Preços de fechamento em BRL com intervalo de {intervalos[historico.intervalo]}; podem incluir ajustes por proventos e desdobramentos.
       {(historico.intervalo === '5m' || historico.intervalo === '60m') && ' Horários de Brasília.'}</p>
   </div>;
 }
