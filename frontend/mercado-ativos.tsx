@@ -185,7 +185,7 @@ export function MercadoAtivos({ token, onPurchase, saldoInvestimentos, contaCarr
     {ticker && <section className="market-history-card market-quote-card" aria-label={`Evolução do preço de ${ticker}`} aria-busy={carregandoHistorico}>
       <div className="market-history-heading"><h3>Evolução do preço · {ticker}</h3><span>{PERIODOS_HISTORICO[periodoGrafico].descricao}</span></div>
       <div className="market-history-periods" role="group" aria-label="Período do gráfico">
-        {(Object.keys(PERIODOS_HISTORICO) as PeriodoHistorico[]).map(periodo => {
+        {(Object.keys(PERIODOS_HISTORICO) as PeriodoHistorico[]).filter(periodo => periodo !== '3mo').map(periodo => {
           const bloqueado = periodoPremium(ticker, periodo);
           return <button key={periodo} type="button" aria-pressed={periodoGrafico === periodo}
             className={bloqueado ? 'is-premium' : undefined}
@@ -207,7 +207,7 @@ export function MercadoAtivos({ token, onPurchase, saldoInvestimentos, contaCarr
         })}
       </div>
       <p className="market-history-note">{periodoPremium(ticker, '6mo')
-        ? 'Plano gratuito: histórico de até 3 meses. Períodos com cadeado são exclusivos Premium.'
+        ? 'Nesta demonstração, consulte até 1 mês no plano gratuito. Períodos com cadeado são exclusivos Premium.'
         : 'Ativo de teste da brapi: períodos estendidos liberados para demonstração.'}</p>
       {carregandoHistorico && <p role="status">Carregando histórico…</p>}
       {erroHistorico && <div role="alert"><p>Não foi possível carregar o gráfico. {erroHistorico}</p>
@@ -229,9 +229,9 @@ export function MercadoAtivos({ token, onPurchase, saldoInvestimentos, contaCarr
       aria-labelledby="market-premium-title" aria-describedby="market-premium-description">
       <div className="account-pix-dialog-content">
         <span className="market-premium-icon"><LockKeyhole size={28} aria-hidden /></span>
-        <h2 id="market-premium-title">Explore além dos 3 meses</h2>
+        <h2 id="market-premium-title">Explore períodos maiores</h2>
         <p id="market-premium-description">Funcionalidade disponível apenas no plano Premium.</p>
-        <p>O período “{PERIODOS_HISTORICO[periodoBloqueado].rotulo}” está bloqueado para este ativo no plano gratuito. Você pode continuar analisando até 3 meses de histórico.</p>
+        <p>O período “{PERIODOS_HISTORICO[periodoBloqueado].rotulo}” está bloqueado para este ativo no plano gratuito. Você pode continuar analisando até 1 mês de histórico nesta demonstração.</p>
         <p className="market-history-note">Demonstração acadêmica: não há assinatura ou cobrança. A disponibilidade dos dados depende do plano da brapi.</p>
         <button type="button" className="account-pix-success-close" onClick={() => premiumDialog.current?.close()}>Continuar no gratuito</button>
       </div>

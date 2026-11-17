@@ -38,7 +38,9 @@ separada da cotação, sem atualização automática. Uma falha exibe mensagem e
 botão para tentar novamente. Trocar de ativo cancela a consulta anterior e
 descarta respostas antigas. O gráfico SVG não adiciona dependências; permite
 explorar preços por ponteiro ou controle de datas pelo teclado. Não há tabela de preços.
-O seletor mostra `1 D`, `5 D`, `1 M`, `3 M`, `6 M`, `YTD`, `1 A`, `5 A` e `Máx`.
+O seletor mostra `1 D`, `5 D`, `1 M`, `6 M`, `YTD`, `1 A`, `5 A` e `Máx`.
+O botão `3 M` foi retirado após falhas nos ativos comuns; a interface oferece
+até um mês no gratuito. O contrato da API ainda aceita `3mo`.
 Na demonstração com chave gratuita, períodos acima de três meses e YTD têm cadeado.
 Os botões permanecem acionáveis por mouse e teclado para abrir um modal Premium,
 sem alterar o período ou consultar a API. O modal explica que não há assinatura
