@@ -2,6 +2,15 @@ import { Dinheiro, Quantidade, RegraDeNegocio, type TipoMoeda } from './dominio.
 import { buscarCotacoes, type Cotacoes } from './cotacoes.ts';
 
 export type DirecaoTransferencia = 'PARA_INVESTIMENTOS' | 'PARA_PRINCIPAL';
+export type ComprovanteCompra = {
+  id: string;
+  codigo_ativo: string;
+  quantidade: string;
+  preco_unitario: string;
+  total_pago: string;
+  cotacao_em: string | null;
+  criada_em: string;
+};
 export type TransferenciaInvestimento = {
   id: string;
   direcao: DirecaoTransferencia;
@@ -16,7 +25,7 @@ export type ContaInvestimento = {
   saldo: string;
   moeda: 'BRL';
   acoes_investidas: string;
-  posicoes: Array<{ codigo_ativo: string; quantidade: string }>;
+  posicoes: Array<{ codigo_ativo: string; quantidade: string; preco_medio_compra?: string | null }>;
   transferencias: TransferenciaInvestimento[];
 };
 
@@ -25,7 +34,7 @@ export interface RepositorioInvestimentos {
   consultarMoedaPrincipal(): Promise<TipoMoeda>;
   transferirInvestimento(direcao: DirecaoTransferencia, centavos: bigint,
     moedaPrincipal: TipoMoeda, cotacoes: Cotacoes | null, requisicaoId: string): Promise<TransferenciaInvestimento>;
-  comprarAtivo(codigo: string, quantidadeMicros: bigint, precoCentavos: bigint, requisicaoId: string): Promise<void>;
+  comprarAtivo(codigo: string, quantidadeMicros: bigint, precoCentavos: bigint, requisicaoId: string, cotacaoEm: string | null): Promise<ComprovanteCompra>;
   venderAtivo(codigo: string, quantidadeMicros: bigint, precoCentavos: bigint, requisicaoId: string): Promise<void>;
 }
 
@@ -54,15 +63,15 @@ export class Investimentos {
     return { conta: await this.consultarConta(), comprovante };
   }
 
-  async comprarAtivo(codigo: unknown, quantidade: unknown, preco: unknown, requisicaoId: unknown) {
+  async comprarAtivo(codigo: unknown, quantidade: unknown, preco: unknown, requisicaoId: unknown, cotacaoEm: string | null = null) {
     if (typeof codigo !== 'string' || !/^[A-Z]{4}[0-9]{1,2}$/.test(codigo)
       || typeof requisicaoId !== 'string' || !requisicaoId.trim()) {
       throw new RegraDeNegocio('Dados da compra inválidos.');
     }
-    await this.repositorio.comprarAtivo(
-      codigo, Quantidade.positiva(quantidade).micros, Dinheiro.positivo(preco).centavos, requisicaoId,
+    const comprovante = await this.repositorio.comprarAtivo(
+      codigo, Quantidade.positiva(quantidade).micros, Dinheiro.positivo(preco).centavos, requisicaoId, cotacaoEm,
     );
-    return this.consultarConta();
+    return { conta: await this.consultarConta(), comprovante };
   }
 
   async venderAtivo(codigo: unknown, quantidade: unknown, preco: unknown, requisicaoId: unknown) {

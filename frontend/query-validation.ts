@@ -28,7 +28,8 @@ export function validAccount(value: unknown): boolean {
 export function validInvestmentAccount(value: unknown): boolean {
   return object(value) && money(value.saldo) && money(value.acoes_investidas) && value.moeda === 'BRL'
     && Array.isArray(value.posicoes) && value.posicoes.every(position => object(position)
-      && typeof position.codigo_ativo === 'string' && quantity(position.quantidade))
+      && typeof position.codigo_ativo === 'string' && quantity(position.quantidade)
+      && (position.preco_medio_compra == null || money(position.preco_medio_compra)))
     && Array.isArray(value.transferencias) && value.transferencias.every(transfer => object(transfer)
       && typeof transfer.id === 'string' && money(transfer.valor_origem) && money(transfer.valor_destino)
       && currency(transfer.moeda_origem) && currency(transfer.moeda_destino)
@@ -48,4 +49,18 @@ export function validAssetQuote(value: unknown): boolean {
   return object(value) && asset(value) && money(value.preco_brl) && Number(value.preco_brl) > 0
     && date(value.cotacao_em) && typeof value.consultado_em === 'string' && date(value.consultado_em)
     && value.fonte === 'brapi';
+}
+
+export function validPurchaseReceipt(value: unknown): boolean {
+  return object(value) && typeof value.id === 'string' && typeof value.codigo_ativo === 'string'
+    && quantity(value.quantidade) && money(value.preco_unitario) && money(value.total_pago)
+    && date(value.cotacao_em) && typeof value.criada_em === 'string' && date(value.criada_em);
+}
+
+export function validAssetHistory(value: unknown): boolean {
+  return object(value) && typeof value.codigo === 'string' && value.periodo === '1mo'
+    && typeof value.intervalo === 'string' && value.fonte === 'brapi'
+    && typeof value.consultado_em === 'string' && date(value.consultado_em)
+    && Array.isArray(value.pontos) && value.pontos.every(point => object(point)
+      && typeof point.data === 'string' && date(point.data) && money(point.preco_brl));
 }

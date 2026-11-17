@@ -39,7 +39,7 @@ O botão fica desabilitado quando a moeda escolhida já é a atual. Converter co
 
 ## Transferências entre contas de investimentos
 
-1. Entre em Investimentos → Renda fixa.
+1. Entre em Investimentos → Transferir dinheiro.
 2. Escolha “Para investimentos” e informe um valor acima do saldo da conta principal. O popup deve indicar saldo insuficiente na conta principal.
 3. Clique em “Alterar valor”: o campo deve continuar preenchido e receber foco.
 4. Repita com “Para conta principal” e um valor acima do saldo da conta de investimentos. A mensagem deve identificar essa conta como origem.
@@ -50,20 +50,19 @@ Login e cadastro continuam fora do escopo dos popups.
 
 ## Erros de compra e venda de ações
 
-- Compra: em Investimentos → Ações, BDRs, ETFs, busque um ativo e abra a cotação. Com a conta principal em BRL, informe quantidade `0` e clique em Comprar ativo. Deve aparecer “Confira a quantidade”. “Alterar quantidade” deve voltar ao campo sem apagar o valor.
-- Saldo insuficiente: informe uma quantidade cujo custo seja maior que o saldo principal. Deve aparecer “Saldo insuficiente para comprar”. Se o saldo não estiver em BRL, o botão de compra continua desabilitado, como antes.
+- Compra: em Investimentos → Renda variável, busque um ativo e abra a cotação. Com a conta de investimentos carregada, informe quantidade `0` e clique em Comprar ativo. Deve aparecer “Confira a quantidade”. “Alterar quantidade” deve voltar ao campo sem apagar o valor.
+- Saldo insuficiente: informe uma quantidade cujo custo seja maior que o saldo da conta de investimentos. Deve aparecer “Saldo insuficiente para comprar”. A compra usa o saldo de investimentos em BRL, independentemente da moeda da conta principal.
 - Venda: em Ver ações compradas, escolha um ativo que já esteja na carteira. Informe uma quantidade maior que a disponível e confirme a venda. Deve aparecer “Quantidade indisponível”; o campo deve permanecer preenchido. Não é necessário fazer uma compra nova só para testar.
-- Se a conta principal estiver em outra moeda, a venda pode retornar “Saldo precisa estar em reais” antes de verificar a quantidade. O botão “Ir para Moedas” apenas navega para a conversão, sem executá-la.
 - Falha de conexão: com a cotação ou o formulário de venda já aberto, ative Offline ANTES de enviar. O popup deve informar que não foi possível confirmar a compra/venda. Restaure a conexão antes de “Conferir saldos”; essa ação consulta os dados, sem reenviar a operação.
 - Os exemplos de erro dependem de a consulta de cotação do servidor estar disponível. Uma falha do provedor pode interromper a operação antes da validação de saldo/quantidade.
 
-Não deve haver cópia do mesmo erro abaixo do formulário nem aviso de sucesso quando o resultado não foi confirmado. Comprovantes de compra e confirmação prévia de venda com estimativa de lucro permanecem para uma etapa futura.
+Não deve haver cópia do mesmo erro abaixo do formulário nem aviso de sucesso quando o resultado não foi confirmado. A main incorporada já inclui comprovantes de compra e confirmação de venda com preço médio e cotação. A estimativa explícita de lucro/prejuízo permanece para uma etapa futura.
 
 ## Carregamento da conta e consultas de mercado
 
 1. Com a conta já aberta, selecione Offline em F12 → Network/Rede e clique em “Atualizar saldo” na página inicial. Deve aparecer “Não conseguimos carregar os dados”.
 2. Restaure a conexão e clique em “Recarregar”: o popup deve fechar e os dados devem atualizar. Fechar pelo X ou Escape permite permanecer na página sem repetir a consulta.
-3. Em Investimentos → Ações, BDRs, ETFs, selecione Offline e digite uma busca com pelo menos dois caracteres. Deve aparecer “Consulta indisponível”.
+3. Em Investimentos → Renda variável, selecione Offline e digite uma busca com pelo menos dois caracteres. Deve aparecer “Consulta indisponível”.
 4. Restaure a conexão e clique em “Recarregar”: a mesma busca deve ser repetida, preservando o texto. Se fechar o popup, o botão “Buscar novamente” permite tentar depois.
 5. Para testar uma cotação, primeiro carregue os resultados online. Selecione Offline antes de clicar em um ativo. Restaure a conexão e use “Recarregar” para consultar o mesmo ativo.
 6. Uma busca sem resultados é um estado normal, sem popup. Limite de consultas apresenta aviso para aguardar; não há repetição automática.
@@ -77,7 +76,7 @@ Os testes de requisição usam respostas simuladas: não acessam contas reais ne
 
 ## Etapa futura de investimentos
 
-Ainda não implementada: comprovante de compra com ativo, quantidade, preço unitário, total e data/hora; confirmação antes de vender com preço médio de aquisição, cotação e horário, quantidade e lucro/prejuízo estimado em reais e percentual. Login e cadastro seguem fora do escopo dos popups.
+A main incorporada em 16/11/2026 já trouxe comprovante de compra e confirmação antes de vender com preço médio e cotação. Permanece para uma etapa futura a exibição explícita de lucro/prejuízo estimado em reais e percentual. Login e cadastro seguem fora do escopo dos popups.
 
 ## Conferência visual final
 
@@ -90,3 +89,11 @@ Na demonstração, abra um aviso em cada tema e repita com a janela estreita:
 - Nas telas reais, “Alterar quantidade” deve preservar a quantidade e devolver o foco ao campo de compra/venda.
 
 A revisão automatizada também cobre respostas HTTP 200 com dados incompletos: elas devem virar erro de consulta, sem substituir os dados exibidos por um objeto inválido. A revisão visual em navegador continua sendo uma verificação manual.
+
+## Verificação após incorporar a main
+
+- Compra e venda agora usam o saldo da conta de investimentos. Confira os popups de quantidade inválida e saldo insuficiente nessa conta.
+- Na confirmação de venda, informe quantidade maior que a disponível. O popup de erro deve abrir sobre a confirmação; ao clicar em “Alterar quantidade”, o foco deve voltar ao campo da venda.
+- Para testar apenas o gráfico, bloqueie a requisição `*/historico*` em Network/Rede. A cotação deve continuar visível; depois de remover o bloqueio, “Tentar novamente” deve carregar o gráfico de um mês.
+- Os erros do gráfico e da consulta de cotação da venda permanecem nas próprias telas, como na main. A integração desses erros com popups fica para uma etapa futura.
+- As migrations e a função corretora da main precisam estar publicadas no ambiente usado para validar o novo contrato de compra. O merge de código não publica o backend automaticamente.

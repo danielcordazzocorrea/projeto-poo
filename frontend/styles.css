@@ -69,6 +69,33 @@ button:not(:disabled) { cursor: pointer; }
 
 .account-app { --account-ink: #14291e; --account-muted: #5e7165; --account-line: #dbe5dc; min-height: 100dvh; background: #f4f6f2; color: var(--account-ink); font-family: "Avenir Next", Avenir, "Segoe UI", sans-serif; }
 .account-app button { -webkit-tap-highlight-color: transparent; }
+.live-orb { position: fixed; right: 20px; bottom: 20px; z-index: 10; width: clamp(66px, 7.5vw, 99px); aspect-ratio: 1; pointer-events: none; }
+.live-orb canvas { display: block; width: 100%; height: 100%; }
+.live-orb-character { width: 100%; height: 100%; }
+.live-orb-trigger { display: block; width: 100%; height: 100%; border: 0; border-radius: 50%; background: transparent; pointer-events: auto; filter: drop-shadow(0 12px 18px rgb(7 18 12 / .18)); }
+.live-orb-trigger > span { display: block; width: 100%; height: 100%; }
+.mascot-chat { position: absolute; right: calc(100% + 12px); bottom: 0; display: flex; flex-direction: column; width: min(350px, calc(100vw - 40px)); height: min(430px, calc(100dvh - 40px)); overflow: hidden; border: 1px solid var(--account-line); border-radius: 22px; background: white; color: var(--account-ink); box-shadow: 0 16px 50px #07120c26; pointer-events: auto; }
+.mascot-chat-header { display: flex; align-items: center; gap: 10px; padding: 18px; border-bottom: 1px solid var(--account-line); }
+.mascot-chat-icon { display: grid; place-items: center; flex: none; width: 38px; height: 38px; border-radius: 12px; background: #eef4e9; color: #34583b; }
+.mascot-chat-header h2 { font-size: 15px; font-weight: 600; }
+.mascot-chat-header p { margin-top: 3px; color: var(--account-muted); font-size: 11px; }
+.mascot-chat-header button { display: grid; place-items: center; flex: none; width: 34px; height: 34px; margin-left: auto; border-radius: 50%; }
+.mascot-chat-header button:hover { background: #eef4e9; }
+.mascot-chat-messages { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: 18px; overflow-y: auto; overscroll-behavior: contain; }
+.mascot-chat-message { max-width: 90%; padding: 11px 13px; border-radius: 14px; font-size: 13px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
+.mascot-chat-message-assistant { border-bottom-left-radius: 4px; background: #eef4e9; }
+.mascot-chat-message-user { align-self: flex-end; border-bottom-right-radius: 4px; background: #14291e; color: white; }
+.mascot-chat-status { padding: 0 18px 10px; color: var(--account-muted); font-size: 10px; }
+.mascot-chat-composer { display: flex; align-items: center; gap: 8px; padding: 12px; border-top: 1px solid var(--account-line); }
+.mascot-chat-composer input { width: 100%; min-width: 0; min-height: 42px; padding: 9px 12px; border: 1px solid var(--account-line); border-radius: 12px; background: transparent; color: var(--account-ink); font-size: 13px; }
+.mascot-chat-composer input:focus-visible { outline: 0; border-color: #4c9330; box-shadow: 0 0 0 2px #4c93301f; }
+.mascot-chat-composer button { display: grid; place-items: center; flex: none; width: 42px; height: 42px; border-radius: 12px; background: #14291e; color: white; }
+.account-app[data-theme="dark"] .mascot-chat { background: #121812; }
+.account-app[data-theme="dark"] :is(.mascot-chat-icon, .mascot-chat-message-assistant, .mascot-chat-header button:hover) { background: #253726; color: #b8ef91; }
+.account-app[data-theme="dark"] :is(.mascot-chat-message-user, .mascot-chat-composer button) { background: #9dff3a; color: #0c0d0c; }
+@media (max-width: 600px) {
+  .mascot-chat { right: 0; bottom: calc(100% + 12px); height: min(400px, calc(100dvh - 150px)); }
+}
 .account-app button:disabled { cursor: default; opacity: .6; }
 .account-app :focus-visible { outline: 3px solid #4c9330; outline-offset: 5px; }
 .account-container { width: min(1120px, calc(100% - 64px)); margin-inline: auto; }
@@ -139,8 +166,10 @@ button:not(:disabled) { cursor: pointer; }
 .account-transaction-list { list-style: none; margin: 28px 0 0; padding: 0; border-top: 1px solid var(--account-line); }
 .account-transaction { display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(180px, auto); align-items: center; gap: 14px; padding: 18px 0; border-bottom: 1px solid var(--account-line); }
 .account-transaction-icon { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 13px; background: #e8f4e1; color: #3d8332; }
-.account-transaction-pix_enviado .account-transaction-icon { background: #f7ece6; color: #9a522a; }
-.account-transaction-pix_recebido .account-transaction-icon { background: #e7f3ef; color: #247563; }
+.account-transaction-pix_recebido .account-transaction-icon,
+.account-transaction-compra .account-transaction-icon { background: #e7effb; color: #2563b8; }
+.account-transaction-pix_enviado .account-transaction-icon,
+.account-transaction-venda .account-transaction-icon { background: #fbe9e9; color: #bd3434; }
 .account-transaction-main, .account-transaction-values { display: grid; gap: 4px; min-width: 0; }
 .account-transaction-main strong, .account-transaction-values strong { font-size: 14px; font-weight: 600; }
 .account-transaction-main span, .account-transaction-values span { color: var(--account-muted); font-size: 12px; line-height: 1.45; }
@@ -224,7 +253,8 @@ button:not(:disabled) { cursor: pointer; }
 .investment-portfolio-breakdown dt { display: flex; align-items: center; gap: 8px; color: var(--account-muted); font-size: 13px; }
 .investment-portfolio-marker { display: block; flex: none; width: 9px; height: 9px; border-radius: 50%; }
 .investment-portfolio-marker-fixed { background: #4c9330; }
-.investment-portfolio-marker-stocks { background: #70a395; }
+.investment-portfolio-marker-stocks,
+.investment-portfolio-bar > .investment-portfolio-bar-stocks { background: #03b8fa; }
 .investment-portfolio-breakdown dd { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-top: 9px; }
 .investment-portfolio-breakdown dd strong { overflow-wrap: anywhere; font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .investment-portfolio-breakdown dd span { color: var(--account-muted); font-size: 13px; }
@@ -290,15 +320,18 @@ button:not(:disabled) { cursor: pointer; }
 .account-app[data-theme="dark"] .account-transactions-state { border-color: #38513c; background: #17251a; }
 .account-app[data-theme="dark"] .account-transaction-filter[aria-pressed="true"] { border-color: #9dff3a; background: #9dff3a; color: #0c0d0c; }
 .account-app[data-theme="dark"] .account-transaction-icon { background: #253e29; color: #a5f36d; }
-.account-app[data-theme="dark"] .account-transaction-pix_enviado .account-transaction-icon { background: #432d21; color: #f1b184; }
-.account-app[data-theme="dark"] .account-transaction-pix_recebido .account-transaction-icon { background: #173b33; color: #78d7bd; }
+.account-app[data-theme="dark"] .account-transaction-pix_recebido .account-transaction-icon,
+.account-app[data-theme="dark"] .account-transaction-compra .account-transaction-icon { background: #1c304b; color: #8bbcff; }
+.account-app[data-theme="dark"] .account-transaction-pix_enviado .account-transaction-icon,
+.account-app[data-theme="dark"] .account-transaction-venda .account-transaction-icon { background: #452424; color: #ff9999; }
 .account-app[data-theme="dark"] .investment-category { background: #1a241b; }
 .account-app[data-theme="dark"] .investment-category-icon { background: #253726; color: #b8ef91; }
 .account-app[data-theme="dark"] .investment-category:hover { background: #1c2b20; }
 .account-app[data-theme="dark"] .investment-portfolio { background: #121812; }
 .account-app[data-theme="dark"] .investment-portfolio-bar { background: #2c382f; }
 .account-app[data-theme="dark"] .investment-portfolio-bar > span, .account-app[data-theme="dark"] .investment-portfolio-marker-fixed { background: #9dff3a; }
-.account-app[data-theme="dark"] .investment-portfolio-marker-stocks { background: #78b3a2; }
+.account-app[data-theme="dark"] .investment-portfolio-marker-stocks,
+.account-app[data-theme="dark"] .investment-portfolio-bar > .investment-portfolio-bar-stocks { background: #03b8fa; }
 .account-app[data-theme="dark"] .investment-positions-trigger { background: #1a241b; }
 .account-app[data-theme="dark"] .investment-positions-trigger:hover { background: #1c2b20; }
 .account-app[data-theme="dark"] :is(.investment-positions-trigger-icon, .investment-position-symbol) { background: #253726; color: #b8ef91; }
@@ -451,3 +484,24 @@ button:not(:disabled) { cursor: pointer; }
   .market-results button { grid-template-columns: auto minmax(0, 1fr); }
   .market-result-type { display: none; }
 }
+
+.market-history-card { margin-top: 24px; padding: 20px; border: 1px solid var(--account-line); border-radius: 18px; min-width: 0; }
+.market-history-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.market-history-heading h3 { margin: 0; font-size: 16px; }
+.market-history-heading span, .market-history-note { color: var(--account-muted); font-size: 12px; }
+.market-history-value { font-variant-numeric: tabular-nums; font-weight: 600; margin: 16px 0 4px; }
+.market-history-chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.market-history-chart svg text { fill: var(--account-muted); font-size: 12px; }
+.market-history-grid { stroke: var(--account-line); stroke-width: 1; }
+.market-history-line { fill: none; stroke: #4c9330; stroke-width: 2.5; vector-effect: non-scaling-stroke; }
+.market-history-area { fill: #4c93301c; }
+.market-history-point { fill: #4c9330; }
+.market-history-selector { display: grid; gap: 6px; font-size: 12px; color: var(--account-muted); }
+.market-history-selector input { width: 100%; accent-color: #4c9330; }
+.market-history-note { line-height: 1.5; margin-block: 12px; }
+.market-history-card button { border: 1px solid var(--account-line); border-radius: 8px; padding: 8px 12px; }
+.account-app[data-theme="dark"] .market-history-line { stroke: #9dff3a; }
+.account-app[data-theme="dark"] .market-history-point { fill: #9dff3a; }
+.account-app[data-theme="dark"] .market-history-area { fill: #9dff3a19; }
+
+.market-quote-grid > .market-history-card { margin-top: 0; }

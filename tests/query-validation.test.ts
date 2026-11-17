@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { QueryError, readQueryResponse } from '../frontend/query-errors.ts';
-import { validAccount, validInvestmentAccount, validAssetSearch, validAssetQuote } from '../frontend/query-validation.ts';
+import { validAccount, validInvestmentAccount, validAssetSearch, validAssetQuote, validAssetHistory } from '../frontend/query-validation.ts';
 
 const account = { id: 'account-test', saldo: '10.00', saldo_brl: null, moeda_saldo: 'USD', movimentacoes: [] };
 const investment = { saldo: '0.00', acoes_investidas: '50.00', moeda: 'BRL', posicoes: [], transferencias: [] };
@@ -56,4 +56,14 @@ test('aceita movimentos e transferências válidos em moedas diferentes', () => 
   assert.ok(validInvestmentAccount({ ...investment, posicoes: [{ codigo_ativo: 'PETR4', quantidade: '1.123456' }],
     transferencias: [{ id: 'transfer', direcao: 'PARA_INVESTIMENTOS', valor_origem: '1.00', moeda_origem: 'USD',
       valor_destino: '5.00', moeda_destino: 'BRL', cotacao_em: null }] }));
+});
+
+test('histórico de um mês usa seu próprio contrato, sem exigir campos de cotação', async () => {
+  const history = { codigo: 'PETR4', periodo: '1mo', intervalo: '1d', pontos: [{ data: '2026-11-16', preco_brl: '25.00' }], consultado_em: '2026-11-16T15:00:00Z', fonte: 'brapi' };
+  assert.deepEqual(await readQueryResponse(Response.json(history), 'market', validAssetHistory), history);
+  assert.equal(validAssetHistory({ ...history, pontos: [] }), true);
+  for (const pontos of [[null], [{ data: 'invalid', preco_brl: '25.00' }], [{ data: '2026-11-16', preco_brl: '-1.00' }]]) {
+    await assert.rejects(readQueryResponse(Response.json({ ...history, pontos }), 'market', validAssetHistory), QueryError);
+  }
+  assert.equal(validAssetHistory(quote), false);
 });

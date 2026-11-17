@@ -6,6 +6,9 @@ import { mapAccountError } from '../frontend/account-errors.ts';
 const input = { url: 'https://trade.example', apiKey: 'test-key', token: 'test-token', ticker: 'PETR4', quantity: '2', requestId: 'existing-request-id' };
 const account = { saldo: '0.00', moeda: 'BRL', acoes_investidas: '50.00', posicoes: [{ codigo_ativo: 'PETR4', quantidade: '2' }], transferencias: [] };
 
+const receipt = { id: 'receipt-1', codigo_ativo: 'PETR4', quantidade: '2', preco_unitario: '25.00', total_pago: '50.00', cotacao_em: null, criada_em: '2026-11-16T12:00:00Z' };
+const purchase = { conta: account, comprovante: receipt };
+
 test('compra e venda preservam contrato e identificador existente, sem repetir a operação', async () => {
   for (const operation of ['purchase', 'sale'] as const) {
     let calls = 0;
@@ -16,16 +19,16 @@ test('compra e venda preservam contrato e identificador existente, sem repetir a
       assert.equal(new Headers(init?.headers).get('Authorization'), 'Bearer test-token');
       assert.equal(new Headers(init?.headers).get('apikey'), 'test-key');
       assert.deepEqual(JSON.parse(String(init?.body)), { codigo_ativo: 'PETR4', quantidade: '2', requisicao_id: input.requestId });
-      return Response.json(account);
+      return Response.json(operation === 'purchase' ? purchase : account);
     });
-    assert.deepEqual(result, account);
+    assert.deepEqual(result, operation === 'purchase' ? purchase : account);
     assert.equal(calls, 1);
   }
 });
 
 test('saldo insuficiente na compra e quantidade indisponível na venda permitem correção', async () => {
   const scenarios: [TradeOperation, string, string][] = [
-    ['purchase', 'Saldo insuficiente na conta principal', 'Saldo insuficiente para comprar'],
+    ['purchase', 'Saldo insuficiente na conta de investimentos', 'Saldo insuficiente para comprar'],
     ['sale', 'Quantidade indisponível para venda', 'Quantidade indisponível'],
     ['purchase', 'Quantidade está fora do limite permitido.', 'Confira a quantidade'],
     ['sale', 'Quantidade aceita até 6 casas decimais.', 'Confira a quantidade'],
@@ -76,7 +79,7 @@ test('falha após execução não se transforma em recusa, mesmo com mensagem re
 });
 
 test('resposta de sucesso inválida permanece sem confirmação', async () => {
-  for (const body of [null, {}, { ...account, saldo: 'invalid' }, { ...account, posicoes: [null] }]) {
+  for (const body of [null, {}, account, { conta: account }, { ...purchase, comprovante: { ...receipt, criada_em: 'invalid' } }, { ...account, saldo: 'invalid' }, { ...account, posicoes: [null] }]) {
     await assert.rejects(requestInvestmentTrade({ ...input, operation: 'purchase' }, async () => Response.json(body)), (error: unknown) => {
       assert.ok(error instanceof InvestmentTradeError);
       assert.equal(error.notice.action, 'check-balances');

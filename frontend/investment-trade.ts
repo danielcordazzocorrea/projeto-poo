@@ -1,5 +1,6 @@
 import { mapAccountError, type AccountErrorContext, type AccountErrorNotice } from './account-errors.js';
-import type { ContaInvestimento } from './investment-types.js';
+import type { ContaInvestimento, ResultadoCompra } from './investment-types.js';
+import { validInvestmentAccount, validPurchaseReceipt } from './query-validation.js';
 
 export type TradeOperation = 'purchase' | 'sale';
 export class InvestmentTradeError extends Error {
@@ -14,7 +15,10 @@ export class InvestmentTradeError extends Error {
 type TradeRequest = { url: string; apiKey: string; token: string; operation: TradeOperation; ticker: string; quantity: string; requestId: string };
 
 /** Shares the request path for buying/selling, retaining the existing idempotency key. */
-export async function requestInvestmentTrade(input: TradeRequest, fetcher: typeof fetch = fetch): Promise<ContaInvestimento> {
+export function requestInvestmentTrade(input: TradeRequest & { operation: 'purchase' }, fetcher?: typeof fetch): Promise<ResultadoCompra>;
+export function requestInvestmentTrade(input: TradeRequest & { operation: 'sale' }, fetcher?: typeof fetch): Promise<ContaInvestimento>;
+export function requestInvestmentTrade(input: TradeRequest, fetcher?: typeof fetch): Promise<ResultadoCompra | ContaInvestimento>;
+export async function requestInvestmentTrade(input: TradeRequest, fetcher: typeof fetch = fetch): Promise<ResultadoCompra | ContaInvestimento> {
   let response: Response;
   try {
     response = await fetcher(`${input.url}/functions/v1/corretora/investimentos/${input.operation === 'purchase' ? 'compras' : 'vendas'}`, {
@@ -32,17 +36,12 @@ export async function requestInvestmentTrade(input: TradeRequest, fetcher: typeo
   }
   try {
     const result: unknown = await response.json();
-    if (!isTradeResult(result)) throw new Error('Resposta da operação inválida.');
-    return result;
+    if (input.operation === 'purchase') {
+      const purchase = result as Partial<ResultadoCompra> | null;
+      if (!purchase || !validInvestmentAccount(purchase.conta) || !validPurchaseReceipt(purchase.comprovante)) throw new Error('Resposta da compra inválida.');
+      return purchase as ResultadoCompra;
+    }
+    if (!validInvestmentAccount(result)) throw new Error('Resposta da venda inválida.');
+    return result as ContaInvestimento;
   } catch (error) { throw new InvestmentTradeError(error, input.operation, 'unconfirmed'); }
-}
-
-function isTradeResult(value: unknown): value is ContaInvestimento {
-  if (!value || typeof value !== 'object') return false;
-  const result = value as Partial<ContaInvestimento>;
-  const money = (value: unknown) => typeof value === 'string' && /^\d+(\.\d{1,2})?$/.test(value);
-  return result.moeda === 'BRL' && money(result.saldo) && money(result.acoes_investidas)
-    && Array.isArray(result.transferencias) && Array.isArray(result.posicoes)
-    && result.posicoes.every(position => position && typeof position.codigo_ativo === 'string'
-      && typeof position.quantidade === 'string' && /^\d+(\.\d{1,6})?$/.test(position.quantidade));
 }

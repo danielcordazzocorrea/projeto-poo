@@ -11,6 +11,8 @@ export type Movimentacao = {
   cotacao_em: string | null;
   contraparte_nome: string | null;
   criada_em: string;
+  codigo_ativo?: string | null;
+  quantidade?: string | null;
 };
 export type Conta = {
   id: string;

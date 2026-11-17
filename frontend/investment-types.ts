@@ -15,7 +15,17 @@ export type ContaInvestimento = {
   saldo: string;
   moeda: 'BRL';
   acoes_investidas: string;
-  posicoes: Array<{ codigo_ativo: string; quantidade: string }>;
+  posicoes: Array<{ codigo_ativo: string; quantidade: string; preco_medio_compra?: string | null }>;
   transferencias: TransferenciaInvestimento[];
 };
 
+export type ComprovanteCompra = {
+  id: string;
+  codigo_ativo: string;
+  quantidade: string;
+  preco_unitario: string;
+  total_pago: string;
+  cotacao_em: string | null;
+  criada_em: string;
+};
+export type ResultadoCompra = { conta: ContaInvestimento; comprovante: ComprovanteCompra };

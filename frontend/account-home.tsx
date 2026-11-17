@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import type { ComprovanteCompra } from './investment-types';
 import type { Session } from '@supabase/supabase-js';
 import type { Theme } from '@/lib/theme';
 import { ArrowDownLeft, ArrowLeft, ArrowUpRight, ArrowRightLeft, ChartNoAxesCombined, Check, Eye, EyeOff, History, Landmark, LogOut, Moon, Sun, RefreshCw, UserRound } from 'lucide-react';
@@ -8,11 +9,12 @@ import { CircleAlert, CloudOff, Clock, Search, UserRoundX, Wallet } from 'lucide
 import { mapAccountError, type AccountErrorNotice } from './account-errors';
 import { PixTransferError } from './pix-transfer';
 import { CurrencyConversionError } from './currency-conversion';
+import { LiveOrb } from './live-orb';
 import { formatarSaldo, type Conta, type ConversionReceipt, type Movimentacao, type PixReceipt, type TipoMoeda } from './moeda';
 import { InvestmentAccount, type ContaInvestimento, type DirecaoTransferencia, type TransferenciaInvestimento } from './investment-account';
+import { pathForRoute, routeFromPath, type AccountRoute, type Area, type InvestmentCategory } from './rotas';
 
-type Area = 'home' | 'investments' | 'pix' | 'profile' | 'history' | 'currencies';
-type TransactionFilter = 'all' | 'pix' | 'conversion';
+type TransactionFilter = 'all' | 'pix' | 'conversion' | 'stocks';
 type AccountHomeProps = {
   theme: Theme;
   onThemeChange: (theme: Theme) => void;
@@ -27,7 +29,7 @@ type AccountHomeProps = {
   onPixTransfer: (chaveDestino: string, valor: string) => Promise<PixReceipt>;
   onConvertBalance: (moeda: TipoMoeda) => Promise<ConversionReceipt>;
   onInvestmentTransfer: (direcao: DirecaoTransferencia, valor: string) => Promise<TransferenciaInvestimento>;
-  onInvestmentPurchase: (codigoAtivo: string, quantidade: string) => Promise<void>;
+  onInvestmentPurchase: (codigoAtivo: string, quantidade: string) => Promise<ComprovanteCompra>;
   onInvestmentSale: (codigoAtivo: string, quantidade: string) => Promise<void>;
   onInvestmentRefresh: () => void;
   onLogout: () => void;
@@ -43,6 +45,7 @@ const transactionFilters: { id: TransactionFilter; label: string }[] = [
   { id: 'all', label: 'Todos' },
   { id: 'pix', label: 'Pix' },
   { id: 'conversion', label: 'Conversões' },
+  { id: 'stocks', label: 'Ações' },
 ];
 
 function formatDateBr(value: unknown): string {
@@ -63,13 +66,16 @@ function PixLogo() {
 const errorIcons = { alert: CircleAlert, wallet: Wallet, recipient: UserRoundX, exchange: ArrowRightLeft, connection: CloudOff, clock: Clock, search: Search };
 
 function transactionLabel(transaction: Movimentacao): string {
+  if (transaction.tipo === 'COMPRA') return 'Compra de ativo';
+  if (transaction.tipo === 'VENDA') return 'Venda de ativo';
   if (transaction.tipo === 'CONVERSAO') return 'Saldo convertido';
   if (transaction.tipo === 'PIX_ENVIADO') return 'Pix enviado';
   return 'Pix recebido';
 }
 
 export function AccountHome({ theme, onThemeChange, session, conta, investimento, loading, notice, accountError, onDismissAccountError, onRefresh, onPixTransfer, onConvertBalance, onInvestmentTransfer, onInvestmentPurchase, onInvestmentSale, onInvestmentRefresh, onLogout }: AccountHomeProps) {
-  const [area, setArea] = useState<Area>('home');
+  const [route, setRoute] = useState<AccountRoute>(() => routeFromPath(window.location.pathname));
+  const area = route.area;
   const [balanceVisible, setBalanceVisible] = useState(true);
   const [pixKey, setPixKey] = useState('');
   const [pixValue, setPixValue] = useState('');
@@ -93,6 +99,17 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
   const conversionSuccessDialog = useRef<HTMLDialogElement>(null);
   const loadingDialog = useRef<HTMLDialogElement>(null);
   const operationLoading = sendingPix ? 'pix' : converting ? 'conversion' : null;
+  useEffect(() => {
+    const onPopState = () => setRoute(routeFromPath(window.location.pathname));
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+  function navigate(nextArea: Area, category: InvestmentCategory = null) {
+    const nextRoute: AccountRoute = { area: nextArea, category: nextArea === 'investments' ? category : null };
+    const nextPath = pathForRoute(nextRoute);
+    if (window.location.pathname !== nextPath) window.history.pushState(null, '', nextPath);
+    setRoute(nextRoute);
+  }
   useEffect(() => {
     if (previousArea.current !== area) heading.current?.focus();
     previousArea.current = area;
@@ -118,9 +135,10 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
   const lastName = typeof savedLastName === 'string' ? savedLastName.trim() : '';
   const fullName = [firstName, lastName].filter(Boolean).join(' ') || 'Não informado';
   const birthDate = formatDateBr(session.user.user_metadata?.birth_date);
-  const transactionHistory = conta?.movimentacoes.filter(transaction => ['CONVERSAO', 'PIX_ENVIADO', 'PIX_RECEBIDO'].includes(transaction.tipo)) ?? [];
+  const transactionHistory = conta?.movimentacoes.filter(transaction => ['CONVERSAO', 'PIX_ENVIADO', 'PIX_RECEBIDO', 'COMPRA', 'VENDA'].includes(transaction.tipo)) ?? [];
   const filteredTransactionHistory = (historyFilter === 'all' ? transactionHistory : transactionHistory
-    .filter(transaction => historyFilter === 'pix' ? transaction.tipo.startsWith('PIX_') : transaction.tipo === 'CONVERSAO')).slice(0, 10);
+    .filter(transaction => historyFilter === 'pix' ? transaction.tipo.startsWith('PIX_') : historyFilter === 'stocks'
+      ? transaction.tipo === 'COMPRA' || transaction.tipo === 'VENDA' : transaction.tipo === 'CONVERSAO')).slice(0, 10);
 
   async function submitPix(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -174,11 +192,11 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
     <header className="account-topbar">
       <div className="account-container account-topbar-inner">
         <div className="account-brand-nav">
-          <button className="account-brand" type="button" onClick={() => setArea('home')} aria-label="tivvo — início"><span className="account-brand-symbol"><Landmark size={22} aria-hidden /></span><span>ti<span className="account-brand-accent">vv</span>o</span></button>
+          <button className="account-brand" type="button" onClick={() => navigate('home')} aria-label="tivvo — início"><span className="account-brand-symbol"><Landmark size={22} aria-hidden /></span><span>ti<span className="account-brand-accent">vv</span>o</span></button>
           <AboutTivvo triggerClassName="account-about-trigger" theme={theme} />
         </div>
         <div className="account-user">
-          <button className="account-profile-link" type="button" onClick={() => setArea('profile')} aria-current={area === 'profile' ? 'page' : undefined}><UserRound size={17} aria-hidden /><span>Meus dados</span></button>
+          <button className="account-profile-link" type="button" onClick={() => navigate('profile')} aria-current={area === 'profile' ? 'page' : undefined}><UserRound size={17} aria-hidden /><span>Meus dados</span></button>
           <button
             className="account-theme-toggle"
             type="button"
@@ -195,7 +213,7 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
     </header>
 
     <main id="account-content" className="account-container account-main">
-      <nav aria-label="Localização" className="account-breadcrumb"><button type="button" onClick={() => setArea('home')} aria-current={area === 'home' ? 'page' : undefined}>Início</button>{areaTitle && <><span aria-hidden>/</span><span aria-current="page">{areaTitle}</span></>}</nav>
+      <nav aria-label="Localização" className="account-breadcrumb"><button type="button" onClick={() => navigate('home')} aria-current={area === 'home' ? 'page' : undefined}>Início</button>{areaTitle && <><span aria-hidden>/</span><span aria-current="page">{areaTitle}</span></>}</nav>
 
       {area === 'home' ? <>
         <section className="account-overview" aria-labelledby="home-title">
@@ -208,13 +226,13 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
         </section>
         <section className="account-options" aria-labelledby="options-title">
           <div className="account-section-heading"><h2 id="options-title">Sua conta, por aqui</h2><span>O que você precisa, em um lugar</span></div>
-          <div className="account-destinations">{destinations.map(({ id, title, description, action }) => <button key={id} type="button" className={`account-destination account-destination-${id}`} onClick={() => setArea(id)}>
+          <div className="account-destinations">{destinations.map(({ id, title, description, action }) => <button key={id} type="button" className={`account-destination account-destination-${id}`} onClick={() => navigate(id)}>
             <span className="account-destination-top"><span className="account-option-icon">{id === 'pix' ? <PixLogo /> : id === 'currencies' ? <ArrowRightLeft size={26} strokeWidth={1.6} aria-hidden /> : id === 'investments' ? <ChartNoAxesCombined size={26} strokeWidth={1.6} aria-hidden /> : <History size={26} strokeWidth={1.6} aria-hidden />}</span><ArrowUpRight size={20} aria-hidden /></span>
             <h3>{title}</h3><p>{description}</p><span className="account-destination-action">{action}</span>
           </button>)}</div>
         </section>
       </> : <section className="account-detail" aria-labelledby="area-title">
-        <button className="account-back" type="button" onClick={() => setArea('home')}><ArrowLeft size={17} aria-hidden />Voltar ao início</button>
+        <button className="account-back" type="button" onClick={() => navigate('home')}><ArrowLeft size={17} aria-hidden />Voltar ao início</button>
         <h1 id="area-title" ref={heading} tabIndex={-1}>{areaTitle}</h1>
         {area === 'currencies' ? <div className="account-currency-area">
           <p className="account-detail-intro">Seu saldo está em <strong>{conta?.moeda_saldo ?? 'BRL'}</strong>. Ao converter, todo o saldo passa para a moeda escolhida.</p>
@@ -243,15 +261,15 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
           </dl>
           <button type="button" className="account-detail-refresh" onClick={onRefresh} disabled={loading}><RefreshCw size={16} className={loading ? 'account-spin' : ''} aria-hidden />{loading ? 'Atualizando…' : 'Atualizar dados'}</button>
         </> : area === 'history' ? <div className="account-transactions">
-          <p className="account-detail-intro">Consulte todas as conversões de saldo e os Pix enviados ou recebidos pela sua conta.</p>
+          <p className="account-detail-intro">Consulte conversões, Pix e compras ou vendas de ações da sua conta.</p>
           <div className="account-transaction-filters" role="group" aria-label="Filtrar transações">
             {transactionFilters.map(filter => <button key={filter.id} type="button" className="account-transaction-filter" aria-pressed={historyFilter === filter.id} onClick={() => setHistoryFilter(filter.id)}>{filter.label}</button>)}
           </div>
-          {loading ? <p className="account-transactions-state" role="status">Carregando histórico…</p> : filteredTransactionHistory.length === 0 ? <p className="account-transactions-state">{historyFilter === 'all' ? 'Ainda não há conversões ou Pix para mostrar.' : historyFilter === 'pix' ? 'Ainda não há Pix para mostrar.' : 'Ainda não há conversões para mostrar.'}</p> : <ul className="account-transaction-list" aria-label="Transações da conta">
+          {loading ? <p className="account-transactions-state" role="status">Carregando histórico…</p> : filteredTransactionHistory.length === 0 ? <p className="account-transactions-state">{historyFilter === 'all' ? 'Ainda não há transações para mostrar.' : historyFilter === 'pix' ? 'Ainda não há Pix para mostrar.' : historyFilter === 'stocks' ? 'Ainda não há compras ou vendas de ações para mostrar.' : 'Ainda não há conversões para mostrar.'}</p> : <ul className="account-transaction-list" aria-label="Transações da conta">
             {filteredTransactionHistory.map(transaction => <li className={`account-transaction account-transaction-${transaction.tipo.toLowerCase()}`} key={transaction.id}>
-              <span className="account-transaction-icon">{transaction.tipo === 'CONVERSAO' ? <ArrowRightLeft size={20} aria-hidden /> : transaction.tipo === 'PIX_ENVIADO' ? <ArrowUpRight size={20} aria-hidden /> : <ArrowDownLeft size={20} aria-hidden />}</span>
+              <span className="account-transaction-icon">{transaction.tipo === 'CONVERSAO' ? <ArrowRightLeft size={20} aria-hidden /> : (transaction.tipo === 'PIX_ENVIADO' || transaction.tipo === 'VENDA') ? <ArrowUpRight size={20} aria-hidden /> : <ArrowDownLeft size={20} aria-hidden />}</span>
               <div className="account-transaction-main"><strong>{transactionLabel(transaction)}</strong><span>{formatDateTimeBr(transaction.criada_em)}</span></div>
-              <div className="account-transaction-values">{transaction.tipo === 'CONVERSAO' ? <><strong>{formatarSaldo(transaction.valor, transaction.moeda)} → {transaction.valor_destino && transaction.moeda_destino ? formatarSaldo(transaction.valor_destino, transaction.moeda_destino) : transaction.moeda_destino ?? transaction.moeda}</strong><span>{transaction.moeda} para {transaction.moeda_destino ?? transaction.moeda}</span></> : <><strong>{transaction.tipo === 'PIX_ENVIADO' ? '−' : '+'}{formatarSaldo(transaction.valor, transaction.moeda)}</strong><span>{transaction.tipo === 'PIX_ENVIADO' ? `Destinatário: ${transaction.contraparte_nome ?? 'conta de destino'}` : `Remetente: ${transaction.contraparte_nome ?? 'remetente'}`}</span></>}</div>
+              <div className="account-transaction-values">{transaction.tipo === 'CONVERSAO' ? <><strong>{formatarSaldo(transaction.valor, transaction.moeda)} → {transaction.valor_destino && transaction.moeda_destino ? formatarSaldo(transaction.valor_destino, transaction.moeda_destino) : transaction.moeda_destino ?? transaction.moeda}</strong><span>{transaction.moeda} para {transaction.moeda_destino ?? transaction.moeda}</span></> : <><strong>{(transaction.tipo === 'PIX_ENVIADO' || transaction.tipo === 'COMPRA') ? '−' : '+'}{formatarSaldo(transaction.valor, transaction.moeda)}</strong><span>{transaction.tipo === 'COMPRA' || transaction.tipo === 'VENDA' ? `${transaction.codigo_ativo ?? 'Ativo'} · ${Number(transaction.quantidade ?? '0').toLocaleString('pt-BR', { maximumFractionDigits: 6 })} unidades` : transaction.tipo === 'PIX_ENVIADO' ? `Destinatário: ${transaction.contraparte_nome ?? 'conta de destino'}` : `Remetente: ${transaction.contraparte_nome ?? 'remetente'}`}</span></>}</div>
             </li>)}
           </ul>}
           <button type="button" className="account-detail-refresh" onClick={onRefresh} disabled={loading}><RefreshCw size={16} className={loading ? 'account-spin' : ''} aria-hidden />{loading ? 'Atualizando…' : 'Atualizar histórico'}</button>
@@ -267,7 +285,7 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
           </form>
           <p className="account-pix-note">O envio é imediato neste ambiente de demonstração. Confira a chave e o valor antes de confirmar.</p>
         </div> : <>
-          <InvestmentAccount principal={conta} investimento={investimento} loading={loading} token={session.access_token} onRefresh={onInvestmentRefresh} onTransfer={onInvestmentTransfer} onOperationError={showQueryError} onQueryError={showQueryError} onPurchase={onInvestmentPurchase} onSale={onInvestmentSale} />
+          <InvestmentAccount principal={conta} investimento={investimento} loading={loading} token={session.access_token} category={route.category} onCategoryChange={category => navigate('investments', category)} onOperationError={showQueryError} onQueryError={showQueryError} onRefresh={onInvestmentRefresh} onTransfer={onInvestmentTransfer} onPurchase={onInvestmentPurchase} onSale={onInvestmentSale} />
         </>}
       </section>}
 
@@ -288,8 +306,8 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
           case 'edit-key': pixKeyInput.current?.focus(); break;
           case 'edit-value': pixValueInput.current?.focus(); break;
           case 'select-currency': currencyOptions.current?.querySelector<HTMLInputElement>('input:checked')?.focus(); break;
-          case 'open-currencies': setArea('currencies'); break;
-          case 'check-balances': setArea('home'); onRefresh(); break;
+          case 'open-currencies': navigate('currencies'); break;
+          case 'check-balances': navigate('home'); onRefresh(); break;
           case 'reload': onRefresh(); break;
           case 'sign-in': onLogout(); break;
         }
@@ -329,5 +347,6 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
         <span className="account-pix-progress-bar" aria-hidden />
       </div>}
     </dialog>
+    <LiveOrb theme={theme} />
   </div>;
 }
