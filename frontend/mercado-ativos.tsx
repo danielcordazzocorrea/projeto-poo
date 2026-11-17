@@ -1,12 +1,12 @@
 import { GraficoAtivo } from './mercado-grafico';
+import { PERIODOS_HISTORICO, periodoPremium, type PeriodoHistorico } from '../supabase/functions/_shared/mercado-periodos';
 import type { ComprovanteCompra } from './investment-account';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { BarChart3, Check, Clock3, Search, TriangleAlert } from 'lucide-react';
+import { BarChart3, Check, Clock3, LockKeyhole, Search, TriangleAlert } from 'lucide-react';
 import type { BuscaAtivos, CotacaoAtivo, HistoricoAtivo } from '../supabase/functions/_shared/mercado-brapi';
 
 const url = import.meta.env.VITE_SUPABASE_URL?.trim() || 'https://pzaakefnbhwlhatgzgea.supabase.co';
 const chave = (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || '').trim();
-const periodoGrafico = '1mo';
 async function consultar<T>(caminho: string, token: string, signal: AbortSignal): Promise<T> {
   const resposta = await fetch(`${url}/functions/v1/corretora/mercado/ativos${caminho}`, {
     headers: { apikey: chave, Authorization: `Bearer ${token}` }, signal,
@@ -36,6 +36,10 @@ export function MercadoAtivos({ token, onPurchase, onTransferFunds, saldoInvesti
   const [pagina, setPagina] = useState(1);
   const [lista, setLista] = useState<BuscaAtivos | null>(null);
   const [ticker, setTicker] = useState<string | null>(null);
+  const [periodoSelecionado, setPeriodoSelecionado] = useState<PeriodoHistorico>('1mo');
+  const periodoGrafico = ticker && periodoPremium(ticker, periodoSelecionado) ? '1mo' : periodoSelecionado;
+  const premiumDialog = useRef<HTMLDialogElement>(null);
+  const [periodoBloqueado, setPeriodoBloqueado] = useState<PeriodoHistorico>('6mo');
   const [cotacao, setCotacao] = useState<CotacaoAtivo | null>(null);
   const [erroBusca, setErroBusca] = useState('');
   const [erroCotacao, setErroCotacao] = useState('');
@@ -96,7 +100,7 @@ export function MercadoAtivos({ token, onPurchase, onTransferFunds, saldoInvesti
       .catch(erro => { if (!controller.signal.aborted) setErroHistorico(erro instanceof Error ? erro.message : 'Falha ao consultar histórico.'); })
       .finally(() => { if (!controller.signal.aborted) setCarregandoHistorico(false); });
     return () => controller.abort();
-  }, [ticker, token, tentativaHistorico]);
+  }, [ticker, token, periodoGrafico, tentativaHistorico]);
 
   async function comprar(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -198,7 +202,32 @@ export function MercadoAtivos({ token, onPurchase, onTransferFunds, saldoInvesti
       </article>}
 
     {ticker && <section className="market-history-card market-quote-card" aria-label={`Evolução do preço de ${ticker}`} aria-busy={carregandoHistorico}>
-      <div className="market-history-heading"><h3>Evolução do preço · {ticker}</h3><span>1 M</span></div>
+      <div className="market-history-heading"><h3>Evolução do preço · {ticker}</h3><span>{PERIODOS_HISTORICO[periodoGrafico].descricao}</span></div>
+      <div className="market-history-periods" role="group" aria-label="Período do gráfico">
+        {(Object.keys(PERIODOS_HISTORICO) as PeriodoHistorico[]).filter(periodo => periodo !== '3mo').map(periodo => {
+          const bloqueado = periodoPremium(ticker, periodo);
+          return <button key={periodo} type="button" aria-pressed={periodoGrafico === periodo}
+            className={bloqueado ? 'is-premium' : undefined}
+            aria-label={`${PERIODOS_HISTORICO[periodo].descricao}${bloqueado ? ' — exclusivo Premium; ver detalhes' : ''}`}
+            title={bloqueado ? 'Disponível apenas no plano Premium' : PERIODOS_HISTORICO[periodo].descricao}
+            onClick={() => {
+              if (bloqueado) {
+                setPeriodoBloqueado(periodo);
+                premiumDialog.current?.showModal();
+                return;
+              }
+              if (periodo !== periodoGrafico) {
+                setHistorico(null); setErroHistorico(''); setCarregandoHistorico(true);
+              }
+              setPeriodoSelecionado(periodo);
+            }}>
+            {PERIODOS_HISTORICO[periodo].rotulo}{bloqueado && <LockKeyhole size={12} aria-hidden />}
+          </button>;
+        })}
+      </div>
+      <p className="market-history-note">{periodoPremium(ticker, '6mo')
+        ? 'Nesta demonstração, consulte até 1 mês no plano gratuito. Períodos com cadeado são exclusivos Premium.'
+        : 'Ativo de teste da brapi: períodos estendidos liberados para demonstração.'}</p>
       {carregandoHistorico && <p role="status">Carregando histórico…</p>}
       {erroHistorico && <div role="alert"><p>Não foi possível carregar o gráfico. {erroHistorico}</p>
         <button type="button" onClick={() => setTentativaHistorico(valor => valor + 1)}>Tentar novamente</button>
@@ -215,5 +244,16 @@ export function MercadoAtivos({ token, onPurchase, onTransferFunds, saldoInvesti
         </dl>
       </article>}
     </section>}
+    <dialog ref={premiumDialog} className="account-pix-dialog market-premium-dialog"
+      aria-labelledby="market-premium-title" aria-describedby="market-premium-description">
+      <div className="account-pix-dialog-content">
+        <span className="market-premium-icon"><LockKeyhole size={28} aria-hidden /></span>
+        <h2 id="market-premium-title">Explore períodos maiores</h2>
+        <p id="market-premium-description">Funcionalidade disponível apenas no plano Premium.</p>
+        <p>O período “{PERIODOS_HISTORICO[periodoBloqueado].rotulo}” está bloqueado para este ativo no plano gratuito. Você pode continuar analisando até 1 mês de histórico nesta demonstração.</p>
+        <p className="market-history-note">Demonstração acadêmica: não há assinatura ou cobrança. A disponibilidade dos dados depende do plano da brapi.</p>
+        <button type="button" className="account-pix-success-close" onClick={() => premiumDialog.current?.close()}>Continuar no gratuito</button>
+      </div>
+    </dialog>
   </div>;
 }
