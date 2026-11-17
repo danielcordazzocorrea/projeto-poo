@@ -4,8 +4,8 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { MessageCircle, Send, X } from 'lucide-react';
 
 const orbColors = {
-  light: { body: '#a9c9a3', eyes: '#172b1d' },
-  dark: { body: '#466a4c', eyes: '#f4f6f2' },
+  light: { clouds: ['#83c96e', '#ffffff', '#b8ef91'], eyes: '#172b1d' },
+  dark: { clouds: ['#4c9330', '#0c0d0c', '#14291e'], eyes: '#f4f6f2' },
 } as const;
 
 export function LiveOrb({ theme }: { theme: Theme }) {
@@ -60,9 +60,9 @@ export function LiveOrb({ theme }: { theme: Theme }) {
       aria-expanded={open} aria-controls="tivvo-chat" aria-haspopup="dialog" onClick={() => open ? close() : setOpen(true)}>
       <span aria-hidden><Orb
         className="live-orb-character"
-        variant="custom"
+        variant="webgl"
         theme={theme}
-        color={orbColors[theme].body}
+        colors={[...orbColors[theme].clouds]}
         eyeColor={orbColors[theme].eyes}
       /></span>
     </button>
