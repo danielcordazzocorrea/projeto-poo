@@ -15,7 +15,7 @@ export type HistoricoAtivo = {
   intervalo: IntervaloHistorico;
   pontos: { data: string; preco_brl: string }[];
   consultado_em: string;
-  fonte: 'brapi';
+  fonte: 'brapi' | 'yahoo';
 };
 
 export class ErroMercado extends Error {
