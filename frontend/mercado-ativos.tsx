@@ -1,5 +1,6 @@
 import { aceitaEntradaDecimal } from './moeda';
 import { GraficoAtivo } from './mercado-grafico';
+import { SaldoDisponivel } from './saldo-disponivel';
 import { PERIODOS_HISTORICO, periodoPremium, type PeriodoHistorico } from '../supabase/functions/_shared/mercado-periodos';
 import type { ComprovanteCompra } from './investment-account';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
@@ -192,7 +193,7 @@ export function MercadoAtivos({ token, onPurchase, onTransferFunds, saldoInvesti
         <div className="market-asset-title"><span>{cotacao.codigo}</span><h4>{cotacao.nome}</h4></div>
         <strong className="market-price">{preco(cotacao.preco_brl)}</strong>
         <p><Clock3 size={14} aria-hidden />{horario(cotacao.cotacao_em)}</p>
-        <span className="market-main-balance">Saldo da conta de investimentos: <strong>{saldoInvestimentos}</strong></span>
+        <SaldoDisponivel className="market-main-balance" rotulo="Saldo da conta de investimentos" saldo={saldoInvestimentos} />
         <form className="market-buy-form" onSubmit={event => void comprar(event)}>
           <label htmlFor="market-quantity">Quantidade</label>
           <div><input id="market-quantity" type="text" inputMode="decimal" value={quantidade} onChange={event => aceitaEntradaDecimal(event.target.value, 6) && setQuantidade(event.target.value)} placeholder="1" required disabled={comprando} />
