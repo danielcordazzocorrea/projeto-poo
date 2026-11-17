@@ -13,6 +13,36 @@ button, input { font: inherit; }
 .login-form-panel input[aria-invalid="true"] { border-color: #9dff3a; }
 button:not(:disabled) { cursor: pointer; }
 
+/* Cursor-following border spotlight, adapted from the supplied GlowCard. */
+[data-spotlight-static] { position: relative; }
+[data-spotlight-card] { isolation: isolate; --spotlight-rgb: 157 255 58; }
+.account-app [data-spotlight-card], .tivvo-about--light[data-spotlight-card] { --spotlight-rgb: 76 147 48; }
+.account-app[data-theme="dark"] [data-spotlight-card] { --spotlight-rgb: 157 255 58; }
+[data-spotlight-card]::before,
+[data-spotlight-card]::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  z-index: 2;
+  border-radius: inherit;
+  padding: 2px;
+  pointer-events: none;
+  background: radial-gradient(190px circle at var(--spotlight-x, 50%) var(--spotlight-y, 50%),
+    rgb(255 255 255 / .95), rgb(var(--spotlight-rgb) / .9) 24%, rgb(var(--spotlight-rgb) / .3) 52%, transparent 100%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity .18s ease;
+}
+[data-spotlight-card]::after { filter: blur(8px); padding: 4px; z-index: -1; }
+[data-spotlight-active]::before { opacity: 1; }
+[data-spotlight-active]::after { opacity: .65; }
+@media (prefers-reduced-motion: reduce) {
+  [data-spotlight-card]::before, [data-spotlight-card]::after { transition: none; }
+}
+
 .login-shell { position: relative; isolation: isolate; display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); align-items: center; gap: clamp(32px, 6vw, 96px); min-height: 100dvh; padding: 48px max(32px, calc((100vw - 1280px) / 2)); background: #09140e; }
 .login-background { position: fixed; inset: 0; z-index: -1; pointer-events: none; }
 .login-intro { align-self: stretch; padding-block: 8px; }

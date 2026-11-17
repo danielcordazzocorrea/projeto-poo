@@ -149,7 +149,11 @@ export function InvestmentAccount({ principal, investimento, loading, token, cat
       </dl>
     </section>
     <button type="button" className="investment-positions-trigger" onClick={() => onCategoryChange('compradas')}>
-      <span className="investment-positions-trigger-icon"><GrowthHomeIcon /></span>
+      <span className="investment-positions-trigger-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+          <path d="M4 5h16M4 10h12M4 15h16M4 20h12" />
+        </svg>
+      </span>
       <span><strong>Ver ações compradas</strong><small>{investimento?.posicoes.length ?? 0} {investimento?.posicoes.length === 1 ? 'ativo na carteira' : 'ativos na carteira'}</small></span>
       <ChevronRight size={21} aria-hidden />
     </button>
