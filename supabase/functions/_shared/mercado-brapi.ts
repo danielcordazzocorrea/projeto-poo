@@ -134,7 +134,7 @@ export class MercadoBrapi {
     if (termo.length < 2 || termo.length > 80) throw new ErroMercado(400, 'BUSCA_INVALIDA', 'Digite entre 2 e 80 caracteres.');
     if (!Number.isSafeInteger(pagina) || pagina < 1 || pagina > 1000) throw new ErroMercado(400, 'PAGINA_INVALIDA', 'Página inválida.');
     return this.memorizar(`busca:${termo}:${pagina}`, 300_000, async () => {
-      const dados = await this.consultar('/api/quote/list', { search: termo, page: String(pagina), limit: '20' });
+      const dados = await this.consultar('/api/quote/list', { search: termo, page: String(pagina), limit: '8' });
       if (!Array.isArray(dados.stocks) || typeof dados.hasNextPage !== 'boolean') {
         throw new ErroMercado(502, 'RESPOSTA_INVALIDA', 'Listagem de mercado inválida.');
       }

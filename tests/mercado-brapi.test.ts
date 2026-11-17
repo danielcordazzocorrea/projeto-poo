@@ -32,6 +32,8 @@ test('busca por nome normaliza tipos sem adivinhar fundos, pagina e reutiliza ca
   assert.equal(resultado.pagina, 2);
   assert.deepEqual(resultado.ativos.map(a => a.codigo), ['PETR4', 'BOVA11', 'HGLG11']);
   assert.ok(chamadas[0]?.includes('search=PETROBRAS'));
+  assert.equal(new URL(chamadas[0]!).searchParams.get('limit'), '8');
+  assert.equal(new URL(chamadas[0]!).searchParams.get('page'), '2');
   await mercado.buscar(' petrobras ', 2);
   assert.equal(chamadas.length, 1);
 });
