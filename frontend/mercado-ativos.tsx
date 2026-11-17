@@ -1,23 +1,18 @@
 import { aceitaEntradaDecimal } from './moeda';
 import { GraficoAtivo } from './mercado-grafico';
+import { consultarHistoricoYahoo } from './historico-cliente';
 import { SaldoDisponivel } from './saldo-disponivel';
-import { PERIODOS_HISTORICO, periodoPremium, type PeriodoHistorico } from '../supabase/functions/_shared/mercado-periodos';
+import { PERIODOS_HISTORICO, type PeriodoHistorico } from '../supabase/functions/_shared/mercado-periodos';
 import type { ComprovanteCompra } from './investment-account';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { BarChart3, Check, Clock3, LockKeyhole, Search, TriangleAlert } from 'lucide-react';
+import { BarChart3, Check, Clock3, Search, TriangleAlert } from 'lucide-react';
 import type { BuscaAtivos, CotacaoAtivo, HistoricoAtivo } from '../supabase/functions/_shared/mercado-brapi';
 
 const url = import.meta.env.VITE_SUPABASE_URL?.trim() || 'https://pzaakefnbhwlhatgzgea.supabase.co';
 const chave = (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || '').trim();
 const testeYahoo = import.meta.env.VITE_YAHOO_TEST === 'true';
 async function consultarHistorico(ticker: string, periodo: PeriodoHistorico, token: string, signal: AbortSignal): Promise<HistoricoAtivo> {
-  if (!testeYahoo) return consultar<HistoricoAtivo>(`/${encodeURIComponent(ticker)}/historico?periodo=${periodo}`, token, signal);
-  const resposta = await fetch(`/api/yahoo-history?ticker=${encodeURIComponent(ticker)}&periodo=${periodo}`, {
-    headers: { Authorization: `Bearer ${token}` }, signal,
-  });
-  const dados = await resposta.json();
-  if (!resposta.ok) throw new Error(dados.erro || 'Yahoo Finance indisponível.');
-  return dados as HistoricoAtivo;
+  return consultarHistoricoYahoo({ url, chave, ticker, periodo, token, signal, local: testeYahoo });
 }
 async function consultar<T>(caminho: string, token: string, signal: AbortSignal): Promise<T> {
   const resposta = await fetch(`${url}/functions/v1/corretora/mercado/ativos${caminho}`, {
@@ -49,9 +44,7 @@ export function MercadoAtivos({ token, onPurchase, onTransferFunds, saldoInvesti
   const [lista, setLista] = useState<BuscaAtivos | null>(null);
   const [ticker, setTicker] = useState<string | null>(null);
   const [periodoSelecionado, setPeriodoSelecionado] = useState<PeriodoHistorico>('1mo');
-  const periodoGrafico = !testeYahoo && ticker && periodoPremium(ticker, periodoSelecionado) ? '1mo' : periodoSelecionado;
-  const premiumDialog = useRef<HTMLDialogElement>(null);
-  const [periodoBloqueado, setPeriodoBloqueado] = useState<PeriodoHistorico>('6mo');
+  const periodoGrafico = periodoSelecionado;
   const [cotacao, setCotacao] = useState<CotacaoAtivo | null>(null);
   const [erroBusca, setErroBusca] = useState('');
   const [erroCotacao, setErroCotacao] = useState('');
@@ -218,30 +211,21 @@ export function MercadoAtivos({ token, onPurchase, onTransferFunds, saldoInvesti
       <div className="market-history-layout">
       <div className="market-history-periods" role="group" aria-label="Período do gráfico">
         {(Object.keys(PERIODOS_HISTORICO) as PeriodoHistorico[]).filter(periodo => periodo !== '3mo').map(periodo => {
-          const bloqueado = !testeYahoo && periodoPremium(ticker, periodo);
           return <button key={periodo} type="button" aria-pressed={periodoGrafico === periodo}
-            className={bloqueado ? 'is-premium' : undefined}
-            aria-label={`${PERIODOS_HISTORICO[periodo].descricao}${bloqueado ? ' — exclusivo Premium; ver detalhes' : ''}`}
-            title={bloqueado ? 'Disponível apenas no plano Premium' : PERIODOS_HISTORICO[periodo].descricao}
+            aria-label={PERIODOS_HISTORICO[periodo].descricao}
+            title={PERIODOS_HISTORICO[periodo].descricao}
             onClick={() => {
-              if (bloqueado) {
-                setPeriodoBloqueado(periodo);
-                premiumDialog.current?.showModal();
-                return;
-              }
               if (periodo !== periodoGrafico) {
                 setHistorico(null); setErroHistorico(''); setCarregandoHistorico(true);
               }
               setPeriodoSelecionado(periodo);
             }}>
-            {PERIODOS_HISTORICO[periodo].rotulo}{bloqueado && <LockKeyhole size={12} aria-hidden />}
+            {PERIODOS_HISTORICO[periodo].rotulo}
           </button>;
         })}
       </div>
       <div className="market-history-content">
-      <p className="market-history-note">{testeYahoo ? 'Teste Yahoo Finance: histórico experimental. Busca e cotação continuam na brapi. A cobertura varia por ativo e período.' : periodoPremium(ticker, '6mo')
-        ? 'Nesta demonstração, consulte até 1 mês no plano gratuito. Períodos com cadeado são exclusivos Premium.'
-        : 'Ativo de teste da brapi: períodos estendidos liberados para demonstração.'}</p>
+      <p className="market-history-note">Histórico: Yahoo Finance{testeYahoo ? ' (servidor local de teste)' : ''}. Busca e cotação: brapi. A cobertura varia por ativo e período; os preços podem diferir entre as fontes.</p>
       {carregandoHistorico && <p role="status">Carregando histórico…</p>}
       {erroHistorico && <div role="alert"><p>Não foi possível carregar o gráfico. {erroHistorico}</p>
         <button type="button" onClick={() => setTentativaHistorico(valor => valor + 1)}>Tentar novamente</button>
@@ -260,16 +244,5 @@ export function MercadoAtivos({ token, onPurchase, onTransferFunds, saldoInvesti
         </dl>
       </article>}
     </section>}
-    <dialog ref={premiumDialog} className="account-pix-dialog market-premium-dialog"
-      aria-labelledby="market-premium-title" aria-describedby="market-premium-description">
-      <div className="account-pix-dialog-content">
-        <span className="market-premium-icon"><LockKeyhole size={28} aria-hidden /></span>
-        <h2 id="market-premium-title">Explore períodos maiores</h2>
-        <p id="market-premium-description">Funcionalidade disponível apenas no plano Premium.</p>
-        <p>O período “{PERIODOS_HISTORICO[periodoBloqueado].rotulo}” está bloqueado para este ativo no plano gratuito. Você pode continuar analisando até 1 mês de histórico nesta demonstração.</p>
-        <p className="market-history-note">Demonstração acadêmica: não há assinatura ou cobrança. A disponibilidade dos dados depende do plano da brapi.</p>
-        <button type="button" className="account-pix-success-close" onClick={() => premiumDialog.current?.close()}>Continuar no gratuito</button>
-      </div>
-    </dialog>
   </div>;
 }
