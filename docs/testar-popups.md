@@ -78,3 +78,15 @@ Os testes de requisição usam respostas simuladas: não acessam contas reais ne
 ## Etapa futura de investimentos
 
 Ainda não implementada: comprovante de compra com ativo, quantidade, preço unitário, total e data/hora; confirmação antes de vender com preço médio de aquisição, cotação e horário, quantidade e lucro/prejuízo estimado em reais e percentual. Login e cadastro seguem fora do escopo dos popups.
+
+## Conferência visual final
+
+Na demonstração, abra um aviso em cada tema e repita com a janela estreita:
+
+- O texto deve caber na tela, com rolagem quando necessário e botão de ação acessível.
+- Tab e Shift+Tab devem circular dentro do popup, mostrando o contorno de foco.
+- Escape e X devem fechar sem executar a ação principal.
+- “Alterar valor” e “Corrigir chave” devem devolver o foco aos campos correspondentes.
+- Nas telas reais, “Alterar quantidade” deve preservar a quantidade e devolver o foco ao campo de compra/venda.
+
+A revisão automatizada também cobre respostas HTTP 200 com dados incompletos: elas devem virar erro de consulta, sem substituir os dados exibidos por um objeto inválido. A revisão visual em navegador continua sendo uma verificação manual.

@@ -6,6 +6,7 @@ import type { AccountErrorNotice } from './account-errors';
 import { queryErrorNotice, readQueryResponse } from './query-errors';
 import { InvestmentTradeError } from './investment-trade';
 import { mapAccountError } from './account-errors';
+import { validAssetSearch, validAssetQuote } from './query-validation';
 
 const url = import.meta.env.VITE_SUPABASE_URL?.trim() || 'https://pzaakefnbhwlhatgzgea.supabase.co';
 const chave = (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || '').trim();
@@ -13,7 +14,7 @@ async function consultar<T>(caminho: string, token: string, signal: AbortSignal)
   const resposta = await fetch(`${url}/functions/v1/corretora/mercado/ativos${caminho}`, {
     headers: { apikey: chave, Authorization: `Bearer ${token}` }, signal,
   });
-  return readQueryResponse<T>(resposta, 'market');
+  return readQueryResponse<T>(resposta, 'market', caminho.startsWith('?') ? validAssetSearch : validAssetQuote);
 }
 function horario(valor: string | null): string {
   return valor ? new Date(valor).toLocaleString('pt-BR', { timeZoneName: 'short' }) : 'Não informado pelo provedor';

@@ -12,6 +12,7 @@ import { InvestmentTransferError, requestInvestmentTransfer } from './investment
 import { queryErrorNotice, readQueryResponse } from './query-errors';
 import { InvestmentTradeError, requestInvestmentTrade } from './investment-trade';
 import type { AccountErrorNotice } from './account-errors';
+import { validAccount, validInvestmentAccount } from './query-validation';
 
 type Notice = { text: string; kind: 'ok' | 'erro' | 'info' } | null;
 
@@ -67,7 +68,7 @@ export default function App() {
     const response = await fetch(`${url}/functions/v1/corretora/investimentos/conta`, {
       headers: { apikey: chave, Authorization: `Bearer ${token}` },
     });
-    return readQueryResponse<ContaInvestimento>(response, 'account');
+    return readQueryResponse<ContaInvestimento>(response, 'account', validInvestmentAccount);
   }
   async function transferInvestment(direcao: DirecaoTransferencia, valor: string): Promise<TransferenciaInvestimento> {
     if (!session) throw new Error('Entre na conta para transferir.');
@@ -79,8 +80,7 @@ export default function App() {
         direction: direcao, value: valor, requestId: pendingInvestment.current.id });
       setInvestimento(result.conta);
       const principal = await requestAccount('GET', session.access_token);
-      if (!principal.ok) throw new Error(await readError(principal));
-      setConta(await principal.json() as Conta);
+      setConta(await readQueryResponse<Conta>(principal, 'account', validAccount));
       pendingInvestment.current = null;
       return result.comprovante;
     } catch (error) {
@@ -97,7 +97,7 @@ export default function App() {
       setInvestimento(await requestInvestmentTrade({ url, apiKey: chave, token: session.access_token,
         operation: 'purchase', ticker: codigoAtivo, quantity: quantidade, requestId: pendingPurchase.current.id }));
       const principal = await requestAccount('GET', session.access_token);
-      setConta(await readQueryResponse<Conta>(principal, 'account'));
+      setConta(await readQueryResponse<Conta>(principal, 'account', validAccount));
       pendingPurchase.current = null;
     } catch (error) {
       throw error instanceof InvestmentTradeError ? error : new InvestmentTradeError(error, 'purchase', 'unconfirmed');
@@ -112,8 +112,7 @@ export default function App() {
       setInvestimento(await requestInvestmentTrade({ url, apiKey: chave, token: session.access_token,
         operation: 'sale', ticker: codigoAtivo, quantity: quantidade, requestId: pendingSale.current.id }));
       const principal = await requestAccount('GET', session.access_token);
-      if (!principal.ok) throw new Error(await readError(principal));
-      setConta(await principal.json() as Conta);
+      setConta(await readQueryResponse<Conta>(principal, 'account', validAccount));
       pendingSale.current = null;
     } catch (error) {
       throw error instanceof InvestmentTradeError ? error : new InvestmentTradeError(error, 'sale', 'unconfirmed');
@@ -143,7 +142,7 @@ export default function App() {
     try {
       let response = await requestAccount('GET', currentSession.access_token);
       if (response.status === 404 && (await readError(response.clone())).includes('Conta não encontrada')) response = await requestAccount('POST', currentSession.access_token);
-      setConta(await readQueryResponse<Conta>(response, 'account'));
+      setConta(await readQueryResponse<Conta>(response, 'account', validAccount));
       setInvestimento(await requestInvestment(currentSession.access_token));
     } catch (error) { setAccountError(queryErrorNotice(error, 'account')); }
     finally { setLoadingAccount(false); }
