@@ -271,6 +271,7 @@ button:not(:disabled) { cursor: pointer; }
 .investment-positions-trigger > svg { color: var(--account-muted); }
 .investment-selected-content { max-width: 850px; }
 .investment-fixed-income-content { max-width: none; }
+.investment-variable-income-content { width: 100%; max-width: none; min-width: 0; }
 .investment-selected-content .account-back { margin-bottom: 28px; }
 .investment-selected-content > h2 { font-size: 24px; letter-spacing: -.6px; }
 .investment-selected-content .account-market { max-width: none; }

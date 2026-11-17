@@ -116,7 +116,7 @@ export function MercadoAtivos({ token, onPurchase, onTransferFunds, saldoInvesti
       <div>
         <p className="market-kicker">Mercado</p>
         <h3>Encontre ativos para acompanhar</h3>
-        <p>Pesquise pelo nome ou ticker.</p>
+        <p>Pesquise as ações, EFTs e FIIs pelo nome ou ticker.</p>
       </div>
       <span className="market-heading-icon"><BarChart3 size={24} aria-hidden /></span>
     </header>
