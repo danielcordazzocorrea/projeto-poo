@@ -1,11 +1,16 @@
-import type { ComprovanteCompra } from './investment-account';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import type { ComprovanteCompra } from './investment-types';
 import { ValorInput } from './valor-input';
 import { SaldoDisponivel } from './saldo-disponivel';
-import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import type { Theme } from '@/lib/theme';
 import { ArrowDownLeft, ArrowLeft, ArrowUpRight, ArrowRightLeft, ChartNoAxesCombined, Check, Eye, EyeOff, History, Landmark, LogOut, Moon, Sun, RefreshCw, UserRound } from 'lucide-react';
 import { AboutTivvo } from '@/components/ui/about-tivvo';
+import { ErrorDialog } from '@/components/ui/error-dialog';
+import { CircleAlert, CloudOff, Clock, Search, UserRoundX, Wallet } from 'lucide-react';
+import { mapAccountError, type AccountErrorNotice } from './account-errors';
+import { PixTransferError } from './pix-transfer';
+import { CurrencyConversionError } from './currency-conversion';
 import { LiveOrb } from './live-orb';
 import { formatarSaldo, type Conta, type ConversionReceipt, type Movimentacao, type PixReceipt, type TipoMoeda } from './moeda';
 import { InvestmentAccount, type ContaInvestimento, type DirecaoTransferencia, type TransferenciaInvestimento } from './investment-account';
@@ -20,6 +25,8 @@ type AccountHomeProps = {
   investimento: ContaInvestimento | null;
   loading: boolean;
   notice: { text: string; kind: 'ok' | 'erro' | 'info' } | null;
+  accountError: AccountErrorNotice | null;
+  onDismissAccountError: () => void;
   onRefresh: () => void;
   onPixTransfer: (chaveDestino: string, valor: string) => Promise<PixReceipt>;
   onConvertBalance: (moeda: TipoMoeda) => Promise<ConversionReceipt>;
@@ -58,6 +65,7 @@ function formatDateTimeBr(value: string | null): string {
 function PixLogo() {
   return <span className="account-pix-logo" aria-hidden />;
 }
+const errorIcons = { alert: CircleAlert, wallet: Wallet, recipient: UserRoundX, exchange: ArrowRightLeft, connection: CloudOff, clock: Clock, search: Search };
 
 function transactionLabel(transaction: Movimentacao): string {
   if (transaction.tipo === 'COMPRA') return 'Compra de ativo';
@@ -67,16 +75,24 @@ function transactionLabel(transaction: Movimentacao): string {
   return 'Pix recebido';
 }
 
-export function AccountHome({ theme, onThemeChange, session, conta, investimento, loading, notice, onRefresh, onPixTransfer, onConvertBalance, onInvestmentTransfer, onInvestmentPurchase, onInvestmentSale, onInvestmentRefresh, onLogout }: AccountHomeProps) {
+export function AccountHome({ theme, onThemeChange, session, conta, investimento, loading, notice, accountError, onDismissAccountError, onRefresh, onPixTransfer, onConvertBalance, onInvestmentTransfer, onInvestmentPurchase, onInvestmentSale, onInvestmentRefresh, onLogout }: AccountHomeProps) {
   const [route, setRoute] = useState<AccountRoute>(() => routeFromPath(window.location.pathname));
   const area = route.area;
   const [balanceVisible, setBalanceVisible] = useState(false);
   const [pixKey, setPixKey] = useState('');
   const [pixValue, setPixValue] = useState('');
   const [sendingPix, setSendingPix] = useState(false);
+  const [operationError, setOperationError] = useState<{ notice: AccountErrorNotice; details: { label: string; value: string }[]; recover?: () => void } | null>(null);
+  const showQueryError = useCallback((notice: AccountErrorNotice, recover?: () => void) => {
+    setOperationError({ notice, details: [], recover });
+  }, []);
+  const displayedError = operationError ?? (accountError ? { notice: accountError, details: [], recover: undefined } : null);
+  const pixKeyInput = useRef<HTMLInputElement>(null);
+  const pixValueInput = useRef<HTMLInputElement>(null);
   const [pixSuccess, setPixSuccess] = useState<{ chave: string; valor: string; moeda: TipoMoeda; recebido: PixReceipt } | null>(null);
   const [targetCurrency, setTargetCurrency] = useState<TipoMoeda>('USD');
   const [converting, setConverting] = useState(false);
+  const currencyOptions = useRef<HTMLFieldSetElement>(null);
   const [historyFilter, setHistoryFilter] = useState<TransactionFilter>('all');
   const [conversionSuccess, setConversionSuccess] = useState<{ saldoAnterior: string; moedaAnterior: TipoMoeda; recibo: ConversionReceipt } | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
@@ -128,30 +144,48 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
 
   async function submitPix(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
-    if (sendingPix) return;
+    if (sendingPix || loading) return;
+    setOperationError(null);
     setSendingPix(true);
     try {
       const chave = pixKey.trim();
       const valor = pixValue;
       const moeda = conta?.moeda_saldo ?? 'BRL';
       const recebido = await onPixTransfer(chave, valor);
+      loadingDialog.current?.close();
       setPixSuccess({ chave, valor, moeda, recebido });
       setPixKey('');
       setPixValue('');
-    } catch { /* A mensagem de erro é exibida pelo aviso compartilhado da conta. */ }
+    } catch (error) {
+      loadingDialog.current?.close();
+      const notice = error instanceof PixTransferError ? error.notice : mapAccountError(error, { operation: 'pix' });
+      const details = notice.action === 'edit-key' ? [{ label: 'Chave informada', value: pixKey.trim() }]
+        : notice.title === 'Saldo insuficiente' && conta ? [
+          { label: 'Valor solicitado', value: formatarSaldo(pixValue, conta.moeda_saldo) },
+          { label: 'Último saldo disponível', value: formatarSaldo(conta.saldo, conta.moeda_saldo) },
+        ] : [];
+      setOperationError({ notice, details });
+    }
     finally { setSendingPix(false); }
   }
 
   async function submitConversion(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
+    if (converting || loading || sendingPix || !conta) return;
+    setOperationError(null);
     setConverting(true);
     try {
       const saldoAnterior = conta?.saldo ?? '0';
       const moedaAnterior = conta?.moeda_saldo ?? 'BRL';
       const recibo = await onConvertBalance(targetCurrency);
+      loadingDialog.current?.close();
       setConversionSuccess({ saldoAnterior, moedaAnterior, recibo });
     }
-    catch { /* O aviso compartilhado mostra o erro. */ }
+    catch (error) {
+      loadingDialog.current?.close();
+      const notice = error instanceof CurrencyConversionError ? error.notice : mapAccountError(error, { operation: 'conversion' });
+      setOperationError({ notice, details: [{ label: 'Moeda solicitada', value: targetCurrency }] });
+    }
     finally { setConverting(false); }
   }
 
@@ -206,7 +240,7 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
           <p className="account-detail-intro">Seu saldo está em <strong>{conta?.moeda_saldo ?? 'BRL'}</strong>. Ao converter, todo o saldo passa para a moeda escolhida.</p>
           <div className="account-currency-balance"><span>Saldo atual</span><p className="account-currency-current" aria-live="polite">{conta ? formatarSaldo(conta.saldo, conta.moeda_saldo) : 'Carregando saldo…'}</p></div>
           <form className="account-pix-form" onSubmit={event => void submitConversion(event)} aria-busy={converting}>
-            <fieldset className="account-currency-options" disabled={loading || converting}>
+            <fieldset ref={currencyOptions} className="account-currency-options" disabled={loading || converting}>
               <legend>Converter saldo para</legend>
               <div className="account-currency-options-grid">
                 {([['BRL', 'Real'], ['USD', 'Dólar'], ['EUR', 'Euro']] as const).map(([codigo, nome]) => <label className="account-currency-choice" key={codigo}>
@@ -247,20 +281,41 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
             <SaldoDisponivel id="pix-available-balance" saldo={conta ? balance : 'Carregando…'} />
             <h2>Enviar Pix</h2>
             <label htmlFor="pix-key">Chave Pix de destino <span>(e-mail)</span></label>
-            <input id="pix-key" type="email" value={pixKey} onChange={event => setPixKey(event.target.value)} placeholder="pessoa@exemplo.com" autoComplete="email" required disabled={sendingPix || loading} />
+            <input ref={pixKeyInput} id="pix-key" type="email" value={pixKey} onChange={event => setPixKey(event.target.value)} placeholder="pessoa@exemplo.com" autoComplete="email" required disabled={sendingPix || loading} />
             <label htmlFor="pix-value">Valor em {conta?.moeda_saldo ?? 'BRL'}</label>
-            <div className="account-pix-value"><span>{conta?.moeda_saldo === 'USD' ? 'US$' : conta?.moeda_saldo === 'EUR' ? '€' : 'R$'}</span><ValorInput id="pix-value" value={pixValue} onValueChange={setPixValue} aria-describedby="pix-available-balance" placeholder="0,00" required disabled={sendingPix || loading || !conta} /></div>
+            <div className="account-pix-value"><span>{conta?.moeda_saldo === 'USD' ? 'US$' : conta?.moeda_saldo === 'EUR' ? '€' : 'R$'}</span><ValorInput ref={pixValueInput} id="pix-value" value={pixValue} onValueChange={setPixValue} aria-describedby="pix-available-balance" placeholder="0,00" required disabled={sendingPix || loading || !conta} /></div>
             <button type="submit" className="account-pix-submit" disabled={sendingPix || loading}>{sendingPix && <RefreshCw size={16} className="account-spin" aria-hidden />}{sendingPix ? 'Enviando Pix…' : 'Enviar Pix'}</button>
           </form>
           <p className="account-pix-note">O envio é imediato neste ambiente de demonstração. Confira a chave e o valor antes de confirmar.</p>
         </div> : <>
-          <InvestmentAccount principal={conta} investimento={investimento} loading={loading} token={session.access_token} category={route.category} onCategoryChange={category => navigate('investments', category)} onRefresh={onInvestmentRefresh} onTransfer={onInvestmentTransfer} onPurchase={onInvestmentPurchase} onSale={onInvestmentSale} />
+          <InvestmentAccount principal={conta} investimento={investimento} loading={loading} token={session.access_token} category={route.category} onCategoryChange={category => navigate('investments', category)} onOperationError={showQueryError} onQueryError={showQueryError} onRefresh={onInvestmentRefresh} onTransfer={onInvestmentTransfer} onPurchase={onInvestmentPurchase} onSale={onInvestmentSale} />
         </>}
       </section>}
 
       {notice && <p className="account-notice" role={notice.kind === 'erro' ? 'alert' : 'status'}>{notice.text}</p>}
       <footer className="account-footer"><span>tivvo</span><p>Ambiente de demonstração · Saldos e investimentos simulados</p></footer>
     </main>
+    {displayedError && <ErrorDialog
+      key={operationError ? 'operation-error' : 'account-error'}
+      {...displayedError.notice}
+      open={!operationLoading && !loading}
+      theme={theme}
+      icon={errorIcons[displayedError.notice.icon]}
+      details={displayedError.details}
+      onClose={() => { if (operationError) setOperationError(null); else onDismissAccountError(); }}
+      onAction={() => {
+        if (displayedError.recover) { displayedError.recover(); return; }
+        switch (displayedError.notice.action) {
+          case 'edit-key': pixKeyInput.current?.focus(); break;
+          case 'edit-value': pixValueInput.current?.focus(); break;
+          case 'select-currency': currencyOptions.current?.querySelector<HTMLInputElement>('input:checked')?.focus(); break;
+          case 'open-currencies': navigate('currencies'); break;
+          case 'check-balances': navigate('home'); onRefresh(); break;
+          case 'reload': onRefresh(); break;
+          case 'sign-in': onLogout(); break;
+        }
+      }}
+    />}
     <dialog ref={successDialog} className="account-pix-dialog" aria-labelledby="pix-success-title" onClose={() => setPixSuccess(null)}>
       {pixSuccess && <div className="account-pix-dialog-content">
         <span className="account-pix-success-icon"><Check size={30} strokeWidth={2.5} aria-hidden /></span>

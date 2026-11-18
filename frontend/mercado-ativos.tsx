@@ -1,12 +1,17 @@
 import { aceitaEntradaDecimal } from './moeda';
-import { GraficoAtivo } from './mercado-grafico';
 import { consultarHistoricoYahoo } from './historico-cliente';
 import { SaldoDisponivel } from './saldo-disponivel';
 import { PERIODOS_HISTORICO, type PeriodoHistorico } from '../supabase/functions/_shared/mercado-periodos';
-import type { ComprovanteCompra } from './investment-account';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { BarChart3, Check, Clock3, Search, TriangleAlert } from 'lucide-react';
+import { BarChart3, Check, Clock3, Search } from 'lucide-react';
 import type { BuscaAtivos, CotacaoAtivo, HistoricoAtivo } from '../supabase/functions/_shared/mercado-brapi';
+import type { AccountErrorNotice } from './account-errors';
+import { queryErrorNotice, readQueryResponse } from './query-errors';
+import { InvestmentTradeError } from './investment-trade';
+import { mapAccountError } from './account-errors';
+import { validAssetSearch, validAssetQuote, validAssetHistory } from './query-validation';
+import { GraficoAtivo } from './mercado-grafico';
+import type { ComprovanteCompra } from './investment-account';
 
 const url = import.meta.env.VITE_SUPABASE_URL?.trim() || 'https://pzaakefnbhwlhatgzgea.supabase.co';
 const chave = (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || '').trim();
@@ -18,9 +23,7 @@ async function consultar<T>(caminho: string, token: string, signal: AbortSignal)
   const resposta = await fetch(`${url}/functions/v1/corretora/mercado/ativos${caminho}`, {
     headers: { apikey: chave, Authorization: `Bearer ${token}` }, signal,
   });
-  const dados = await resposta.json();
-  if (!resposta.ok) throw new Error(typeof dados.erro === 'string' ? dados.erro : 'Não foi possível consultar o mercado.');
-  return dados as T;
+  return readQueryResponse<T>(resposta, 'market', caminho.startsWith('?') ? validAssetSearch : caminho.includes('/historico?') ? validAssetHistory : validAssetQuote);
 }
 function horario(valor: string | null): string {
   return valor ? new Date(valor).toLocaleString('pt-BR', { timeZoneName: 'short' }) : 'Não informado pelo provedor';
@@ -32,12 +35,15 @@ function preco(valor: string): string {
   return Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
-export function MercadoAtivos({ token, onPurchase, onTransferFunds, saldoInvestimentos, contaCarregada }: {
+export function MercadoAtivos({ token, onPurchase, saldoInvestimentos, contaCarregada, onQueryError, onTradeError, onRefresh, loading }: {
   token: string;
   onPurchase: (codigoAtivo: string, quantidade: string) => Promise<ComprovanteCompra>;
-  onTransferFunds: () => void;
   saldoInvestimentos: string;
   contaCarregada: boolean;
+  onQueryError: (notice: AccountErrorNotice, recover?: () => void) => void;
+  onTradeError: (notice: AccountErrorNotice, recover?: () => void) => void;
+  onRefresh: () => void;
+  loading: boolean;
 }) {
   const [busca, setBusca] = useState('');
   const [pagina, setPagina] = useState(1);
@@ -46,8 +52,11 @@ export function MercadoAtivos({ token, onPurchase, onTransferFunds, saldoInvesti
   const [periodoSelecionado, setPeriodoSelecionado] = useState<PeriodoHistorico>('1mo');
   const periodoGrafico = periodoSelecionado;
   const [cotacao, setCotacao] = useState<CotacaoAtivo | null>(null);
-  const [erroBusca, setErroBusca] = useState('');
-  const [erroCotacao, setErroCotacao] = useState('');
+  const [erroBusca, setErroBusca] = useState(false);
+  const [erroCotacao, setErroCotacao] = useState(false);
+  const searchInput = useRef<HTMLInputElement>(null);
+  const [searchRetry, setSearchRetry] = useState(0);
+  const [quoteRetry, setQuoteRetry] = useState(0);
   const [buscando, setBuscando] = useState(false);
   const [cotando, setCotando] = useState(false);
   const [historico, setHistorico] = useState<HistoricoAtivo | null>(null);
@@ -56,44 +65,51 @@ export function MercadoAtivos({ token, onPurchase, onTransferFunds, saldoInvesti
   const [tentativaHistorico, setTentativaHistorico] = useState(0);
   const [quantidade, setQuantidade] = useState('1');
   const [comprando, setComprando] = useState(false);
-  const [erroCompra, setErroCompra] = useState('');
+  const purchaseQuantityInput = useRef<HTMLInputElement>(null);
   const [compraConcluida, setCompraConcluida] = useState(false);
   const [comprovante, setComprovante] = useState<ComprovanteCompra | null>(null);
   const dialog = useRef<HTMLDialogElement>(null);
-  const erroDialog = useRef<HTMLDialogElement>(null);
-  const saldoInsuficiente = /saldo insuficiente/i.test(erroCompra);
-  useEffect(() => {
-    if (saldoInsuficiente && !erroDialog.current?.open) erroDialog.current?.showModal();
-  }, [saldoInsuficiente, erroCompra]);
   useEffect(() => {
     if (comprovante && !dialog.current?.open) dialog.current?.showModal();
   }, [comprovante]);
 
   useEffect(() => {
     const controller = new AbortController();
-    setLista(null); setErroBusca('');
+    setLista(null); setErroBusca(false);
     if (busca.trim().length < 2) { setBuscando(false); return () => controller.abort(); }
     setBuscando(true);
     const timer = setTimeout(() => {
       void consultar<BuscaAtivos>(`?busca=${encodeURIComponent(busca.trim())}&pagina=${pagina}`, token, controller.signal)
         .then(dados => { if (!controller.signal.aborted) setLista(dados); })
-        .catch(erro => { if (!controller.signal.aborted) setErroBusca(erro instanceof Error ? erro.message : 'Falha na busca.'); })
+        .catch(erro => {
+          if (controller.signal.aborted) return;
+          setErroBusca(true);
+          const notice = queryErrorNotice(erro, 'market');
+          onQueryError(notice, notice.action === 'reload' ? () => setSearchRetry(value => value + 1)
+            : notice.action === 'edit-search' ? () => searchInput.current?.focus() : undefined);
+        })
         .finally(() => { if (!controller.signal.aborted) setBuscando(false); });
     }, 350);
     return () => { clearTimeout(timer); controller.abort(); };
-  }, [busca, pagina, token]);
+  }, [busca, pagina, token, searchRetry, onQueryError]);
 
   useEffect(() => {
     const controller = new AbortController();
-    setCotacao(null); setErroCotacao('');
+    setCotacao(null); setErroCotacao(false);
     if (!ticker) { setCotando(false); return () => controller.abort(); }
     setCotando(true);
     void consultar<CotacaoAtivo>(`/${encodeURIComponent(ticker)}`, token, controller.signal)
       .then(dados => { if (!controller.signal.aborted) setCotacao(dados); })
-      .catch(erro => { if (!controller.signal.aborted) setErroCotacao(erro instanceof Error ? erro.message : 'Falha na cotação.'); })
+      .catch(erro => {
+        if (controller.signal.aborted) return;
+        setErroCotacao(true);
+        const notice = queryErrorNotice(erro, 'market');
+        onQueryError(notice, notice.action === 'reload' ? () => setQuoteRetry(value => value + 1)
+          : notice.action === 'edit-search' ? () => searchInput.current?.focus() : undefined);
+      })
       .finally(() => { if (!controller.signal.aborted) setCotando(false); });
     return () => controller.abort();
-  }, [ticker, token]);
+  }, [ticker, token, quoteRetry, onQueryError]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -102,21 +118,27 @@ export function MercadoAtivos({ token, onPurchase, onTransferFunds, saldoInvesti
     setCarregandoHistorico(true);
     void consultarHistorico(ticker, periodoGrafico, token, controller.signal)
       .then(dados => { if (!controller.signal.aborted) setHistorico(dados); })
-      .catch(erro => { if (!controller.signal.aborted) setErroHistorico(erro instanceof Error ? erro.message : 'Falha ao consultar histórico.'); })
+      .catch(erro => {
+        if (controller.signal.aborted) return;
+        setErroHistorico(erro instanceof Error ? erro.message : 'Falha ao consultar histórico.');
+      })
       .finally(() => { if (!controller.signal.aborted) setCarregandoHistorico(false); });
     return () => controller.abort();
   }, [ticker, token, periodoGrafico, tentativaHistorico]);
 
   async function comprar(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!cotacao || comprando || !contaCarregada) return;
-    setComprando(true); setErroCompra(''); setCompraConcluida(false);
+    if (!cotacao || comprando || loading || !contaCarregada) return;
+    setComprando(true); setCompraConcluida(false);
     try {
       const recibo = await onPurchase(cotacao.codigo, quantidade.trim().replace(',', '.'));
       setComprovante(recibo);
       setCompraConcluida(true);
-    } catch (erro) {
-      setErroCompra(erro instanceof Error ? erro.message : 'Não foi possível concluir a compra.');
+    } catch (error) {
+      const notice = error instanceof InvestmentTradeError ? error.notice : mapAccountError(error, { operation: 'purchase' });
+      const recover = notice.action === 'edit-quantity' ? () => purchaseQuantityInput.current?.focus()
+        : notice.action === 'check-balances' || notice.action === 'reload' ? onRefresh : undefined;
+      onTradeError(notice, recover);
     } finally { setComprando(false); }
   }
 
@@ -134,20 +156,20 @@ export function MercadoAtivos({ token, onPurchase, onTransferFunds, saldoInvesti
       <label htmlFor="market-search">Nome ou ticker</label>
       <div className="market-search-input">
         <Search size={18} aria-hidden />
-        <input id="market-search" type="search" value={busca} maxLength={80} placeholder="Ex.: PETR4 ou Petrobras" autoComplete="off"
-          onChange={event => { setBusca(event.target.value); setPagina(1); setTicker(null); setCotacao(null); setLista(null); setCompraConcluida(false); setErroCompra(''); }} />
+        <input ref={searchInput} id="market-search" type="search" value={busca} maxLength={80} placeholder="Ex.: PETR4 ou Petrobras" autoComplete="off"
+          onChange={event => { setBusca(event.target.value); setPagina(1); setTicker(null); setCotacao(null); setLista(null); setCompraConcluida(false); }} />
       </div>
       <p>Cotações de referência podem ter atraso de aproximadamente 30 minutos.</p>
     </div>
 
     {busca.trim().length < 2 && <p className="market-search-hint">Digite pelo menos 2 caracteres para buscar ativos.</p>}
     {buscando && <p className="market-state" role="status">Buscando ativos…</p>}
-    {erroBusca && <p className="market-state market-state-error" role="alert">{erroBusca}</p>}
+    {erroBusca && <button type="button" className="account-detail-refresh" onClick={() => setSearchRetry(value => value + 1)}>Buscar novamente</button>}
     {lista && <section className="market-search-results" aria-label="Resultados da busca">
       <div className="market-section-title"><h4>Resultados</h4><span>Página {pagina}</span></div>
       {lista.ativos.length === 0 && <p className="market-state">Nenhum ativo compatível nesta página.</p>}
       <ul className="market-results">{lista.ativos.map(ativo => <li key={ativo.codigo}>
-        <button type="button" aria-pressed={ticker === ativo.codigo} onClick={() => { setTicker(ativo.codigo); setCompraConcluida(false); setErroCompra(''); }}>
+        <button type="button" aria-pressed={ticker === ativo.codigo} onClick={() => { setTicker(ativo.codigo); setCompraConcluida(false); }}>
           <span className="market-result-symbol">{ativo.codigo.slice(0, 1)}</span>
           <span className="market-result-main"><strong>{ativo.codigo}</strong><span>{ativo.nome}</span></span>
           <span className="market-result-type">{ativo.tipo}</span>
@@ -160,7 +182,7 @@ export function MercadoAtivos({ token, onPurchase, onTransferFunds, saldoInvesti
     </section>}
 
     {cotando && <p className="market-state" role="status">Consultando {ticker}…</p>}
-    {erroCotacao && <p className="market-state market-state-error" role="alert">{erroCotacao} <button type="button" onClick={() => setTicker(null)}>Fechar</button></p>}
+    {erroCotacao && <button type="button" className="account-detail-refresh" onClick={() => setQuoteRetry(value => value + 1)}>Consultar cotação novamente</button>}
     <dialog ref={dialog} className="account-pix-dialog" aria-labelledby="purchase-success-title" onClose={() => setComprovante(null)}>
       {comprovante && <div className="account-pix-dialog-content">
         <span className="account-pix-success-icon"><Check size={30} strokeWidth={2.5} aria-hidden /></span>
@@ -177,19 +199,6 @@ export function MercadoAtivos({ token, onPurchase, onTransferFunds, saldoInvesti
         <button type="button" className="account-pix-success-close" onClick={() => dialog.current?.close()}>Concluir</button>
       </div>}
     </dialog>
-    <dialog ref={erroDialog} className="account-pix-dialog" aria-labelledby="purchase-error-title" onClose={() => setErroCompra('')}>
-      <div className="account-pix-dialog-content">
-        <span className="account-pix-success-icon account-purchase-error-icon"><TriangleAlert size={30} aria-hidden /></span>
-        <span className="account-pix-success-eyebrow">Compra não realizada</span>
-        <h2 id="purchase-error-title">Saldo insuficiente</h2>
-        <p className="account-pix-note">Você não tem saldo suficiente na conta de investimentos para essa compra. Transfira dinheiro da sua conta principal para continuar.</p>
-        <div className="account-pix-success-details">
-          <div><span>Saldo disponível para investir</span><strong>{saldoInvestimentos}</strong></div>
-        </div>
-        <button type="button" className="account-pix-success-close" onClick={() => { erroDialog.current?.close(); onTransferFunds(); }}>Transferir para investimentos</button>
-        <button type="button" className="account-back" onClick={() => erroDialog.current?.close()}>Voltar</button>
-      </div>
-    </dialog>
     {ticker && <section className="market-quote-grid" aria-label="Cotação do ativo" aria-live="polite">
       {cotacao && <article className="market-quote-card market-price-card">
         <div className="market-card-heading"><span>Cotação atual</span><span className="market-live-indicator">Referência</span></div>
@@ -199,11 +208,10 @@ export function MercadoAtivos({ token, onPurchase, onTransferFunds, saldoInvesti
         <SaldoDisponivel className="market-main-balance" rotulo="Saldo da conta de investimentos" saldo={saldoInvestimentos} />
         <form className="market-buy-form" onSubmit={event => void comprar(event)}>
           <label htmlFor="market-quantity">Quantidade</label>
-          <div><input id="market-quantity" type="text" inputMode="decimal" value={quantidade} onChange={event => aceitaEntradaDecimal(event.target.value, 6) && setQuantidade(event.target.value)} placeholder="1" required disabled={comprando} />
-            <button type="submit" disabled={comprando || !contaCarregada}>{comprando ? 'Comprando…' : 'Comprar ativo'}</button></div>
+          <div><input ref={purchaseQuantityInput} id="market-quantity" type="text" inputMode="decimal" value={quantidade} onChange={event => aceitaEntradaDecimal(event.target.value, 6) && setQuantidade(event.target.value)} placeholder="1" required disabled={comprando || loading} />
+            <button type="submit" disabled={comprando || loading || !contaCarregada}>{comprando ? 'Comprando…' : 'Comprar ativo'}</button></div>
         </form>
         {compraConcluida && <span className="market-buy-success" role="status">Compra concluída. Sua carteira foi atualizada.</span>}
-        {erroCompra && !saldoInsuficiente && <span className="market-buy-error" role="alert">{erroCompra}</span>}
       </article>}
 
     {ticker && <section className="market-history-card market-quote-card" aria-label={`Evolução do preço de ${ticker}`} aria-busy={carregandoHistorico}>

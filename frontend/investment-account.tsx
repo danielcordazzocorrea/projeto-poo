@@ -1,40 +1,17 @@
 import { aceitaEntradaDecimal } from './moeda';
 import { ValorInput } from './valor-input';
-
-export type ComprovanteCompra = {
-  id: string;
-  codigo_ativo: string;
-  quantidade: string;
-  preco_unitario: string;
-  total_pago: string;
-  cotacao_em: string | null;
-  criada_em: string;
-};
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ArrowDownToLine, ArrowLeft, ArrowUpFromLine, Check, ChevronRight, HandCoins, RefreshCw } from 'lucide-react';
 import { MercadoAtivos, consultarCotacao } from './mercado-ativos';
-import type { CotacaoAtivo } from '../supabase/functions/_shared/mercado-brapi';
-import { formatarSaldo, type Conta, type TipoMoeda } from './moeda';
-import type { InvestmentCategory } from './rotas';
+import { formatarSaldo, type Conta } from './moeda';
+import { InvestmentTransferError } from './investment-transfer';
+import { InvestmentTradeError } from './investment-trade';
+import { mapAccountError, type AccountErrorNotice } from './account-errors';
 
-export type DirecaoTransferencia = 'PARA_INVESTIMENTOS' | 'PARA_PRINCIPAL';
-export type TransferenciaInvestimento = {
-  id: string;
-  direcao: DirecaoTransferencia;
-  valor_origem: string;
-  moeda_origem: TipoMoeda;
-  valor_destino: string;
-  moeda_destino: TipoMoeda;
-  cotacao_em: string | null;
-  criada_em?: string;
-};
-export type ContaInvestimento = {
-  saldo: string;
-  moeda: 'BRL';
-  acoes_investidas: string;
-  posicoes: Array<{ codigo_ativo: string; quantidade: string; preco_medio_compra?: string | null }>;
-  transferencias: TransferenciaInvestimento[];
-};
+import type { ComprovanteCompra, ContaInvestimento, DirecaoTransferencia, TransferenciaInvestimento } from './investment-types';
+export type { ComprovanteCompra, ContaInvestimento, DirecaoTransferencia, TransferenciaInvestimento } from './investment-types';
+import type { CotacaoAtivo } from '../supabase/functions/_shared/mercado-brapi';
+import type { InvestmentCategory } from './rotas';
 
 type Props = {
   principal: Conta | null;
@@ -45,6 +22,8 @@ type Props = {
   onCategoryChange: (category: InvestmentCategory) => void;
   onRefresh: () => void;
   onTransfer: (direcao: DirecaoTransferencia, valor: string) => Promise<TransferenciaInvestimento>;
+  onOperationError: (notice: AccountErrorNotice, recover?: () => void) => void;
+  onQueryError: (notice: AccountErrorNotice, recover?: () => void) => void;
   onPurchase: (codigoAtivo: string, quantidade: string) => Promise<ComprovanteCompra>;
   onSale: (codigoAtivo: string, quantidade: string) => Promise<void>;
 };
@@ -59,15 +38,17 @@ function GrowthHomeIcon() {
   </svg>;
 }
 
-export function InvestmentAccount({ principal, investimento, loading, token, category: categoria, onCategoryChange, onRefresh, onTransfer, onPurchase, onSale }: Props) {
+export function InvestmentAccount({ principal, investimento, loading, token, category: categoria, onCategoryChange, onRefresh, onTransfer, onOperationError, onQueryError, onPurchase, onSale }: Props) {
   const [direcao, setDirecao] = useState<DirecaoTransferencia>('PARA_INVESTIMENTOS');
   const [valor, setValor] = useState('');
   const [sending, setSending] = useState(false);
+  const valueInput = useRef<HTMLInputElement>(null);
   const [receipt, setReceipt] = useState<TransferenciaInvestimento | null>(null);
   const [ativoParaVenda, setAtivoParaVenda] = useState<string | null>(null);
   const [quantidadeVenda, setQuantidadeVenda] = useState('');
   const [vendendo, setVendendo] = useState(false);
-  const [erroVenda, setErroVenda] = useState('');
+  const saleQuantityInput = useRef<HTMLInputElement>(null);
+  const [erroCotacaoVenda, setErroCotacaoVenda] = useState('');
   const [vendaConcluida, setVendaConcluida] = useState<{ codigo: string; quantidade: string } | null>(null);
   const vendaDialog = useRef<HTMLDialogElement>(null);
   const [cotacaoVenda, setCotacaoVenda] = useState<CotacaoAtivo | null>(null);
@@ -77,10 +58,13 @@ export function InvestmentAccount({ principal, investimento, loading, token, cat
     if (!ativoParaVenda || categoria !== 'compradas') return;
     const controller = new AbortController();
     vendaDialog.current?.showModal();
-    setCotacaoVenda(null); setConsultandoVenda(true);
+    setCotacaoVenda(null); setConsultandoVenda(true); setErroCotacaoVenda('');
     void consultarCotacao(ativoParaVenda, token, controller.signal)
       .then(cotacao => { if (!controller.signal.aborted) setCotacaoVenda(cotacao); })
-      .catch(erro => { if (!controller.signal.aborted) setErroVenda(erro instanceof Error ? erro.message : 'Não foi possível consultar a cotação.'); })
+      .catch(erro => {
+        if (controller.signal.aborted) return;
+        setErroCotacaoVenda(erro instanceof Error ? erro.message : 'Não foi possível consultar a cotação.');
+      })
       .finally(() => { if (!controller.signal.aborted) setConsultandoVenda(false); });
     return () => controller.abort();
   }, [ativoParaVenda, categoria, token]);
@@ -93,31 +77,41 @@ export function InvestmentAccount({ principal, investimento, loading, token, cat
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (sending) return;
+    if (sending || loading || !principal || !investimento) return;
     setSending(true);
     setReceipt(null);
     try {
       const result = await onTransfer(direcao, valor.trim().replace(',', '.'));
       setReceipt(result);
       setValor('');
-    } catch { /* O aviso compartilhado da conta mostra o erro. */ }
+    } catch (error) {
+      const notice = error instanceof InvestmentTransferError ? error.notice : mapAccountError(error, { operation: 'investment-transfer' });
+      const recover = notice.action === 'edit-value' ? () => valueInput.current?.focus()
+        : notice.action === 'check-balances' || notice.action === 'reload' ? onRefresh : undefined;
+      onOperationError(notice, recover);
+    }
     finally { setSending(false); }
   }
   async function vender(event: FormEvent<HTMLFormElement>, codigo: string) {
     event.preventDefault();
-    if (vendendo || !cotacaoVenda || !posicaoVenda) return;
+    if (vendendo || loading || !cotacaoVenda || !posicaoVenda) return;
     const quantidade = quantidadeVenda.trim().replace(',', '.');
     if (!/^\d+(\.\d{1,6})?$/.test(quantidade) || Number(quantidade) <= 0 || Number(quantidade) > Number(posicaoVenda.quantidade)) {
-      setErroVenda('Informe uma quantidade maior que zero e até a quantidade disponível.');
+      onOperationError(mapAccountError('Quantidade indisponível para venda', { operation: 'sale' }), () => saleQuantityInput.current?.focus());
       return;
     }
-    setVendendo(true); setErroVenda('');
+    setVendendo(true);
     try {
       await onSale(codigo, quantidade);
       setVendaConcluida({ codigo, quantidade });
       setQuantidadeVenda('');
     }
-    catch (erro) { setErroVenda(erro instanceof Error ? erro.message : 'Não foi possível concluir a venda.'); }
+    catch (error) {
+      const notice = error instanceof InvestmentTradeError ? error.notice : mapAccountError(error, { operation: 'sale' });
+      const recover = notice.action === 'edit-quantity' ? () => saleQuantityInput.current?.focus()
+        : notice.action === 'check-balances' || notice.action === 'reload' ? onRefresh : undefined;
+      onOperationError(notice, recover);
+    }
     finally { setVendendo(false); }
   }
 
@@ -179,7 +173,7 @@ export function InvestmentAccount({ principal, investimento, loading, token, cat
             <button type="button" className={direcao === 'PARA_PRINCIPAL' ? 'is-selected' : ''} aria-pressed={direcao === 'PARA_PRINCIPAL'} onClick={() => { setDirecao('PARA_PRINCIPAL'); setReceipt(null); }}><ArrowUpFromLine size={17} aria-hidden />Para conta principal</button>
           </div>
           <label htmlFor="investment-value">Valor em {moedaOrigem}</label>
-          <ValorInput id="investment-value" value={valor} onValueChange={setValor} placeholder="0,00" required disabled={loading || sending || !principal || !investimento} />
+          <ValorInput ref={valueInput} id="investment-value" value={valor} onValueChange={setValor} placeholder="0,00" required disabled={loading || sending || !principal || !investimento} />
           {principal?.moeda_saldo !== 'BRL' && <p className="account-pix-note">A conversão entre {principal?.moeda_saldo} e BRL é automática nesta transferência. O valor convertido será mostrado no comprovante.</p>}
           <button type="submit" className="account-pix-submit" disabled={loading || sending || !principal || !investimento}>{sending && <RefreshCw size={16} className="account-spin" aria-hidden />}{sending ? 'Transferindo…' : 'Confirmar transferência'}</button>
         </form>
@@ -198,7 +192,7 @@ export function InvestmentAccount({ principal, investimento, loading, token, cat
         <span className="investment-position-symbol">{posicao.codigo_ativo.slice(0, 1)}</span>
         <strong>{posicao.codigo_ativo}</strong>
         <span>{Number(posicao.quantidade).toLocaleString('pt-BR', { maximumFractionDigits: 6 })} unidades</span>
-        <button type="button" className="investment-sell-toggle" onClick={() => { setAtivoParaVenda(posicao.codigo_ativo); setQuantidadeVenda(''); setErroVenda(''); }}>Vender</button>
+        <button type="button" className="investment-sell-toggle" onClick={() => { setAtivoParaVenda(posicao.codigo_ativo); setQuantidadeVenda(''); }}>Vender</button>
       </li>)}
     </ul>}
     <dialog ref={vendaDialog} className="account-pix-dialog" aria-labelledby="sell-dialog-title"
@@ -226,10 +220,10 @@ export function InvestmentAccount({ principal, investimento, loading, token, cat
         </div>
         <form className="account-pix-form" onSubmit={event => { if (ativoParaVenda) void vender(event, ativoParaVenda); else event.preventDefault(); }}>
           <label htmlFor="sell-dialog-quantity">Qual quantidade você quer vender?</label>
-          <input id="sell-dialog-quantity" type="text" inputMode="decimal" value={quantidadeVenda} onChange={event => aceitaEntradaDecimal(event.target.value, 6) && setQuantidadeVenda(event.target.value)} placeholder="0" required disabled={vendendo || consultandoVenda} />
-          {erroVenda && <p className="investment-sale-error" role="alert">{erroVenda}</p>}
+          <input ref={saleQuantityInput} id="sell-dialog-quantity" type="text" inputMode="decimal" value={quantidadeVenda} onChange={event => aceitaEntradaDecimal(event.target.value, 6) && setQuantidadeVenda(event.target.value)} placeholder="0" required disabled={vendendo || loading || consultandoVenda} />
+          {erroCotacaoVenda && <p className="investment-sale-error" role="alert">{erroCotacaoVenda}</p>}
           <p className="account-pix-note">O valor será creditado na sua conta de investimentos pela cotação consultada na confirmação.</p>
-          <button type="submit" className="account-pix-success-close" disabled={vendendo || consultandoVenda || !cotacaoVenda || !quantidadeVenda.trim()}>{vendendo ? 'Vendendo…' : 'Confirmar venda'}</button>
+          <button type="submit" className="account-pix-success-close" disabled={vendendo || loading || consultandoVenda || !cotacaoVenda || !quantidadeVenda.trim()}>{vendendo ? 'Vendendo…' : 'Confirmar venda'}</button>
           <button type="button" className="account-back" disabled={vendendo} onClick={() => vendaDialog.current?.close()}>Cancelar</button>
         </form>
       </div>}
@@ -238,8 +232,7 @@ export function InvestmentAccount({ principal, investimento, loading, token, cat
 
   return <section className="investment-selected-content investment-variable-income-content" aria-busy={loading}>
     <button type="button" className="account-back" onClick={() => onCategoryChange(null)}><ArrowLeft size={17} aria-hidden />Voltar às categorias</button>
-    <MercadoAtivos token={token} onPurchase={onPurchase}
-      onTransferFunds={() => { setDirecao('PARA_INVESTIMENTOS'); setReceipt(null); onCategoryChange('transferir'); }}
+    <h2>Ações, BDRs, EFTs</h2><MercadoAtivos onQueryError={onQueryError} onTradeError={onOperationError} onRefresh={onRefresh} loading={loading} token={token} onPurchase={onPurchase}
       saldoInvestimentos={investimento ? formatarSaldo(investimento.saldo, 'BRL') : 'Carregando…'}
       contaCarregada={Boolean(investimento) && !loading} />
   </section>;

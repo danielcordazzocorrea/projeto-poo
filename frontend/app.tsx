@@ -8,6 +8,13 @@ import { CONFIGURATION_NOTICE, submitCredentials } from './auth';
 import { readSavedTheme, THEME_STORAGE_KEY, type Theme } from '@/lib/theme';
 import { type Conta, type ConversionReceipt, type PixReceipt, type TipoMoeda } from './moeda';
 import type { ContaInvestimento, DirecaoTransferencia, TransferenciaInvestimento } from './investment-account';
+import { requestPixTransfer } from './pix-transfer';
+import { requestCurrencyConversion } from './currency-conversion';
+import { InvestmentTransferError, requestInvestmentTransfer } from './investment-transfer';
+import { queryErrorNotice, readQueryResponse } from './query-errors';
+import { InvestmentTradeError, requestInvestmentTrade } from './investment-trade';
+import type { AccountErrorNotice } from './account-errors';
+import { validAccount, validInvestmentAccount } from './query-validation';
 
 type Notice = { text: string; kind: 'ok' | 'erro' | 'info' } | null;
 
@@ -25,6 +32,7 @@ export default function App() {
   const [investimento, setInvestimento] = useState<ContaInvestimento | null>(null);
   const [loadingAccount, setLoadingAccount] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
+  const [accountError, setAccountError] = useState<AccountErrorNotice | null>(null);
   const pendingInvestment = useRef<{ key: string; id: string } | null>(null);
   const pendingPurchase = useRef<{ key: string; id: string } | null>(null);
   const pendingSale = useRef<{ key: string; id: string } | null>(null);
@@ -60,7 +68,7 @@ export default function App() {
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  useEffect(() => { if (session) void loadAccount(session); else { setConta(null); setInvestimento(null); pendingInvestment.current = null; pendingPurchase.current = null; pendingSale.current = null; } }, [session]);
+  useEffect(() => { if (session) void loadAccount(session); else { setConta(null); setInvestimento(null); setAccountError(null); pendingInvestment.current = null; pendingPurchase.current = null; pendingSale.current = null; } }, [session]);
 
   async function readError(response: Response): Promise<string> {
     try {
@@ -79,8 +87,7 @@ export default function App() {
     const response = await fetch(`${url}/functions/v1/corretora/investimentos/conta`, {
       headers: { apikey: chave, Authorization: `Bearer ${token}` },
     });
-    if (!response.ok) throw new Error(await readError(response));
-    return await response.json() as ContaInvestimento;
+    return readQueryResponse<ContaInvestimento>(response, 'account', validInvestmentAccount);
   }
   async function transferInvestment(direcao: DirecaoTransferencia, valor: string): Promise<TransferenciaInvestimento> {
     if (!session) throw new Error('Entre na conta para transferir.');
@@ -88,22 +95,16 @@ export default function App() {
     try {
       const key = `${session.user.id}:${direcao}:${valor}`;
       if (pendingInvestment.current?.key !== key) pendingInvestment.current = { key, id: crypto.randomUUID() };
-      const response = await fetch(`${url}/functions/v1/corretora/investimentos/transferencias`, {
-        method: 'POST',
-        headers: { apikey: chave, Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ direcao, valor, requisicao_id: pendingInvestment.current.id }),
-      });
-      if (!response.ok) throw new Error(await readError(response));
-      const result = await response.json() as { conta: ContaInvestimento; comprovante: TransferenciaInvestimento };
+      const result = await requestInvestmentTransfer({ url, apiKey: chave, token: session.access_token,
+        direction: direcao, value: valor, requestId: pendingInvestment.current.id });
       setInvestimento(result.conta);
       const principal = await requestAccount('GET', session.access_token);
-      if (!principal.ok) throw new Error(await readError(principal));
-      setConta(await principal.json() as Conta);
+      setConta(await readQueryResponse<Conta>(principal, 'account', validAccount));
       pendingInvestment.current = null;
       return result.comprovante;
     } catch (error) {
-      setNotice({ text: `Não foi possível concluir ou confirmar a transferência: ${error instanceof Error ? error.message : 'erro inesperado'}. Confira os saldos antes de tentar novamente.`, kind: 'erro' });
-      throw error;
+      // A later balance refresh can fail even after the transfer completed.
+      throw error instanceof InvestmentTransferError ? error : new InvestmentTransferError(error, 'unconfirmed');
     } finally { setLoadingAccount(false); }
   }
   async function purchaseInvestment(codigoAtivo: string, quantidade: string): Promise<ComprovanteCompra> {
@@ -112,20 +113,13 @@ export default function App() {
     try {
       const key = `${session.user.id}:${codigoAtivo}:${quantidade}`;
       if (pendingPurchase.current?.key !== key) pendingPurchase.current = { key, id: crypto.randomUUID() };
-      const response = await fetch(`${url}/functions/v1/corretora/investimentos/compras`, {
-        method: 'POST',
-        headers: { apikey: chave, Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ codigo_ativo: codigoAtivo, quantidade, requisicao_id: pendingPurchase.current.id }),
-      });
-      if (!response.ok) throw new Error(await readError(response));
-      const resultado = await response.json() as { conta: ContaInvestimento; comprovante: ComprovanteCompra };
+      const resultado = await requestInvestmentTrade({ url, apiKey: chave, token: session.access_token,
+        operation: 'purchase', ticker: codigoAtivo, quantity: quantidade, requestId: pendingPurchase.current.id });
       setInvestimento(resultado.conta);
       pendingPurchase.current = null;
       return resultado.comprovante;
     } catch (error) {
-      const mensagem = error instanceof Error ? error.message : 'erro inesperado';
-      setNotice(/saldo insuficiente/i.test(mensagem) ? null : { text: `Não foi possível concluir a compra: ${mensagem}`, kind: 'erro' });
-      throw error;
+      throw error instanceof InvestmentTradeError ? error : new InvestmentTradeError(error, 'purchase', 'unconfirmed');
     } finally { setLoadingAccount(false); }
   }
   async function sellInvestment(codigoAtivo: string, quantidade: string): Promise<void> {
@@ -134,66 +128,40 @@ export default function App() {
     try {
       const key = `${session.user.id}:${codigoAtivo}:${quantidade}`;
       if (pendingSale.current?.key !== key) pendingSale.current = { key, id: crypto.randomUUID() };
-      const response = await fetch(`${url}/functions/v1/corretora/investimentos/vendas`, {
-        method: 'POST',
-        headers: { apikey: chave, Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ codigo_ativo: codigoAtivo, quantidade, requisicao_id: pendingSale.current.id }),
-      });
-      if (!response.ok) throw new Error(await readError(response));
-      setInvestimento(await response.json() as ContaInvestimento);
+      setInvestimento(await requestInvestmentTrade({ url, apiKey: chave, token: session.access_token,
+        operation: 'sale', ticker: codigoAtivo, quantity: quantidade, requestId: pendingSale.current.id }));
       pendingSale.current = null;
     } catch (error) {
-      setNotice({ text: `Não foi possível concluir a venda: ${error instanceof Error ? error.message : 'erro inesperado'}`, kind: 'erro' });
-      throw error;
+      throw error instanceof InvestmentTradeError ? error : new InvestmentTradeError(error, 'sale', 'unconfirmed');
     } finally { setLoadingAccount(false); }
   }
   async function convertBalance(moeda: TipoMoeda): Promise<ConversionReceipt> {
     if (!session) throw new Error('Entre na conta para converter o saldo.');
     setLoadingAccount(true); setNotice(null);
     try {
-      const response = await fetch(`${url}/functions/v1/corretora/conta/converter`, {
-        method: 'POST',
-        headers: { apikey: chave, Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ moeda }),
-      });
-      if (!response.ok) throw new Error(await readError(response));
-      const resultado = await response.json() as Conta & { comprovante?: { cotacao_em: string | null } };
-      setConta(resultado);
-      return { conta: resultado, cotacaoEm: resultado.comprovante?.cotacao_em ?? null };
-    } catch (error) {
-      setNotice({ text: `Não foi possível converter o saldo: ${error instanceof Error ? error.message : 'erro inesperado'}`, kind: 'erro' });
-      throw error;
+      const resultado = await requestCurrencyConversion({ url, apiKey: chave, token: session.access_token, currency: moeda });
+      setConta(resultado.conta);
+      return resultado;
     } finally { setLoadingAccount(false); }
   }
   async function transferPix(chaveDestino: string, valor: string): Promise<PixReceipt> {
     if (!session) throw new Error('Entre na conta para enviar um Pix.');
     setLoadingAccount(true); setNotice(null);
     try {
-      const response = await fetch(`${url}/functions/v1/corretora/pix/transferencias`, {
-        method: 'POST',
-        headers: { apikey: chave, Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chave_destino: chaveDestino, valor }),
-      });
-      if (!response.ok) throw new Error(await readError(response));
-      const resultado = await response.json() as Conta & { comprovante?: { moeda_recebida: TipoMoeda; valor_recebido: string } };
+      const resultado = await requestPixTransfer({ url, apiKey: chave, token: session.access_token, key: chaveDestino, value: valor });
       setConta(resultado);
       const recebido = resultado.comprovante;
       return recebido ?? null;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'erro inesperado';
-      setNotice({ text: `Não foi possível enviar o Pix: ${message}`, kind: 'erro' });
-      throw error;
     } finally { setLoadingAccount(false); }
   }
   async function loadAccount(currentSession: Session): Promise<void> {
-    setLoadingAccount(true); setNotice(null);
+    setLoadingAccount(true); setNotice(null); setAccountError(null);
     try {
       let response = await requestAccount('GET', currentSession.access_token);
-      if (response.status === 404 && (await readError(response)).includes('Conta não encontrada')) response = await requestAccount('POST', currentSession.access_token);
-      if (!response.ok) throw new Error(await readError(response));
-      setConta(await response.json() as Conta);
+      if (response.status === 404 && (await readError(response.clone())).includes('Conta não encontrada')) response = await requestAccount('POST', currentSession.access_token);
+      setConta(await readQueryResponse<Conta>(response, 'account', validAccount));
       setInvestimento(await requestInvestment(currentSession.access_token));
-    } catch (error) { setNotice({ text: `Login realizado, mas não foi possível carregar a conta: ${error instanceof Error ? error.message : 'erro inesperado'}`, kind: 'erro' }); }
+    } catch (error) { setAccountError(queryErrorNotice(error, 'account')); }
     finally { setLoadingAccount(false); }
   }
   async function authenticate(values: { email: string; password: string; firstName?: string; lastName?: string; birthDate?: string; passwordConfirmation?: string }): Promise<void> {
@@ -208,7 +176,7 @@ export default function App() {
   }
   async function logout(): Promise<void> { if (!supabase) return; const { error } = await supabase.auth.signOut(); if (!error) { window.history.replaceState(null, '', '/'); setMode('login'); } setNotice(error ? { text: error.message, kind: 'erro' } : { text: 'Você saiu da sua conta', kind: 'ok' }); }
 
-  if (session) return <AccountHome key={session.user.id} theme={theme} onThemeChange={setTheme} session={session} conta={conta} investimento={investimento} loading={loadingAccount} notice={notice} onRefresh={() => void loadAccount(session)} onInvestmentRefresh={() => void loadAccount(session)} onPixTransfer={transferPix} onConvertBalance={convertBalance} onInvestmentTransfer={transferInvestment} onInvestmentPurchase={purchaseInvestment} onInvestmentSale={sellInvestment} onLogout={() => void logout()} />;
+  if (session) return <AccountHome key={session.user.id} theme={theme} onThemeChange={setTheme} session={session} conta={conta} investimento={investimento} loading={loadingAccount} notice={notice} accountError={accountError} onDismissAccountError={() => setAccountError(null)} onRefresh={() => void loadAccount(session)} onInvestmentRefresh={() => void loadAccount(session)} onPixTransfer={transferPix} onConvertBalance={convertBalance} onInvestmentTransfer={transferInvestment} onInvestmentPurchase={purchaseInvestment} onInvestmentSale={sellInvestment} onLogout={() => void logout()} />;
   const signingUp = mode === 'signup';
   return <SmokeLogin
     theme={theme}

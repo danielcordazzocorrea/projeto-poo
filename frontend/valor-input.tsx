@@ -1,7 +1,8 @@
-import type { InputHTMLAttributes } from 'react';
+import type { InputHTMLAttributes, Ref } from 'react';
 import { digitosParaValor, exibirValorMonetario } from './valor-monetario';
 
 type Props = Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'type' | 'inputMode'> & {
+  ref?: Ref<HTMLInputElement>;
   value: string;
   onValueChange: (valor: string) => void;
 };
