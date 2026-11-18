@@ -1,5 +1,6 @@
-import { Dinheiro, Quantidade, RegraDeNegocio, type TipoMoeda } from './dominio.ts';
+import { Dinheiro, RegraDeNegocio, type TipoMoeda } from './dominio.ts';
 import { buscarCotacoes, type Cotacoes } from './cotacoes.ts';
+import { CarteiraInvestimentos, OrdemNegociacao } from './negociacao.ts';
 
 export type DirecaoTransferencia = 'PARA_INVESTIMENTOS' | 'PARA_PRINCIPAL';
 export type ComprovanteCompra = {
@@ -30,6 +31,7 @@ export type ContaInvestimento = {
 };
 
 export interface RepositorioInvestimentos {
+  consultarNegociacao(tipo: 'COMPRA' | 'VENDA', requisicaoId: string): Promise<OrdemNegociacao | null>;
   consultarInvestimentos(): Promise<ContaInvestimento>;
   consultarMoedaPrincipal(): Promise<TipoMoeda>;
   transferirInvestimento(direcao: DirecaoTransferencia, centavos: bigint,
@@ -68,8 +70,10 @@ export class Investimentos {
       || typeof requisicaoId !== 'string' || !requisicaoId.trim()) {
       throw new RegraDeNegocio('Dados da compra inválidos.');
     }
+    const ordem = new OrdemNegociacao('COMPRA', codigo, quantidade, preco, requisicaoId);
+    await this.validarOrdem(ordem);
     const comprovante = await this.repositorio.comprarAtivo(
-      codigo, Quantidade.positiva(quantidade).micros, Dinheiro.positivo(preco).centavos, requisicaoId, cotacaoEm,
+      codigo, ordem.quantidade.micros, ordem.preco.centavos, requisicaoId, cotacaoEm,
     );
     return { conta: await this.consultarConta(), comprovante };
   }
@@ -80,9 +84,25 @@ export class Investimentos {
       ) {
       throw new RegraDeNegocio('Dados da venda inválidos.');
     }
+    const ordem = new OrdemNegociacao('VENDA', codigo, quantidade, preco, requisicaoId);
+    await this.validarOrdem(ordem);
     await this.repositorio.venderAtivo(
-      codigo, Quantidade.positiva(quantidade).micros, Dinheiro.positivo(preco).centavos, requisicaoId,
+      codigo, ordem.quantidade.micros, ordem.preco.centavos, requisicaoId,
     );
     return this.consultarConta();
+  }
+  private async validarOrdem(ordem: OrdemNegociacao): Promise<void> {
+    const anterior = await this.repositorio.consultarNegociacao(ordem.tipo, ordem.requisicaoId);
+    if (anterior) { ordem.validarRepeticao(anterior); return; }
+    const carteira = CarteiraInvestimentos.reconstituir(await this.repositorio.consultarInvestimentos());
+    try { carteira.executar(ordem); }
+    catch (erro) {
+      // Outra requisição pode ter concluído a mesma ordem entre as duas leituras.
+      const concluida = await this.repositorio.consultarNegociacao(ordem.tipo, ordem.requisicaoId);
+      if (concluida) { ordem.validarRepeticao(concluida); return; }
+      throw erro;
+    }
+    // A projeção não é persistida como snapshot: o SQL revalida e aplica sob lock,
+    // evitando que duas ordens concorrentes gastem o mesmo saldo ou posição.
   }
 }

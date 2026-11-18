@@ -62,8 +62,11 @@ export class Corretora {
 
   async transferirPix(chaveDestino: unknown, valor: unknown) {
     const chave = this.validarChavePix(chaveDestino);
-    const centavos = Dinheiro.positivo(valor).centavos;
-    const origem = (await this.repositorio.consultarConta()).moedaSaldo;
+    const dinheiro = Dinheiro.positivo(valor);
+    const conta = await this.repositorio.consultarConta();
+    conta.prepararPix(chave, dinheiro);
+    const centavos = dinheiro.centavos;
+    const origem = conta.moedaSaldo;
     const destino = await this.repositorio.consultarMoedaDestinoPix(chave);
     const cotacoes = origem === destino ? null : await this.buscarTaxas();
     const comprovante = await this.repositorio.transferirPix(chave, centavos, origem, destino, cotacoes);

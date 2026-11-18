@@ -68,6 +68,25 @@ export function inteiroDoBanco(valor: unknown, campo: string): bigint {
 export class Dinheiro {
   // O construtor privado força o uso das fábricas que validam a origem do valor.
   private constructor(readonly centavos: bigint) {}
+  static zero(): Dinheiro { return new Dinheiro(0n); }
+  private static calculado(centavos: bigint): Dinheiro {
+    if (centavos < 0n) throw new RegraDeNegocio('Saldo insuficiente.');
+    if (centavos > MAXIMO_SEGURO) throw new RegraDeNegocio('Limite de saldo excedido.');
+    return new Dinheiro(centavos);
+  }
+  somar(outro: Dinheiro): Dinheiro { return Dinheiro.calculado(this.centavos + outro.centavos); }
+  subtrair(outro: Dinheiro): Dinheiro { return Dinheiro.calculado(this.centavos - outro.centavos); }
+  cobre(outro: Dinheiro): boolean { return this.centavos >= outro.centavos; }
+  exigirPositivo(): void {
+    if (this.centavos === 0n) throw new RegraDeNegocio('O valor deve ser maior que zero.');
+  }
+  multiplicar(quantidade: Quantidade, arredondamento: 'cima' | 'baixo'): Dinheiro {
+    const produto = this.centavos * quantidade.micros;
+    const total = (produto + (arredondamento === 'cima' ? 999999n : 0n)) / 1000000n;
+    const resultado = Dinheiro.calculado(total);
+    resultado.exigirPositivo();
+    return resultado;
+  }
   // Cria dinheiro a partir da entrada do usuário, que deve ser positiva.
   static positivo(valor: unknown): Dinheiro {
     return new Dinheiro(decimalPositivo(valor, 2, 'valor'));
@@ -92,6 +111,16 @@ export function validarTipoMoeda(valor: unknown): TipoMoeda {
 export class Quantidade {
   // Uma unidade equivale a 1.000.000 de micros.
   private constructor(readonly micros: bigint) {}
+  static zero(): Quantidade { return new Quantidade(0n); }
+  somar(outra: Quantidade): Quantidade {
+    const total = this.micros + outra.micros;
+    if (total > MAXIMO_SEGURO) throw new RegraDeNegocio('Limite de quantidade excedido.');
+    return new Quantidade(total);
+  }
+  subtrair(outra: Quantidade): Quantidade {
+    if (outra.micros > this.micros) throw new RegraDeNegocio('Quantidade indisponível para venda.');
+    return new Quantidade(this.micros - outra.micros);
+  }
   // Valida quantidade digitada, por exemplo "0.5".
   static positiva(valor: unknown): Quantidade {
     return new Quantidade(decimalPositivo(valor, 6, 'quantidade'));
@@ -130,6 +159,14 @@ export class Ativo {
 // Uma posição une um ativo à quantidade que o usuário possui.
 export class Posicao {
   constructor(readonly ativo: Ativo, readonly quantidade: Quantidade) {}
+  comprar(quantidade: Quantidade): Posicao {
+    if (quantidade.micros === 0n) throw new RegraDeNegocio('Quantidade deve ser positiva.');
+    return new Posicao(this.ativo, this.quantidade.somar(quantidade));
+  }
+  vender(quantidade: Quantidade): Posicao {
+    if (quantidade.micros === 0n) throw new RegraDeNegocio('Quantidade deve ser positiva.');
+    return new Posicao(this.ativo, this.quantidade.subtrair(quantidade));
+  }
   // Devolve os dados do ativo e a quantidade em texto decimal.
   paraJson() { return { ativo: this.ativo.paraJson(), quantidade: this.quantidade.formatar() }; }
 }
@@ -196,6 +233,23 @@ export class Conta {
     readonly movimentacoes: Movimentacao[],
     readonly moedaSaldo: TipoMoeda = 'BRL',
   ) {}
+  debitar(valor: Dinheiro): Conta {
+    valor.exigirPositivo();
+    return this.comSaldo(this.saldo.subtrair(valor));
+  }
+  creditar(valor: Dinheiro): Conta {
+    valor.exigirPositivo();
+    return this.comSaldo(this.saldo.somar(valor));
+  }
+  prepararPix(chaveDestino: string, valor: Dinheiro): Conta {
+    if (chaveDestino.trim().toLowerCase() === this.chavePix.trim().toLowerCase()) {
+      throw new RegraDeNegocio('Não é possível enviar Pix para a própria chave.');
+    }
+    return this.debitar(valor);
+  }
+  private comSaldo(saldo: Dinheiro): Conta {
+    return new Conta(this.id, this.usuarioId, saldo, this.chavePix, [...this.posicoes], [...this.movimentacoes], this.moedaSaldo);
+  }
   // Serializa a conta e todos os objetos que ela contém.
   paraJson() {
     return {

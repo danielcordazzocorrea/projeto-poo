@@ -1,5 +1,10 @@
 # Guia de leitura da POO da corretora
 
+Para o fluxo atual de compras, vendas e Pix com regras nas classes, comece pelo
+[modelo de domínio comportamental](dominio-comportamental.md). Ele descreve as
+classes, a utilização nos serviços, a idempotência e o roteiro de demonstração.
+Os exemplos abaixo explicam também o fluxo inicial do catálogo simulado (`/compras`).
+
 Este guia mostra **em que ordem ler o código**. Os três arquivos da pasta
 `supabase/functions/_shared/` agora têm comentários junto às linhas de lógica.
 Leia um trecho por vez; não tente entender os arquivos inteiros de uma vez.
@@ -18,7 +23,8 @@ Frontend ou cliente HTTP
   → Conta.paraJson(): prepara a resposta da API
 ```
 
-O frontend atual ainda não tem botão de compra. A rota da API já existe.
+O frontend atual compra e vende pelos endpoints `/investimentos/compras` e
+`/investimentos/vendas`, com cotação obtida no servidor e regras da carteira.
 Depósito e venda seguem o mesmo desenho.
 
 ## 2. Leia `dominio.ts`: o vocabulário da corretora
