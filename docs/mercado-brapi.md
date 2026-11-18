@@ -18,8 +18,8 @@ Base: `/functions/v1/corretora`. As rotas exigem a sessão Supabase
   `consultado_em` registra a obtenção no backend e permanece igual no cache.
 - `GET /mercado/ativos/PETR4/historico?periodo=1mo` retorna
   `{ codigo, periodo: "1mo", intervalo: "1d", pontos: [{ data: "2026-11-13", preco_brl: "42.50" }], consultado_em, fonte: "brapi" }`.
-  O período padrão é `1mo`. Aceita `1d`, `5d`, `1mo`, `6mo`, `ytd`, `1y`, `5y` e `max`.
-  Os intervalos solicitados são, respectivamente, `5m`, `60m`, `1d`, `1d`, `1d`, `1d`, `1wk` e `1mo`.
+  O período padrão é `1mo`. Aceita `1d`, `5d`, `1mo`, `3mo`, `6mo`, `ytd`, `1y`, `5y` e `max`.
+  Os intervalos solicitados são, respectivamente, `5m`, `60m`, `1d`, `1d`, `1d`, `1d`, `1d`, `1wk` e `1mo`.
   Se o plano recusar `5m` ou `60m`, a função tenta novamente com pontos diários (`1d`)
   e informa esse intervalo na resposta.
   Nos períodos intradiários, `data` é ISO UTC com horário; nos demais, `YYYY-MM-DD`.
@@ -33,12 +33,22 @@ conforme a cobertura da chave. A fonte do gráfico é `close`, que pode conter
 ajustes do provedor; não é uma série de retorno calculada pela aplicação.
 Referência: [histórico de preços](https://brapi.dev/docs/acoes/historico).
 
-O frontend carrega o histórico de um mês ao selecionar um ativo, em requisição
+O frontend carrega o período selecionado (um mês por padrão), em requisição
 separada da cotação, sem atualização automática. Uma falha exibe mensagem e
 botão para tentar novamente. Trocar de ativo cancela a consulta anterior e
 descarta respostas antigas. O gráfico SVG não adiciona dependências; permite
 explorar preços por ponteiro ou controle de datas pelo teclado. Não há tabela de preços.
-Na interface, apenas `1 M` aparece. A API ainda aceita os períodos listados acima.
+O seletor mostra `1 D`, `5 D`, `1 M`, `6 M`, `YTD`, `1 A`, `5 A` e `Máx`.
+O botão `3 M` foi retirado após falhas nos ativos comuns; a interface oferece
+até um mês no gratuito. O contrato da API ainda aceita `3mo`.
+Na demonstração com chave gratuita, períodos acima de três meses e YTD têm cadeado.
+Os botões permanecem acionáveis por mouse e teclado para abrir um modal Premium,
+sem alterar o período ou consultar a API. O modal explica que não há assinatura
+ou cobrança real. Não é um controle de assinatura no servidor.
+PETR4, ITUB4, VALE3 e MGLU3 são exceções de teste, com os períodos liberados.
+Ao sair de um ativo de teste com período longo selecionado para um ativo comum,
+o período efetivo volta a um mês antes da consulta. O código não detecta o plano
+da chave automaticamente: esta política é específica da demonstração gratuita.
 Uma negativa HTTP 400 da brapi para período longo retorna 422
 `PERIODO_INDISPONIVEL`, explicando a possível restrição do plano. Nos períodos
 curtos, somente o intervalo pode cair para `1d`; a janela solicitada é preservada.

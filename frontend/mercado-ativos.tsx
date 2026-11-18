@@ -1,3 +1,7 @@
+import { aceitaEntradaDecimal } from './moeda';
+import { consultarHistoricoYahoo } from './historico-cliente';
+import { SaldoDisponivel } from './saldo-disponivel';
+import { PERIODOS_HISTORICO, type PeriodoHistorico } from '../supabase/functions/_shared/mercado-periodos';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { BarChart3, Check, Clock3, Search } from 'lucide-react';
 import type { BuscaAtivos, CotacaoAtivo, HistoricoAtivo } from '../supabase/functions/_shared/mercado-brapi';
@@ -11,7 +15,10 @@ import type { ComprovanteCompra } from './investment-account';
 
 const url = import.meta.env.VITE_SUPABASE_URL?.trim() || 'https://pzaakefnbhwlhatgzgea.supabase.co';
 const chave = (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || '').trim();
-const periodoGrafico = '1mo';
+const testeYahoo = import.meta.env.VITE_YAHOO_TEST === 'true';
+async function consultarHistorico(ticker: string, periodo: PeriodoHistorico, token: string, signal: AbortSignal): Promise<HistoricoAtivo> {
+  return consultarHistoricoYahoo({ url, chave, ticker, periodo, token, signal, local: testeYahoo });
+}
 async function consultar<T>(caminho: string, token: string, signal: AbortSignal): Promise<T> {
   const resposta = await fetch(`${url}/functions/v1/corretora/mercado/ativos${caminho}`, {
     headers: { apikey: chave, Authorization: `Bearer ${token}` }, signal,
@@ -42,6 +49,8 @@ export function MercadoAtivos({ token, onPurchase, saldoInvestimentos, contaCarr
   const [pagina, setPagina] = useState(1);
   const [lista, setLista] = useState<BuscaAtivos | null>(null);
   const [ticker, setTicker] = useState<string | null>(null);
+  const [periodoSelecionado, setPeriodoSelecionado] = useState<PeriodoHistorico>('1mo');
+  const periodoGrafico = periodoSelecionado;
   const [cotacao, setCotacao] = useState<CotacaoAtivo | null>(null);
   const [erroBusca, setErroBusca] = useState(false);
   const [erroCotacao, setErroCotacao] = useState(false);
@@ -107,7 +116,7 @@ export function MercadoAtivos({ token, onPurchase, saldoInvestimentos, contaCarr
     setHistorico(null); setErroHistorico('');
     if (!ticker) { setCarregandoHistorico(false); return () => controller.abort(); }
     setCarregandoHistorico(true);
-    void consultar<HistoricoAtivo>(`/${encodeURIComponent(ticker)}/historico?periodo=${periodoGrafico}`, token, controller.signal)
+    void consultarHistorico(ticker, periodoGrafico, token, controller.signal)
       .then(dados => { if (!controller.signal.aborted) setHistorico(dados); })
       .catch(erro => {
         if (controller.signal.aborted) return;
@@ -115,7 +124,7 @@ export function MercadoAtivos({ token, onPurchase, saldoInvestimentos, contaCarr
       })
       .finally(() => { if (!controller.signal.aborted) setCarregandoHistorico(false); });
     return () => controller.abort();
-  }, [ticker, token, tentativaHistorico]);
+  }, [ticker, token, periodoGrafico, tentativaHistorico]);
 
   async function comprar(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -138,7 +147,7 @@ export function MercadoAtivos({ token, onPurchase, saldoInvestimentos, contaCarr
       <div>
         <p className="market-kicker">Mercado</p>
         <h3>Encontre ativos para acompanhar</h3>
-        <p>Pesquise pelo nome ou ticker.</p>
+        <p>Pesquise as ações, EFTs e FIIs pelo nome ou ticker.</p>
       </div>
       <span className="market-heading-icon"><BarChart3 size={24} aria-hidden /></span>
     </header>
@@ -196,22 +205,42 @@ export function MercadoAtivos({ token, onPurchase, saldoInvestimentos, contaCarr
         <div className="market-asset-title"><span>{cotacao.codigo}</span><h4>{cotacao.nome}</h4></div>
         <strong className="market-price">{preco(cotacao.preco_brl)}</strong>
         <p><Clock3 size={14} aria-hidden />{horario(cotacao.cotacao_em)}</p>
-        <span className="market-main-balance">Saldo da conta de investimentos: <strong>{saldoInvestimentos}</strong></span>
+        <SaldoDisponivel className="market-main-balance" rotulo="Saldo da conta de investimentos" saldo={saldoInvestimentos} />
         <form className="market-buy-form" onSubmit={event => void comprar(event)}>
           <label htmlFor="market-quantity">Quantidade</label>
-          <div><input ref={purchaseQuantityInput} id="market-quantity" type="text" inputMode="decimal" value={quantidade} onChange={event => setQuantidade(event.target.value)} placeholder="1" required disabled={comprando || loading} />
+          <div><input ref={purchaseQuantityInput} id="market-quantity" type="text" inputMode="decimal" value={quantidade} onChange={event => aceitaEntradaDecimal(event.target.value, 6) && setQuantidade(event.target.value)} placeholder="1" required disabled={comprando || loading} />
             <button type="submit" disabled={comprando || loading || !contaCarregada}>{comprando ? 'Comprando…' : 'Comprar ativo'}</button></div>
         </form>
         {compraConcluida && <span className="market-buy-success" role="status">Compra concluída. Sua carteira foi atualizada.</span>}
       </article>}
 
     {ticker && <section className="market-history-card market-quote-card" aria-label={`Evolução do preço de ${ticker}`} aria-busy={carregandoHistorico}>
-      <div className="market-history-heading"><h3>Evolução do preço · {ticker}</h3><span>1 M</span></div>
+      <div className="market-history-heading"><h3>Evolução do preço · {ticker}</h3><span>{PERIODOS_HISTORICO[periodoGrafico].descricao}</span></div>
+      <div className="market-history-layout">
+      <div className="market-history-periods" role="group" aria-label="Período do gráfico">
+        {(Object.keys(PERIODOS_HISTORICO) as PeriodoHistorico[]).filter(periodo => periodo !== '3mo').map(periodo => {
+          return <button key={periodo} type="button" aria-pressed={periodoGrafico === periodo}
+            aria-label={PERIODOS_HISTORICO[periodo].descricao}
+            title={PERIODOS_HISTORICO[periodo].descricao}
+            onClick={() => {
+              if (periodo !== periodoGrafico) {
+                setHistorico(null); setErroHistorico(''); setCarregandoHistorico(true);
+              }
+              setPeriodoSelecionado(periodo);
+            }}>
+            {PERIODOS_HISTORICO[periodo].rotulo}
+          </button>;
+        })}
+      </div>
+      <div className="market-history-content">
+      <p className="market-history-note">Histórico: Yahoo Finance{testeYahoo ? ' (servidor local de teste)' : ''}. Busca e cotação: brapi. A cobertura varia por ativo e período; os preços podem diferir entre as fontes.</p>
       {carregandoHistorico && <p role="status">Carregando histórico…</p>}
       {erroHistorico && <div role="alert"><p>Não foi possível carregar o gráfico. {erroHistorico}</p>
         <button type="button" onClick={() => setTentativaHistorico(valor => valor + 1)}>Tentar novamente</button>
       </div>}
       {historico?.codigo === ticker && historico.periodo === periodoGrafico && !carregandoHistorico && !erroHistorico && <GraficoAtivo key={`${ticker}:${periodoGrafico}:${historico.consultado_em}`} historico={historico} />}
+      </div>
+      </div>
     </section>}
 
       {cotacao && <article className="market-quote-card market-details-card">

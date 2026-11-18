@@ -1,3 +1,5 @@
+import { aceitaEntradaDecimal } from './moeda';
+import { ValorInput } from './valor-input';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ArrowDownToLine, ArrowLeft, ArrowUpFromLine, Check, ChevronRight, HandCoins, RefreshCw } from 'lucide-react';
 import { MercadoAtivos, consultarCotacao } from './mercado-ativos';
@@ -143,7 +145,11 @@ export function InvestmentAccount({ principal, investimento, loading, token, cat
       </dl>
     </section>
     <button type="button" className="investment-positions-trigger" onClick={() => onCategoryChange('compradas')}>
-      <span className="investment-positions-trigger-icon"><GrowthHomeIcon /></span>
+      <span className="investment-positions-trigger-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+          <path d="M4 5h16M4 10h12M4 15h16M4 20h12" />
+        </svg>
+      </span>
       <span><strong>Ver ações compradas</strong><small>{investimento?.posicoes.length ?? 0} {investimento?.posicoes.length === 1 ? 'ativo na carteira' : 'ativos na carteira'}</small></span>
       <ChevronRight size={21} aria-hidden />
     </button>
@@ -167,7 +173,7 @@ export function InvestmentAccount({ principal, investimento, loading, token, cat
             <button type="button" className={direcao === 'PARA_PRINCIPAL' ? 'is-selected' : ''} aria-pressed={direcao === 'PARA_PRINCIPAL'} onClick={() => { setDirecao('PARA_PRINCIPAL'); setReceipt(null); }}><ArrowUpFromLine size={17} aria-hidden />Para conta principal</button>
           </div>
           <label htmlFor="investment-value">Valor em {moedaOrigem}</label>
-          <input ref={valueInput} id="investment-value" type="text" inputMode="decimal" value={valor} onChange={event => setValor(event.target.value)} placeholder="0,00" required disabled={loading || sending || !principal || !investimento} />
+          <ValorInput ref={valueInput} id="investment-value" value={valor} onValueChange={setValor} placeholder="0,00" required disabled={loading || sending || !principal || !investimento} />
           {principal?.moeda_saldo !== 'BRL' && <p className="account-pix-note">A conversão entre {principal?.moeda_saldo} e BRL é automática nesta transferência. O valor convertido será mostrado no comprovante.</p>}
           <button type="submit" className="account-pix-submit" disabled={loading || sending || !principal || !investimento}>{sending && <RefreshCw size={16} className="account-spin" aria-hidden />}{sending ? 'Transferindo…' : 'Confirmar transferência'}</button>
         </form>
@@ -214,7 +220,7 @@ export function InvestmentAccount({ principal, investimento, loading, token, cat
         </div>
         <form className="account-pix-form" onSubmit={event => { if (ativoParaVenda) void vender(event, ativoParaVenda); else event.preventDefault(); }}>
           <label htmlFor="sell-dialog-quantity">Qual quantidade você quer vender?</label>
-          <input ref={saleQuantityInput} id="sell-dialog-quantity" type="text" inputMode="decimal" value={quantidadeVenda} onChange={event => setQuantidadeVenda(event.target.value)} placeholder="0" required disabled={vendendo || loading || consultandoVenda} />
+          <input ref={saleQuantityInput} id="sell-dialog-quantity" type="text" inputMode="decimal" value={quantidadeVenda} onChange={event => aceitaEntradaDecimal(event.target.value, 6) && setQuantidadeVenda(event.target.value)} placeholder="0" required disabled={vendendo || loading || consultandoVenda} />
           {erroCotacaoVenda && <p className="investment-sale-error" role="alert">{erroCotacaoVenda}</p>}
           <p className="account-pix-note">O valor será creditado na sua conta de investimentos pela cotação consultada na confirmação.</p>
           <button type="submit" className="account-pix-success-close" disabled={vendendo || loading || consultandoVenda || !cotacaoVenda || !quantidadeVenda.trim()}>{vendendo ? 'Vendendo…' : 'Confirmar venda'}</button>
@@ -224,7 +230,7 @@ export function InvestmentAccount({ principal, investimento, loading, token, cat
     </dialog>
   </section>;
 
-  return <section className="investment-selected-content" aria-busy={loading}>
+  return <section className="investment-selected-content investment-variable-income-content" aria-busy={loading}>
     <button type="button" className="account-back" onClick={() => onCategoryChange(null)}><ArrowLeft size={17} aria-hidden />Voltar às categorias</button>
     <h2>Ações, BDRs, EFTs</h2><MercadoAtivos onQueryError={onQueryError} onTradeError={onOperationError} onRefresh={onRefresh} loading={loading} token={token} onPurchase={onPurchase}
       saldoInvestimentos={investimento ? formatarSaldo(investimento.saldo, 'BRL') : 'Carregando…'}

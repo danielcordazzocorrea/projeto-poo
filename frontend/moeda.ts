@@ -1,4 +1,9 @@
 export type TipoMoeda = 'BRL' | 'USD' | 'EUR';
+
+// Permite editar/apagar o campo e digitar um único separador decimal.
+export function aceitaEntradaDecimal(valor: string, casas: 2 | 6): boolean {
+  return new RegExp('^[0-9]*([.,][0-9]{0,' + casas + '})?$').test(valor);
+}
 export type PixReceipt = { moeda_recebida: TipoMoeda; valor_recebido: string } | null;
 export type TipoMovimentacao = 'DEPOSITO' | 'COMPRA' | 'VENDA' | 'PIX_ENVIADO' | 'PIX_RECEBIDO' | 'CONVERSAO';
 export type Movimentacao = {

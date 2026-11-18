@@ -47,5 +47,7 @@ test('serviço valida entradas e delega operações ao repositório', async () =
   ]);
   await assert.rejects(corretora.comprar('inválido', '1'), RegraDeNegocio);
   await assert.rejects(corretora.transferirPix('  ', '1'), RegraDeNegocio);
+  await assert.rejects(corretora.transferirPix('usuario@example.com', '1'), /própria chave/);
+  await assert.rejects(corretora.transferirPix('outro@example.com', '51'), /Saldo insuficiente/);
   assert.equal(chamadas.length, 5);
 });

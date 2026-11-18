@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createClient, type Session, type SupabaseClient } from '@supabase/supabase-js';
 import { AccountHome } from './account-home';
 import { SmokeLogin } from '@/components/ui/smoke-login';
+import { useSpotlightCards } from '@/components/ui/spotlight-card';
 import { CONFIGURATION_NOTICE, submitCredentials } from './auth';
 import { readSavedTheme, THEME_STORAGE_KEY, type Theme } from '@/lib/theme';
 import { type Conta, type ConversionReceipt, type PixReceipt, type TipoMoeda } from './moeda';
@@ -23,6 +24,7 @@ const configurado = chave.startsWith('sb_publishable_') && !chave.includes('COLE
 const supabase: SupabaseClient | null = configurado ? createClient(url, chave) : null;
 
 export default function App() {
+  useSpotlightCards();
   const [theme, setTheme] = useState<Theme>(readSavedTheme);
   const [mode, setMode] = useState<'login' | 'signup'>(() => window.location.pathname === '/cadastro' ? 'signup' : 'login');
   const [session, setSession] = useState<Session | null>(null);

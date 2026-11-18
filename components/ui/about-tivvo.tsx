@@ -1,5 +1,5 @@
 import { useId, useRef } from 'react';
-import { ArrowRightLeft, ChartNoAxesCombined, ScanLine, UserRound, X } from 'lucide-react';
+import { ArrowRightLeft, ChartNoAxesCombined, History, ScanLine, UserRound, X } from 'lucide-react';
 
 type AboutTivvoProps = {
   triggerClassName?: string;
@@ -30,9 +30,10 @@ export function AboutTivvo({ triggerClassName, theme = 'dark' }: AboutTivvoProps
       <h3>O que você encontra por aqui</h3>
       <dl className="tivvo-about-features">
         <div><UserRound size={22} aria-hidden /><div><dt>Sua conta</dt><dd>Crie seu cadastro, consulte seus dados e acompanhe o saldo simulado.</dd></div></div>
-        <div><ChartNoAxesCombined size={22} aria-hidden /><div><dt>Investimentos <span>Em desenvolvimento</span></dt><dd>Uma área dedicada à consulta de ativos e à construção de uma carteira simulada. As operações ainda não estão disponíveis na interface.</dd></div></div>
-        <div><ArrowRightLeft size={22} aria-hidden /><div><dt>Moedas</dt><dd>Converta seu saldo simulado entre real, dólar e euro com uma cotação de referência.</dd></div></div>
-        <div><ScanLine size={22} aria-hidden /><div><dt>Pix</dt><dd>Envie saldo simulado para outra conta tivvo usando uma chave Pix de e-mail.</dd></div></div>
+        <div><ChartNoAxesCombined size={22} aria-hidden /><div><dt>Investimentos</dt><dd>Transfira saldo para sua conta de investimentos, pesquise ativos, consulte cotações e gráficos de preços e compre ou venda ativos para montar sua carteira simulada.</dd></div></div>
+        <div><ArrowRightLeft size={22} aria-hidden /><div><dt>Moedas</dt><dd>Converta seu saldo simulado entre real, dólar e euro com uma cotação de referência e confira os detalhes no comprovante.</dd></div></div>
+        <div><ScanLine size={22} aria-hidden /><div><dt>Pix</dt><dd>Envie e receba saldo simulado entre contas tivvo usando uma chave Pix de e-mail, com conversão automática entre as moedas das contas e comprovante de envio.</dd></div></div>
+        <div><History size={22} aria-hidden /><div><dt>Histórico de transações</dt><dd>Acompanhe os Pix enviados e recebidos, as conversões de moeda e as compras e vendas de ativos, com filtros para consultar as transações mais recentes.</dd></div></div>
       </dl>
       <p className="tivvo-about-note">Este é um ambiente de demonstração: não movimentamos dinheiro real e os valores apresentados são simulados.</p>
       <button type="button" className="tivvo-about-done" onClick={() => dialogRef.current?.close()}>Voltar para a tivvo</button>

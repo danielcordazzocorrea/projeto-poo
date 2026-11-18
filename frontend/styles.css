@@ -13,6 +13,36 @@ button, input { font: inherit; }
 .login-form-panel input[aria-invalid="true"] { border-color: #9dff3a; }
 button:not(:disabled) { cursor: pointer; }
 
+/* Cursor-following border spotlight, adapted from the supplied GlowCard. */
+[data-spotlight-static] { position: relative; }
+[data-spotlight-card] { isolation: isolate; --spotlight-rgb: 157 255 58; }
+.account-app [data-spotlight-card], .tivvo-about--light[data-spotlight-card] { --spotlight-rgb: 76 147 48; }
+.account-app[data-theme="dark"] [data-spotlight-card] { --spotlight-rgb: 157 255 58; }
+[data-spotlight-card]::before,
+[data-spotlight-card]::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  z-index: 2;
+  border-radius: inherit;
+  padding: 2px;
+  pointer-events: none;
+  background: radial-gradient(190px circle at var(--spotlight-x, 50%) var(--spotlight-y, 50%),
+    rgb(255 255 255 / .95), rgb(var(--spotlight-rgb) / .9) 24%, rgb(var(--spotlight-rgb) / .3) 52%, transparent 100%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity .18s ease;
+}
+[data-spotlight-card]::after { filter: blur(8px); padding: 4px; z-index: -1; }
+[data-spotlight-active]::before { opacity: 1; }
+[data-spotlight-active]::after { opacity: .65; }
+@media (prefers-reduced-motion: reduce) {
+  [data-spotlight-card]::before, [data-spotlight-card]::after { transition: none; }
+}
+
 .login-shell { position: relative; isolation: isolate; display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); align-items: center; gap: clamp(32px, 6vw, 96px); min-height: 100dvh; padding: 48px max(32px, calc((100vw - 1280px) / 2)); background: #09140e; }
 .login-background { position: fixed; inset: 0; z-index: -1; pointer-events: none; }
 .login-intro { align-self: stretch; padding-block: 8px; }
@@ -175,6 +205,14 @@ button:not(:disabled) { cursor: pointer; }
 .account-transaction-main span, .account-transaction-values span { color: var(--account-muted); font-size: 12px; line-height: 1.45; }
 .account-transaction-values { text-align: right; }
 .account-pix { max-width: 620px; }
+.account-pix .account-detail-intro { font-size: 17px; line-height: 1.6; }
+.account-pix .account-pix-form h2 { font-size: 22px; }
+.account-pix .account-pix-form label { font-size: 15px; }
+.account-pix .account-pix-form input { font-size: 18px; }
+.account-pix .account-pix-value > span { font-size: 16px; }
+.account-pix .account-operation-balance { font-size: 15px; }
+.account-pix .account-pix-submit { font-size: 16px; }
+.account-pix .account-pix-note { font-size: 14px; }
 .account-pix-form { display: grid; gap: 9px; margin-top: 28px; }
 .account-pix-form h2 { margin-bottom: 8px; font-size: 20px; font-weight: 600; letter-spacing: -.4px; }
 .account-pix-form label { font-size: 13px; font-weight: 600; }
@@ -219,6 +257,8 @@ button:not(:disabled) { cursor: pointer; }
 .account-loading-dialog-content h2 { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: -.4px; }
 .account-loading-dialog-content p { margin-top: 4px; color: var(--account-muted); font-size: 14px; line-height: 1.5; }
 .account-pix-success-icon { display: grid; place-items: center; width: 64px; height: 64px; margin-bottom: 22px; border-radius: 20px; background: #e8f4e1; color: #3d8332; animation: account-pix-arrive .36s ease-out both; }
+.account-pix-success-icon.account-purchase-error-icon { background: #fbe9e9; color: #bd3434; }
+.account-app[data-theme="dark"] .account-pix-success-icon.account-purchase-error-icon { background: #452424; color: #ff9999; }
 .account-pix-success-eyebrow { color: #52775a; font-size: 12px; font-weight: 600; }
 .account-pix-dialog h2 { margin-top: 6px; font-size: 26px; font-weight: 600; letter-spacing: -.7px; line-height: 1.2; }
 .account-pix-success-amount { margin-top: 18px; font-size: clamp(28px, 7vw, 36px); letter-spacing: -1px; font-variant-numeric: tabular-nums; }
@@ -269,6 +309,7 @@ button:not(:disabled) { cursor: pointer; }
 .investment-positions-trigger > svg { color: var(--account-muted); }
 .investment-selected-content { max-width: 850px; }
 .investment-fixed-income-content { max-width: none; }
+.investment-variable-income-content { width: 100%; max-width: none; min-width: 0; }
 .investment-selected-content .account-back { margin-bottom: 28px; }
 .investment-selected-content > h2 { font-size: 24px; letter-spacing: -.6px; }
 .investment-selected-content .account-market { max-width: none; }
@@ -433,23 +474,25 @@ button:not(:disabled) { cursor: pointer; }
 .market-pagination button:disabled { opacity: .4; }
 .market-quote-grid { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.3fr); gap: 14px; margin-top: 24px; }
 .market-quote-card { min-width: 0; padding: 22px; border: 1px solid var(--account-line); border-radius: 18px; background: white; }
-.market-price-card { display: flex; flex-direction: column; min-height: 244px; background: #14291e; border-color: #14291e; color: #f4f6f2; }
+.market-price-card { display: flex; flex-direction: column; align-self: stretch; min-height: 244px; background: #14291e; border-color: #14291e; color: #f4f6f2; }
 .market-price-card .market-card-heading > span:first-child { color: #c1d7c7; }
+.market-price-card .market-card-heading > span { font-size: 14px; }
 .market-live-indicator { display: inline-flex; align-items: center; gap: 6px; color: #c9edae !important; }
 .market-live-indicator::before { width: 6px; height: 6px; border-radius: 50%; background: #9dff3a; content: ''; }
 .market-asset-title { display: grid; gap: 4px; margin-top: 28px; }
-.market-asset-title > span { color: #c1d7c7; font-size: 13px; font-weight: 600; letter-spacing: .03em; }
-.market-asset-title h4 { overflow-wrap: anywhere; font-size: 16px; font-weight: 500; }
-.market-price { margin-top: auto; font-size: clamp(29px, 4vw, 38px); letter-spacing: -1.2px; font-variant-numeric: tabular-nums; }
-.market-price-card p { display: flex; align-items: center; gap: 7px; margin-top: 10px; color: #c1d7c7; font-size: 11px; line-height: 1.4; }
-.market-main-balance { display: block; margin-top: 13px; color: #c1d7c7; font-size: 11px; }
+.market-asset-title > span { color: #c1d7c7; font-size: 15px; font-weight: 600; letter-spacing: .03em; }
+.market-asset-title h4 { overflow-wrap: anywhere; font-size: 18px; font-weight: 500; }
+.market-price { margin-top: 20px; font-size: clamp(32px, 4.3vw, 42px); letter-spacing: -1.2px; font-variant-numeric: tabular-nums; }
+.market-price-card p { display: flex; align-items: center; gap: 7px; margin-top: 10px; color: #c1d7c7; font-size: 13px; line-height: 1.4; }
+.market-main-balance { display: block; margin-top: 13px; color: #c1d7c7; font-size: 13px; }
 .market-main-balance strong { color: #f4f6f2; font-variant-numeric: tabular-nums; }
 .market-buy-form { margin-top: 18px; }
-.market-buy-form label { display: block; margin-bottom: 7px; color: #c1d7c7; font-size: 11px; font-weight: 600; }
+.market-buy-form label { display: block; margin-bottom: 7px; color: #c1d7c7; font-size: 13px; font-weight: 600; }
 .market-buy-form > div { display: flex; gap: 8px; }
-.market-buy-form input { width: 100%; min-width: 0; height: 40px; padding: 8px 10px; border: 1px solid #395344; border-radius: 9px; outline: 0; background: #0c0d0c; color: #f4f6f2; font-size: 13px; }
+.market-buy-form input { width: 100%; min-width: 0; height: 40px; padding: 8px 10px; border: 1px solid #395344; border-radius: 9px; outline: 0; background: #0c0d0c; color: #f4f6f2; font-size: 15px; }
 .market-buy-form input:focus { border-color: #9dff3a; box-shadow: 0 0 0 2px #9dff3a1f; }
-.market-buy-form button { flex: none; min-height: 40px; padding: 8px 13px; border-radius: 9px; background: #9dff3a; color: #102016; font-size: 12px; font-weight: 700; }
+.market-buy-form input:focus-visible { outline: 0; }
+.market-buy-form button { flex: none; min-height: 40px; padding: 8px 13px; border-radius: 9px; background: #9dff3a; color: #102016; font-size: 14px; font-weight: 700; }
 .market-buy-success, .market-buy-error { display: block; margin-top: 10px; font-size: 11px; line-height: 1.4; }
 .market-buy-success { color: #c9edae; }
 .market-buy-error { color: #f2d1af; }
@@ -461,7 +504,7 @@ button:not(:disabled) { cursor: pointer; }
 .market-chart-placeholder span { position: relative; color: var(--account-muted); font-size: 12px; }
 .market-details-card { grid-column: 1 / -1; }
 .market-details-card dl { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 20px; }
-.market-details-card dl > div { min-width: 0; }
+.market-details-card dl > div { min-width: 0; text-align: center; }
 .market-details-card dt { color: var(--account-muted); font-size: 12px; }
 .market-details-card dd { margin-top: 5px; overflow-wrap: anywhere; font-size: 13px; font-weight: 600; line-height: 1.45; }
 .account-app[data-theme="dark"] .market-heading-icon, .account-app[data-theme="dark"] .market-result-symbol { background: #253726; color: #b8ef91; }
@@ -496,12 +539,30 @@ button:not(:disabled) { cursor: pointer; }
 .market-history-line { fill: none; stroke: #4c9330; stroke-width: 2.5; vector-effect: non-scaling-stroke; }
 .market-history-area { fill: #4c93301c; }
 .market-history-point { fill: #4c9330; }
-.market-history-selector { display: grid; gap: 6px; font-size: 12px; color: var(--account-muted); }
-.market-history-selector input { width: 100%; accent-color: #4c9330; }
 .market-history-note { line-height: 1.5; margin-block: 12px; }
 .market-history-card button { border: 1px solid var(--account-line); border-radius: 8px; padding: 8px 12px; }
 .account-app[data-theme="dark"] .market-history-line { stroke: #9dff3a; }
 .account-app[data-theme="dark"] .market-history-point { fill: #9dff3a; }
 .account-app[data-theme="dark"] .market-history-area { fill: #9dff3a19; }
 
+.account-operation-balance { margin-top: 8px; color: var(--account-muted); font-size: 13px; line-height: 1.5; }
+.account-operation-balance strong { color: var(--account-ink); font-variant-numeric: tabular-nums; }
+.operation-balance-toggle { display: flex; align-items: center; gap: 8px; }
+.operation-balance-toggle .operation-balance-visibility { display: inline-flex; flex: none; align-items: center; justify-content: center; min-width: 36px; min-height: 36px; padding: 6px; border: 0; border-radius: 8px; background: transparent; color: inherit; }
+.operation-balance-visibility:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 .market-quote-grid > .market-history-card { margin-top: 0; }
+.market-history-layout { display: grid; grid-template-columns: 58px minmax(0, 1fr); align-items: start; gap: 12px; margin-top: 16px; }
+.market-history-content { min-width: 0; }
+.market-history-content > .market-history-note:first-child { margin-top: 0; }
+.market-history-periods { display: flex; flex-direction: column; gap: 6px; }
+.market-history-periods button { display: inline-flex; align-items: center; justify-content: center; gap: 4px; width: 100%; min-height: 34px; padding: 7px 4px; font-size: 12px; white-space: nowrap; }
+.market-history-periods button[aria-pressed="true"] { border-color: #4c9330; background: #eef4e9; color: #34583b; font-weight: 600; }
+.account-app[data-theme="dark"] .market-history-periods button[aria-pressed="true"] { border-color: #9dff3a; background: #253726; color: #b8ef91; }
+@media (max-width: 520px) {
+  .market-history-layout { grid-template-columns: 48px minmax(0, 1fr); gap: 8px; }
+}
+.market-history-periods button.is-premium { opacity: .6; }
+.market-history-periods button.is-premium:hover { opacity: 1; }
+.market-premium-icon { display: inline-grid; place-items: center; width: 54px; height: 54px; border-radius: 16px; background: #e8f4e1; color: #326e20; margin-bottom: 12px; }
+.market-premium-dialog p { margin-top: 14px; font-size: 14px; line-height: 1.6; }
+.account-app[data-theme="dark"] .market-premium-icon { background: #253726; color: #9dff3a; }

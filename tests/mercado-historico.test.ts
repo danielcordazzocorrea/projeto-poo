@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { MercadoBrapi, ErroMercado } from '../supabase/functions/_shared/mercado-brapi.ts';
 import { responderMercado } from '../supabase/functions/_shared/mercado-http.ts';
+import { periodoPremium } from '../supabase/functions/_shared/mercado-periodos.ts';
 
 const instante = Date.parse('2026-11-16T18:00:00Z');
 const dia = (data: string) => Date.parse(`${data}T12:00:00Z`) / 1000;
@@ -102,14 +103,24 @@ test('períodos do seletor usam intervalos adequados e caches separados', async 
     consultados.push(`${range}:${interval}`);
     return Response.json({ results: [{ symbol: 'PETR4', data: { usedRange: range, usedInterval: interval, historicalDataPrice: pontos } }] });
   } });
-  for (const periodo of ['1d', '5d', '1mo', '6mo', 'ytd', '1y', '5y', 'max']) {
+  for (const periodo of ['1d', '5d', '1mo', '3mo', '6mo', 'ytd', '1y', '5y', 'max']) {
     const req = new Request(`https://teste/functions/v1/corretora/mercado/ativos/PETR4/historico?periodo=${periodo}`);
     const response = await responderMercado(req, mercado);
     assert.equal(response?.status, 200);
     assert.equal((await response?.json()).periodo, periodo);
     await mercado.historico('PETR4', periodo);
   }
-  assert.deepEqual(consultados, ['1d:5m', '5d:60m', '1mo:1d', '6mo:1d', 'ytd:1d', '1y:1d', '5y:1wk', 'max:1mo']);
+  assert.deepEqual(consultados, ['1d:5m', '5d:60m', '1mo:1d', '3mo:1d', '6mo:1d', 'ytd:1d', '1y:1d', '5y:1wk', 'max:1mo']);
+});
+
+test('demonstração gratuita libera até três meses e preserva exceções de teste', () => {
+  for (const ativo of ['BBAS3', 'BOVA11', 'HGLG11', 'PETR3', 'ITUB3']) {
+    for (const periodo of ['1d', '5d', '1mo', '3mo'] as const) assert.equal(periodoPremium(ativo, periodo), false);
+    for (const periodo of ['6mo', 'ytd', '1y', '5y', 'max'] as const) assert.equal(periodoPremium(ativo, periodo), true);
+  }
+  for (const ativo of ['PETR4', 'ITUB4', 'VALE3', 'MGLU3', ' petr4 ']) {
+    for (const periodo of ['6mo', 'ytd', '1y', '5y', 'max'] as const) assert.equal(periodoPremium(ativo, periodo), false);
+  }
 });
 
 test('períodos intradiários preservam pontos do mesmo dia e expiram em cinco minutos', async () => {

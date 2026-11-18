@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import type { ComprovanteCompra } from './investment-types';
+import { ValorInput } from './valor-input';
+import { SaldoDisponivel } from './saldo-disponivel';
 import type { Session } from '@supabase/supabase-js';
 import type { Theme } from '@/lib/theme';
 import { ArrowDownLeft, ArrowLeft, ArrowUpRight, ArrowRightLeft, ChartNoAxesCombined, Check, Eye, EyeOff, History, Landmark, LogOut, Moon, Sun, RefreshCw, UserRound } from 'lucide-react';
@@ -76,7 +78,7 @@ function transactionLabel(transaction: Movimentacao): string {
 export function AccountHome({ theme, onThemeChange, session, conta, investimento, loading, notice, accountError, onDismissAccountError, onRefresh, onPixTransfer, onConvertBalance, onInvestmentTransfer, onInvestmentPurchase, onInvestmentSale, onInvestmentRefresh, onLogout }: AccountHomeProps) {
   const [route, setRoute] = useState<AccountRoute>(() => routeFromPath(window.location.pathname));
   const area = route.area;
-  const [balanceVisible, setBalanceVisible] = useState(true);
+  const [balanceVisible, setBalanceVisible] = useState(false);
   const [pixKey, setPixKey] = useState('');
   const [pixValue, setPixValue] = useState('');
   const [sendingPix, setSendingPix] = useState(false);
@@ -276,11 +278,12 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
         </div> : area === 'pix' ? <div className="account-pix">
           <p className="account-detail-intro">Envie saldo simulado para outra conta tivvo usando a chave Pix de e-mail.</p>
           <form className="account-pix-form" onSubmit={event => void submitPix(event)} aria-busy={sendingPix}>
+            <SaldoDisponivel id="pix-available-balance" saldo={conta ? balance : 'Carregando…'} />
             <h2>Enviar Pix</h2>
             <label htmlFor="pix-key">Chave Pix de destino <span>(e-mail)</span></label>
             <input ref={pixKeyInput} id="pix-key" type="email" value={pixKey} onChange={event => setPixKey(event.target.value)} placeholder="pessoa@exemplo.com" autoComplete="email" required disabled={sendingPix || loading} />
             <label htmlFor="pix-value">Valor em {conta?.moeda_saldo ?? 'BRL'}</label>
-            <div className="account-pix-value"><span>{conta?.moeda_saldo === 'USD' ? 'US$' : conta?.moeda_saldo === 'EUR' ? '€' : 'R$'}</span><input ref={pixValueInput} id="pix-value" type="text" inputMode="decimal" value={pixValue} onChange={event => setPixValue(event.target.value.replace(',', '.'))} placeholder="0,00" required disabled={sendingPix || loading} /></div>
+            <div className="account-pix-value"><span>{conta?.moeda_saldo === 'USD' ? 'US$' : conta?.moeda_saldo === 'EUR' ? '€' : 'R$'}</span><ValorInput ref={pixValueInput} id="pix-value" value={pixValue} onValueChange={setPixValue} aria-describedby="pix-available-balance" placeholder="0,00" required disabled={sendingPix || loading || !conta} /></div>
             <button type="submit" className="account-pix-submit" disabled={sendingPix || loading}>{sendingPix && <RefreshCw size={16} className="account-spin" aria-hidden />}{sendingPix ? 'Enviando Pix…' : 'Enviar Pix'}</button>
           </form>
           <p className="account-pix-note">O envio é imediato neste ambiente de demonstração. Confira a chave e o valor antes de confirmar.</p>
