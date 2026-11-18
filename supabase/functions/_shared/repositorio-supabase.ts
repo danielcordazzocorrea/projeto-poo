@@ -8,6 +8,7 @@ import {
   type TipoAtivo, type TipoMovimentacao, type TipoMoeda,
 } from './dominio.ts';
 import type { Cotacoes } from './cotacoes.ts';
+import { OrdemNegociacao } from './negociacao.ts';
 // A classe abaixo promete cumprir o contrato que o serviço espera.
 import type { RepositorioCorretora } from './servico.ts';
 import type { ComprovanteCompra, ContaInvestimento, DirecaoTransferencia, RepositorioInvestimentos, TransferenciaInvestimento } from './investimentos.ts';
@@ -284,6 +285,16 @@ export class RepositorioSupabase implements RepositorioCorretora, RepositorioInv
         criada_em: row.criada_em,
       })),
     };
+  }
+
+  async consultarNegociacao(tipo: 'COMPRA' | 'VENDA', requisicaoId: string): Promise<OrdemNegociacao | null> {
+    // Cliente com sessão e RLS: nunca lê operações de outro investidor.
+    const { data, error } = await this.banco.from(tipo === 'COMPRA' ? 'compras_investimento' : 'vendas_investimento')
+      .select('ativo_codigo,quantidade_micros,preco_centavos').eq('requisicao_id', requisicaoId).maybeSingle();
+    verificarErro(error);
+    if (!data) return null;
+    return new OrdemNegociacao(tipo, data.ativo_codigo, Quantidade.doBanco(data.quantidade_micros).formatar(),
+      Dinheiro.doBanco(data.preco_centavos).formatar(), requisicaoId);
   }
 
   async comprarAtivo(codigo: string, quantidadeMicros: bigint, precoCentavos: bigint, requisicaoId: string, cotacaoEm: string | null): Promise<ComprovanteCompra> {

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { RepositorioSupabase } from '../functions/_shared/repositorio-supabase.ts';
+import { OrdemNegociacao } from '../functions/_shared/negociacao.ts';
 
 type Resultado = { data: unknown; error: null };
 type Chamada = [string, ...unknown[]];
@@ -31,6 +32,28 @@ function linhaMovimento(id: string, tipo: 'PIX_ENVIADO' | 'PIX_RECEBIDO' | 'CONV
     cotacao_em: null, contraparte_nome: 'Pessoa Teste',
   };
 }
+
+Deno.test('repositório reconstitui ordem anterior no cliente com sessão e filtra o identificador', async () => {
+  const id = '11111111-1111-4111-8111-111111111111';
+  let existe = true;
+  const consultas: ConsultaFalsa[] = [];
+  const banco = { from(tabela: string) {
+    const consulta = new ConsultaFalsa(tabela, () => ({ data: existe
+      ? { ativo_codigo: 'PETR4', quantidade_micros: 500000, preco_centavos: 4443 } : null, error: null }));
+    consultas.push(consulta); return consulta;
+  } };
+  const repositorio = new RepositorioSupabase(banco as never);
+  for (const tipo of ['COMPRA', 'VENDA'] as const) {
+    const ordem = await repositorio.consultarNegociacao(tipo, id);
+    assert.ok(ordem instanceof OrdemNegociacao);
+    assert.equal(ordem.tipo, tipo);
+    assert.equal(ordem.total.formatar(), tipo === 'COMPRA' ? '22.22' : '22.21');
+  }
+  assert.deepEqual(consultas.map(c => c.tabela), ['compras_investimento', 'vendas_investimento']);
+  for (const consulta of consultas) assert.deepEqual(consulta.chamadas.find(c => c[0] === 'eq'), ['eq', 'requisicao_id', id]);
+  existe = false;
+  assert.equal(await repositorio.consultarNegociacao('COMPRA', id), null);
+});
 
 Deno.test('histórico reúne dez registros de cada fonte e ordena compras, vendas, Pix e conversões', async () => {
   const pix = Array.from({ length: 10 }, (_, indice) => linhaMovimento(

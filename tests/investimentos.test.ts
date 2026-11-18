@@ -3,6 +3,7 @@ import test from 'node:test';
 import { Investimentos, type RepositorioInvestimentos } from '../supabase/functions/_shared/investimentos.ts';
 import type { Cotacoes } from '../supabase/functions/_shared/cotacoes.ts';
 import type { TipoMoeda } from '../supabase/functions/_shared/dominio.ts';
+import { OrdemNegociacao } from '../supabase/functions/_shared/negociacao.ts';
 
 const requisicaoId = '11111111-1111-4111-8111-111111111111';
 test('compra conserva o comprovante persistido e envia o horário da cotação ao repositório', async () => {
@@ -29,7 +30,8 @@ const cotacoes: Cotacoes = {
 function criarRepositorio(moeda: TipoMoeda) {
   const chamadas: Array<{ direcao: string; centavos: bigint; moeda: TipoMoeda; taxas: Cotacoes | null; id: string }> = [];
   const repositorio: RepositorioInvestimentos = {
-    async consultarInvestimentos() { return { saldo: '0.00', moeda: 'BRL', acoes_investidas: '0.00', posicoes: [], transferencias: [] }; },
+    async consultarNegociacao() { return null; },
+    async consultarInvestimentos() { return { saldo: '100.00', moeda: 'BRL', acoes_investidas: '0.00', posicoes: [], transferencias: [] }; },
     async consultarMoedaPrincipal() { return moeda; },
     async transferirInvestimento(direcao, centavos, moedaPrincipal, taxas, id) {
       chamadas.push({ direcao, centavos, moeda: moedaPrincipal, taxas, id });
@@ -63,4 +65,49 @@ test('transferência em BRL dispensa API de câmbio e rejeita entradas inválida
   await assert.rejects(() => servico.transferir('OUTRA', '1.00', requisicaoId));
   await assert.rejects(() => servico.transferir('PARA_INVESTIMENTOS', '1.00', 'id-invalido'));
   assert.equal(chamadas.length, 1);
+});
+
+test('serviço recusa compra sem saldo e venda sem posição antes de persistir', async () => {
+  const { repositorio } = criarRepositorio('BRL');
+  let gravacoes = 0;
+  repositorio.comprarAtivo = async () => { gravacoes++; throw new Error('não deveria gravar'); };
+  repositorio.venderAtivo = async () => { gravacoes++; };
+  const servico = new Investimentos(repositorio);
+  await assert.rejects(servico.comprarAtivo('PETR4', '11', '10', requisicaoId), /Saldo insuficiente/);
+  await assert.rejects(servico.venderAtivo('PETR4', '1', '10', requisicaoId), /Quantidade indisponível/);
+  assert.equal(gravacoes, 0);
+});
+
+test('serviço permite repetir venda concluída mesmo sem posição restante', async () => {
+  const { repositorio } = criarRepositorio('BRL');
+  let gravacoes = 0;
+  repositorio.consultarNegociacao = async () => new OrdemNegociacao('VENDA', 'PETR4', '1', '10', requisicaoId);
+  repositorio.venderAtivo = async () => { gravacoes++; };
+  const servico = new Investimentos(repositorio);
+  await servico.venderAtivo('PETR4', '1', '10', requisicaoId);
+  assert.equal(gravacoes, 1); // RPC idempotente confirma o resultado, sem crédito duplicado.
+  await assert.rejects(servico.venderAtivo('PETR4', '2', '10', requisicaoId), /já utilizado/);
+  assert.equal(gravacoes, 1);
+});
+
+test('serviço reconhece repetição concluída entre a consulta da ordem e do saldo', async () => {
+  const { repositorio } = criarRepositorio('BRL');
+  let consultas = 0, gravacoes = 0;
+  repositorio.consultarNegociacao = async () => ++consultas === 1 ? null : new OrdemNegociacao('COMPRA', 'PETR4', '1', '200', requisicaoId);
+  const recibo = await repositorio.comprarAtivo('PETR4', 1000000n, 20000n, requisicaoId, null);
+  repositorio.comprarAtivo = async () => { gravacoes++; return recibo; };
+  await new Investimentos(repositorio).comprarAtivo('PETR4', '1', '200', requisicaoId);
+  assert.equal(consultas, 2); assert.equal(gravacoes, 1);
+});
+
+test('serviço aplica regra da carteira para autorizar venda válida', async () => {
+  const { repositorio } = criarRepositorio('BRL');
+  const conta = await repositorio.consultarInvestimentos();
+  repositorio.consultarInvestimentos = async () => ({ ...conta, posicoes: [{ codigo_ativo: 'PETR4', quantidade: '2.000000' }] });
+  let vendas = 0;
+  repositorio.venderAtivo = async (_codigo, micros, centavos) => {
+    assert.equal(micros, 1500000n); assert.equal(centavos, 1000n); vendas++;
+  };
+  await new Investimentos(repositorio).venderAtivo('PETR4', '1.5', '10', requisicaoId);
+  assert.equal(vendas, 1);
 });
