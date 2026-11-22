@@ -46,6 +46,7 @@ export function InvestmentAccount({ principal, investimento, loading, token, cat
   const [sending, setSending] = useState(false);
   const valueInput = useRef<HTMLInputElement>(null);
   const [receipt, setReceipt] = useState<TransferenciaInvestimento | null>(null);
+  const transferSuccessDialog = useRef<HTMLDialogElement>(null);
   const [ativoParaVenda, setAtivoParaVenda] = useState<string | null>(null);
   const [quantidadeVenda, setQuantidadeVenda] = useState('');
   const [vendendo, setVendendo] = useState(false);
@@ -60,6 +61,9 @@ export function InvestmentAccount({ principal, investimento, loading, token, cat
   const [erroResultado, setErroResultado] = useState(false);
   const [tentativaResultado, setTentativaResultado] = useState(0);
   const posicaoVenda = investimento?.posicoes.find(posicao => posicao.codigo_ativo === ativoParaVenda);
+  useEffect(() => {
+    if (receipt && !transferSuccessDialog.current?.open) transferSuccessDialog.current?.showModal();
+  }, [receipt]);
   useEffect(() => {
     if (!investimento) { setResultado(null); return; }
     const controller = new AbortController();
@@ -216,6 +220,21 @@ export function InvestmentAccount({ principal, investimento, loading, token, cat
         {receipt && <div className="investment-receipt" role="status"><strong>Transferência concluída</strong><span>{formatarSaldo(receipt.valor_origem, receipt.moeda_origem)} → {formatarSaldo(receipt.valor_destino, receipt.moeda_destino)}</span>{receipt.cotacao_em && <small>Cotação consultada em {new Date(receipt.cotacao_em).toLocaleString('pt-BR')}</small>}</div>}
         <button type="button" className="account-detail-refresh" onClick={onRefresh} disabled={loading || sending}><RefreshCw size={16} className={loading ? 'account-spin' : ''} aria-hidden />{loading ? 'Atualizando…' : 'Atualizar saldos'}</button>
       </div>
+      <dialog ref={transferSuccessDialog} className="account-pix-dialog" aria-labelledby="investment-transfer-success-title">
+        {receipt && <div className="account-pix-dialog-content">
+          <span className="account-pix-success-icon"><Check size={30} strokeWidth={2.5} aria-hidden /></span>
+          <span className="account-pix-success-eyebrow">Transferência concluída</span>
+          <h2 id="investment-transfer-success-title">Dinheiro transferido com sucesso</h2>
+          <p className="account-pix-success-amount">{formatarSaldo(receipt.valor_destino, receipt.moeda_destino)}</p>
+          <div className="account-pix-success-details">
+            <div><span>Destino</span><strong>{receipt.direcao === 'PARA_INVESTIMENTOS' ? 'Conta de investimentos' : 'Conta principal'}</strong></div>
+            <div><span>Valor enviado</span><strong>{formatarSaldo(receipt.valor_origem, receipt.moeda_origem)}</strong></div>
+            <div><span>Valor recebido</span><strong>{formatarSaldo(receipt.valor_destino, receipt.moeda_destino)}</strong></div>
+            {receipt.cotacao_em && <div><span>Cotação consultada em</span><strong>{new Date(receipt.cotacao_em).toLocaleString('pt-BR')}</strong></div>}
+          </div>
+          <button type="button" className="account-pix-success-close" onClick={() => transferSuccessDialog.current?.close()}>Concluir</button>
+        </div>}
+      </dialog>
     </section>;
   }
 
