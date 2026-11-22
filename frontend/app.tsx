@@ -107,14 +107,15 @@ export default function App() {
       throw error instanceof InvestmentTransferError ? error : new InvestmentTransferError(error, 'unconfirmed');
     } finally { setLoadingAccount(false); }
   }
-  async function purchaseInvestment(codigoAtivo: string, quantidade: string): Promise<ComprovanteCompra> {
+  async function purchaseInvestment(codigoAtivo: string, quantidade: string, precoConfirmado: string): Promise<ComprovanteCompra> {
     if (!session) throw new Error('Entre na conta para comprar.');
     setLoadingAccount(true); setNotice(null);
     try {
       const key = `${session.user.id}:${codigoAtivo}:${quantidade}`;
       if (pendingPurchase.current?.key !== key) pendingPurchase.current = { key, id: crypto.randomUUID() };
       const resultado = await requestInvestmentTrade({ url, apiKey: chave, token: session.access_token,
-        operation: 'purchase', ticker: codigoAtivo, quantity: quantidade, requestId: pendingPurchase.current.id });
+        operation: 'purchase', ticker: codigoAtivo, quantity: quantidade, requestId: pendingPurchase.current.id,
+        confirmedPrice: precoConfirmado });
       setInvestimento(resultado.conta);
       pendingPurchase.current = null;
       return resultado.comprovante;

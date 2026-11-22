@@ -7,7 +7,7 @@ Site de corretora simulada. O frontend React é publicado na Vercel; autenticaç
 - Cadastro e login com Supabase Auth.
 - Conta principal com depósito simulado, histórico, Pix entre usuários e conversão de saldo entre BRL, USD e EUR.
 - Conta de investimentos com saldo próprio em BRL. Transferências entre as contas convertem a moeda automaticamente quando necessário.
-- Busca, cotação e histórico de preços de ativos pela brapi. Compras e vendas simuladas usam o saldo da conta de investimentos.
+- Busca, cotação e histórico de preços de ativos pela brapi. Compras e vendas simuladas usam o saldo da conta de investimentos. Antes de uma compra, o usuário revisa quantidade, cotação, total e saldo e confirma a ordem; se a cotação mudar, precisa revisar novamente.
 - Assistente com IA para consultar saldo, histórico e investimentos e preparar Pix com confirmação explícita no chat.
 
 As cotações de mercado são referências e podem chegar com atraso. O depósito e o Pix do site não acessam bancos ou redes de pagamento.

@@ -12,7 +12,8 @@ export class InvestmentTradeError extends Error {
   }
 }
 
-type TradeRequest = { url: string; apiKey: string; token: string; operation: TradeOperation; ticker: string; quantity: string; requestId: string };
+type TradeRequest = { url: string; apiKey: string; token: string; operation: TradeOperation; ticker: string; quantity: string;
+  requestId: string; confirmedPrice?: string };
 
 /** Shares the request path for buying/selling, retaining the existing idempotency key. */
 export function requestInvestmentTrade(input: TradeRequest & { operation: 'purchase' }, fetcher?: typeof fetch): Promise<ResultadoCompra>;
@@ -24,7 +25,8 @@ export async function requestInvestmentTrade(input: TradeRequest, fetcher: typeo
     response = await fetcher(`${input.url}/functions/v1/corretora/investimentos/${input.operation === 'purchase' ? 'compras' : 'vendas'}`, {
       method: 'POST',
       headers: { apikey: input.apiKey, Authorization: `Bearer ${input.token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ codigo_ativo: input.ticker, quantidade: input.quantity, requisicao_id: input.requestId }),
+      body: JSON.stringify({ codigo_ativo: input.ticker, quantidade: input.quantity, requisicao_id: input.requestId,
+        ...(input.operation === 'purchase' && input.confirmedPrice ? { preco_confirmado: input.confirmedPrice } : {}) }),
     });
   } catch (error) { throw new InvestmentTradeError(error, input.operation, 'unconfirmed'); }
   if (!response.ok) {

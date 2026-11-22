@@ -85,7 +85,24 @@ Deno.serve(withSupabase({ auth: 'user' }, async (req, ctx) => {
     if (req.method === 'POST' && caminho === '/investimentos/compras') {
       const dados = await lerJson(req);
       if (typeof dados.codigo_ativo !== 'string') throw new RegraDeNegocio('Código de ativo inválido.');
+      if (typeof dados.preco_confirmado !== 'string' || !/^\d+\.\d{2}$/.test(dados.preco_confirmado)) {
+        throw new RegraDeNegocio('Revise os dados da compra antes de confirmar.');
+      }
+      if (typeof dados.requisicao_id !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(dados.requisicao_id)) {
+        throw new RegraDeNegocio('Identificador da compra inválido.');
+      }
+      const usuarioId = ctx.userClaims?.id;
+      if (!usuarioId) throw new RegraDeNegocio('Sessão inválida. Entre novamente.');
+      const compraAnterior = await new RepositorioSupabase(ctx.supabase, ctx.supabaseAdmin, usuarioId)
+        .consultarNegociacao('COMPRA', dados.requisicao_id);
+      if (compraAnterior) {
+        return json(200, await investimentos().comprarAtivo(dados.codigo_ativo, dados.quantidade,
+          dados.preco_confirmado, dados.requisicao_id));
+      }
       const cotacao = await mercado.cotar(dados.codigo_ativo);
+      if (cotacao.preco_brl !== dados.preco_confirmado) {
+        throw new RegraDeNegocio('A cotação mudou. Confira o preço atualizado antes de confirmar a compra.');
+      }
       return json(200, await investimentos().comprarAtivo(
         cotacao.codigo, dados.quantidade, cotacao.preco_brl, dados.requisicao_id, cotacao.cotacao_em,
       ));

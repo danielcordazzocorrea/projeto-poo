@@ -74,6 +74,9 @@ export function mapAccountError(error: unknown, context: AccountErrorContext): A
   }
 
   if (trading) {
+    if (operation === 'purchase' && matches('A cotação mudou. Confira o preço atualizado antes de confirmar a compra.')) {
+      return notice('Preço atualizado', 'A cotação mudou antes da compra. Revise o preço e confirme novamente.', 'exchange', 'reload', 'warning');
+    }
     if (matches('Quantidade inválida', 'Quantidade deve ser um decimal positivo em texto',
       'Quantidade aceita até 6 casas decimais', 'Quantidade está fora do limite permitido')) {
       return notice('Confira a quantidade', 'Informe uma quantidade maior que zero, com até seis casas decimais e dentro do limite permitido.', 'alert', 'edit-quantity');

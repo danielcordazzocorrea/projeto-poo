@@ -26,6 +26,18 @@ test('compra e venda preservam contrato e identificador existente, sem repetir a
   }
 });
 
+test('compra confirmada envia o preço revisado e a venda não envia preço confirmado', async () => {
+  for (const operation of ['purchase', 'sale'] as const) {
+    await requestInvestmentTrade({ ...input, operation, confirmedPrice: '25.00' }, async (_url, init) => {
+      const body = JSON.parse(String(init?.body));
+      assert.equal(body.preco_confirmado, operation === 'purchase' ? '25.00' : undefined);
+      return Response.json(operation === 'purchase' ? purchase : account);
+    });
+  }
+  assert.equal(mapAccountError('A cotação mudou. Confira o preço atualizado antes de confirmar a compra.',
+    { operation: 'purchase', outcome: 'rejected' }).title, 'Preço atualizado');
+});
+
 test('saldo insuficiente na compra e quantidade indisponível na venda permitem correção', async () => {
   const scenarios: [TradeOperation, string, string][] = [
     ['purchase', 'Saldo insuficiente na conta de investimentos', 'Saldo insuficiente para comprar'],

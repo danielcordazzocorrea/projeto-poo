@@ -26,7 +26,8 @@ type Props = {
   onTransfer: (direcao: DirecaoTransferencia, valor: string) => Promise<TransferenciaInvestimento>;
   onOperationError: (notice: AccountErrorNotice, recover?: () => void) => void;
   onQueryError: (notice: AccountErrorNotice, recover?: () => void) => void;
-  onPurchase: (codigoAtivo: string, quantidade: string) => Promise<ComprovanteCompra>;
+  onPurchase: (codigoAtivo: string, quantidade: string, precoConfirmado: string) => Promise<ComprovanteCompra>;
+  onPurchaseSuccess: (comprovante: ComprovanteCompra) => void;
   onSale: (codigoAtivo: string, quantidade: string) => Promise<void>;
 };
 
@@ -40,7 +41,7 @@ function GrowthHomeIcon() {
   </svg>;
 }
 
-export function InvestmentAccount({ principal, investimento, loading, token, category: categoria, onCategoryChange, onRefresh, onTransfer, onOperationError, onQueryError, onPurchase, onSale }: Props) {
+export function InvestmentAccount({ principal, investimento, loading, token, category: categoria, onCategoryChange, onRefresh, onTransfer, onOperationError, onQueryError, onPurchase, onPurchaseSuccess, onSale }: Props) {
   const [direcao, setDirecao] = useState<DirecaoTransferencia>('PARA_INVESTIMENTOS');
   const [valor, setValor] = useState('');
   const [sending, setSending] = useState(false);
@@ -287,8 +288,9 @@ export function InvestmentAccount({ principal, investimento, loading, token, cat
 
   return <section className="investment-selected-content investment-variable-income-content" aria-busy={loading}>
     <button type="button" className="account-back" onClick={() => onCategoryChange(null)}><ArrowLeft size={17} aria-hidden />Voltar às categorias</button>
-    <h2>Ações, BDRs, EFTs</h2><MercadoAtivos onQueryError={onQueryError} onTradeError={onOperationError} onRefresh={onRefresh} loading={loading} token={token} onPurchase={onPurchase}
+    <h2>Ações, BDRs, EFTs</h2><MercadoAtivos onQueryError={onQueryError} onTradeError={onOperationError} onRefresh={onRefresh} loading={loading} token={token} onPurchase={onPurchase} onPurchaseSuccess={onPurchaseSuccess}
       saldoInvestimentos={investimento ? formatarSaldo(investimento.saldo, 'BRL') : 'Carregando…'}
+      saldoInvestimentosValor={investimento?.saldo ?? null}
       contaCarregada={Boolean(investimento) && !loading} />
   </section>;
 }

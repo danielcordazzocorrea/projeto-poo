@@ -31,7 +31,7 @@ type AccountHomeProps = {
   onPixTransfer: (chaveDestino: string, valor: string) => Promise<PixReceipt>;
   onConvertBalance: (moeda: TipoMoeda) => Promise<ConversionReceipt>;
   onInvestmentTransfer: (direcao: DirecaoTransferencia, valor: string) => Promise<TransferenciaInvestimento>;
-  onInvestmentPurchase: (codigoAtivo: string, quantidade: string) => Promise<ComprovanteCompra>;
+  onInvestmentPurchase: (codigoAtivo: string, quantidade: string, precoConfirmado: string) => Promise<ComprovanteCompra>;
   onInvestmentSale: (codigoAtivo: string, quantidade: string) => Promise<void>;
   onInvestmentRefresh: () => void;
   onLogout: () => void;
@@ -147,11 +147,6 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
     .filter(transaction => historyFilter === 'pix' ? transaction.tipo.startsWith('PIX_') : historyFilter === 'stocks'
       ? transaction.tipo === 'COMPRA' || transaction.tipo === 'VENDA' : transaction.tipo === 'CONVERSAO')).slice(0, 10);
 
-  async function purchaseInvestmentWithSuccess(codigoAtivo: string, quantidade: string): Promise<ComprovanteCompra> {
-    const comprovante = await onInvestmentPurchase(codigoAtivo, quantidade);
-    setPurchaseSuccess(comprovante);
-    return comprovante;
-  }
 
   async function submitPix(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -299,7 +294,7 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
           </form>
           <p className="account-pix-note">O envio é imediato neste ambiente de demonstração. Confira a chave e o valor antes de confirmar.</p>
         </div> : <>
-          <InvestmentAccount principal={conta} investimento={investimento} loading={loading} token={session.access_token} category={route.category} onCategoryChange={category => navigate('investments', category)} onOperationError={showQueryError} onQueryError={showQueryError} onRefresh={onInvestmentRefresh} onTransfer={onInvestmentTransfer} onPurchase={purchaseInvestmentWithSuccess} onSale={onInvestmentSale} />
+          <InvestmentAccount principal={conta} investimento={investimento} loading={loading} token={session.access_token} category={route.category} onCategoryChange={category => navigate('investments', category)} onOperationError={showQueryError} onQueryError={showQueryError} onRefresh={onInvestmentRefresh} onTransfer={onInvestmentTransfer} onPurchase={onInvestmentPurchase} onPurchaseSuccess={setPurchaseSuccess} onSale={onInvestmentSale} />
         </>}
       </section>}
 

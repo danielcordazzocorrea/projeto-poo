@@ -9,6 +9,8 @@ import type { AccountErrorNotice } from './account-errors';
 import { queryErrorNotice, readQueryResponse } from './query-errors';
 import { InvestmentTradeError } from './investment-trade';
 import { mapAccountError } from './account-errors';
+import { prepararRevisaoCompra, type PurchaseReview } from './purchase-review';
+import { RegraDeNegocio } from '../supabase/functions/_shared/dominio';
 import { validAssetSearch, validAssetQuote, validAssetHistory } from './query-validation';
 import { GraficoAtivo } from './mercado-grafico';
 import type { ComprovanteCompra } from './investment-account';
@@ -35,10 +37,13 @@ function preco(valor: string): string {
   return Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
-export function MercadoAtivos({ token, onPurchase, saldoInvestimentos, contaCarregada, onQueryError, onTradeError, onRefresh, loading }: {
+export function MercadoAtivos({ token, onPurchase, onPurchaseSuccess, saldoInvestimentos, saldoInvestimentosValor,
+  contaCarregada, onQueryError, onTradeError, onRefresh, loading }: {
   token: string;
-  onPurchase: (codigoAtivo: string, quantidade: string) => Promise<ComprovanteCompra>;
+  onPurchase: (codigoAtivo: string, quantidade: string, precoConfirmado: string) => Promise<ComprovanteCompra>;
+  onPurchaseSuccess: (comprovante: ComprovanteCompra) => void;
   saldoInvestimentos: string;
+  saldoInvestimentosValor: string | null;
   contaCarregada: boolean;
   onQueryError: (notice: AccountErrorNotice, recover?: () => void) => void;
   onTradeError: (notice: AccountErrorNotice, recover?: () => void) => void;
@@ -65,7 +70,14 @@ export function MercadoAtivos({ token, onPurchase, saldoInvestimentos, contaCarr
   const [tentativaHistorico, setTentativaHistorico] = useState(0);
   const [quantidade, setQuantidade] = useState('1');
   const [comprando, setComprando] = useState(false);
+  const [conferindoCompra, setConferindoCompra] = useState(false);
+  const [revisaoCompra, setRevisaoCompra] = useState<PurchaseReview | null>(null);
   const purchaseQuantityInput = useRef<HTMLInputElement>(null);
+  const reviewDialog = useRef<HTMLDialogElement>(null);
+
+  useEffect(() => {
+    if (revisaoCompra && !reviewDialog.current?.open) reviewDialog.current?.showModal();
+  }, [revisaoCompra]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -120,21 +132,71 @@ export function MercadoAtivos({ token, onPurchase, saldoInvestimentos, contaCarr
     return () => controller.abort();
   }, [ticker, token, periodoGrafico, tentativaHistorico]);
 
-  async function comprar(event: FormEvent<HTMLFormElement>) {
+  async function revisarCompra(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!cotacao || comprando || loading || !contaCarregada) return;
+    if (!cotacao || !saldoInvestimentosValor || conferindoCompra || comprando || loading || !contaCarregada) return;
+    const quantidadeInformada = quantidade.trim().replace(',', '.');
+    try {
+      prepararRevisaoCompra(cotacao.codigo, quantidadeInformada, cotacao.preco_brl,
+        saldoInvestimentosValor, cotacao.cotacao_em);
+    } catch (error) {
+      const notice = mapAccountError(error, { operation: 'purchase', outcome: 'rejected' });
+      onTradeError(notice, notice.action === 'edit-quantity' ? () => purchaseQuantityInput.current?.focus() : undefined);
+      return;
+    }
+    setConferindoCompra(true);
+    try {
+      const atual = await consultarCotacao(cotacao.codigo, token, new AbortController().signal);
+      setRevisaoCompra(prepararRevisaoCompra(atual.codigo, quantidadeInformada, atual.preco_brl,
+        saldoInvestimentosValor, atual.cotacao_em));
+    } catch (error) {
+      if (error instanceof RegraDeNegocio) {
+        const notice = mapAccountError(error, { operation: 'purchase', outcome: 'rejected' });
+        onTradeError(notice, notice.action === 'edit-quantity' ? () => purchaseQuantityInput.current?.focus() : undefined);
+      } else {
+        const notice = queryErrorNotice(error, 'market');
+        onQueryError(notice, notice.action === 'reload' ? () => setQuoteRetry(value => value + 1) : undefined);
+      }
+    } finally { setConferindoCompra(false); }
+  }
+
+  async function confirmarCompra() {
+    if (!revisaoCompra || comprando || loading) return;
     setComprando(true);
     try {
-      await onPurchase(cotacao.codigo, quantidade.trim().replace(',', '.'));
+      const recibo = await onPurchase(revisaoCompra.codigo, revisaoCompra.quantidade, revisaoCompra.precoUnitario);
+      reviewDialog.current?.close();
+      onPurchaseSuccess(recibo);
     } catch (error) {
+      reviewDialog.current?.close();
       const notice = error instanceof InvestmentTradeError ? error.notice : mapAccountError(error, { operation: 'purchase' });
-      const recover = notice.action === 'edit-quantity' ? () => purchaseQuantityInput.current?.focus()
+      const recover = notice.title === 'Preço atualizado' ? () => setQuoteRetry(value => value + 1)
+        : notice.action === 'edit-quantity' ? () => purchaseQuantityInput.current?.focus()
         : notice.action === 'check-balances' || notice.action === 'reload' ? onRefresh : undefined;
       onTradeError(notice, recover);
     } finally { setComprando(false); }
   }
 
   return <div className="account-market">
+    <dialog ref={reviewDialog} className="account-pix-dialog" aria-labelledby="purchase-review-title"
+      onCancel={event => { if (comprando) event.preventDefault(); }} onClose={() => setRevisaoCompra(null)}>
+      {revisaoCompra && <div className="account-pix-dialog-content">
+        <span className="account-pix-success-eyebrow">Revise antes de comprar</span>
+        <h2 id="purchase-review-title">Confirmar compra de {revisaoCompra.codigo}?</h2>
+        <p className="account-pix-success-amount">{preco(revisaoCompra.total)}</p>
+        <div className="account-pix-success-details">
+          <div><span>Quantidade</span><strong>{Number(revisaoCompra.quantidade).toLocaleString('pt-BR', { maximumFractionDigits: 6 })}</strong></div>
+          <div><span>Preço por unidade</span><strong>{preco(revisaoCompra.precoUnitario)}</strong></div>
+          <div><span>Saldo disponível</span><strong>{preco(revisaoCompra.saldoAntes)}</strong></div>
+          <div><span>Saldo após a compra</span><strong>{preco(revisaoCompra.saldoDepois)}</strong></div>
+          <div><span>Cotação consultada em</span><strong>{horario(revisaoCompra.cotacaoEm)}</strong></div>
+        </div>
+        <p className="account-pix-note">A compra só será enviada após sua confirmação. Se a cotação mudar, você precisará revisar o novo preço.</p>
+        <button type="button" className="account-pix-success-close" disabled={comprando || loading}
+          onClick={() => void confirmarCompra()}>{comprando ? 'Comprando…' : 'Confirmar compra'}</button>
+        <button type="button" className="account-back" disabled={comprando} onClick={() => reviewDialog.current?.close()}>Cancelar</button>
+      </div>}
+    </dialog>
     <header className="market-heading">
       <div>
         <p className="market-kicker">Mercado</p>
@@ -148,7 +210,7 @@ export function MercadoAtivos({ token, onPurchase, saldoInvestimentos, contaCarr
       <label htmlFor="market-search">Nome ou ticker</label>
       <div className="market-search-input">
         <Search size={18} aria-hidden />
-        <input ref={searchInput} id="market-search" type="search" value={busca} maxLength={80} placeholder="Ex.: PETR4 ou Petrobras" autoComplete="off"
+        <input ref={searchInput} id="market-search" type="search" value={busca} maxLength={80} placeholder="Ex.: PETR4 ou Petrobras" autoComplete="off" disabled={conferindoCompra || comprando}
           onChange={event => { setBusca(event.target.value); setPagina(1); setTicker(null); setCotacao(null); setLista(null); }} />
       </div>
       <p>Cotações de referência podem ter atraso de aproximadamente 30 minutos.</p>
@@ -161,7 +223,7 @@ export function MercadoAtivos({ token, onPurchase, saldoInvestimentos, contaCarr
       <div className="market-section-title"><h4>Resultados</h4><span>Página {pagina}</span></div>
       {lista.ativos.length === 0 && <p className="market-state">Nenhum ativo compatível nesta página.</p>}
       <ul className="market-results">{lista.ativos.map(ativo => <li key={ativo.codigo}>
-        <button type="button" aria-pressed={ticker === ativo.codigo} onClick={() => setTicker(ativo.codigo)}>
+        <button type="button" aria-pressed={ticker === ativo.codigo} disabled={conferindoCompra || comprando} onClick={() => setTicker(ativo.codigo)}>
           <span className="market-result-symbol">{ativo.codigo.slice(0, 1)}</span>
           <span className="market-result-main"><strong>{ativo.codigo}</strong><span>{ativo.nome}</span></span>
           <span className="market-result-type">{ativo.tipo}</span>
@@ -182,10 +244,10 @@ export function MercadoAtivos({ token, onPurchase, saldoInvestimentos, contaCarr
         <strong className="market-price">{preco(cotacao.preco_brl)}</strong>
         <p><Clock3 size={14} aria-hidden />{horario(cotacao.cotacao_em)}</p>
         <SaldoDisponivel className="market-main-balance" rotulo="Saldo da conta de investimentos" saldo={saldoInvestimentos} />
-        <form className="market-buy-form" onSubmit={event => void comprar(event)}>
+        <form className="market-buy-form" onSubmit={event => void revisarCompra(event)}>
           <label htmlFor="market-quantity">Quantidade</label>
-          <div><input ref={purchaseQuantityInput} id="market-quantity" type="text" inputMode="decimal" value={quantidade} onChange={event => aceitaEntradaDecimal(event.target.value, 6) && setQuantidade(event.target.value)} placeholder="1" required disabled={comprando || loading} />
-            <button type="submit" disabled={comprando || loading || !contaCarregada}>{comprando ? 'Comprando…' : 'Comprar ativo'}</button></div>
+          <div><input ref={purchaseQuantityInput} id="market-quantity" type="text" inputMode="decimal" value={quantidade} onChange={event => aceitaEntradaDecimal(event.target.value, 6) && setQuantidade(event.target.value)} placeholder="1" required disabled={conferindoCompra || comprando || loading} />
+            <button type="submit" disabled={conferindoCompra || comprando || loading || !contaCarregada}>{conferindoCompra ? 'Conferindo…' : 'Comprar ativo'}</button></div>
         </form>
       </article>}
 
