@@ -350,6 +350,6 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
         <span className="account-pix-progress-bar" aria-hidden />
       </div>}
     </dialog>
-    <LiveOrb theme={theme} />
+    <LiveOrb key={session.user.id} theme={theme} token={session.access_token} onPixTransfer={onPixTransfer} />
   </div>;
 }

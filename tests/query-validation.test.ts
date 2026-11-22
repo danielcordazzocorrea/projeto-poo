@@ -1,17 +1,23 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { QueryError, readQueryResponse } from '../frontend/query-errors.ts';
-import { validAccount, validInvestmentAccount, validAssetSearch, validAssetQuote, validAssetHistory } from '../frontend/query-validation.ts';
+import { validAccount, validInvestmentAccount, validInvestmentResult, validAssetSearch, validAssetQuote, validAssetHistory } from '../frontend/query-validation.ts';
 
 const account = { id: 'account-test', saldo: '10.00', saldo_brl: null, moeda_saldo: 'USD', movimentacoes: [] };
 const investment = { saldo: '0.00', acoes_investidas: '50.00', moeda: 'BRL', posicoes: [], transferencias: [] };
 const asset = { codigo: 'PETR4', nome: 'Petrobras', tipo: 'ACAO' };
 const search = { ativos: [asset], pagina: 1, tem_proxima: false };
 const quote = { ...asset, preco_brl: '25.00', cotacao_em: null, consultado_em: '2026-11-16T15:00:00Z', fonte: 'brapi' };
+const result = { investido: '50.00', valor_atual: '40.00', resultado: '-10.00', percentual: '-20.00',
+  saldo_disponivel: '0.00', patrimonio_atual: '40.00', cotacao_em: null,
+  consultado_em: '2026-11-16T15:00:00Z', ativos_sem_cotacao: [] };
 
 test('aceita os dados das consultas, incluindo histórico vazio e horário de cotação ausente', () => {
   assert.ok(validAccount(account));
   assert.ok(validInvestmentAccount(investment));
+  assert.ok(validInvestmentResult(result));
+  assert.ok(validInvestmentResult({ ...result, valor_atual: null, resultado: null, percentual: null,
+    patrimonio_atual: null, ativos_sem_cotacao: ['PETR4'] }));
   assert.ok(validAssetSearch(search));
   assert.ok(validAssetSearch({ ...search, ativos: [] }));
   assert.ok(validAssetQuote(quote));
@@ -19,7 +25,7 @@ test('aceita os dados das consultas, incluindo histórico vazio e horário de co
 
 test('rejeita campos incompletos e itens nulos que causariam falha na renderização', () => {
   for (const invalid of [null, [], {}, 'text']) {
-    for (const validate of [validAccount, validInvestmentAccount, validAssetSearch, validAssetQuote]) assert.equal(validate(invalid), false);
+    for (const validate of [validAccount, validInvestmentAccount, validInvestmentResult, validAssetSearch, validAssetQuote]) assert.equal(validate(invalid), false);
   }
   assert.equal(validAccount({ ...account, movimentacoes: [null] }), false);
   assert.equal(validAccount({ ...account, saldo: 10 }), false);
@@ -28,6 +34,7 @@ test('rejeita campos incompletos e itens nulos que causariam falha na renderiza�
   assert.equal(validAssetSearch({ ...search, ativos: [{ codigo: null }] }), false);
   assert.equal(validAssetQuote({ ...quote, preco_brl: 'not a price' }), false);
   assert.equal(validAssetQuote({ ...quote, cotacao_em: 'invalid' }), false);
+  assert.equal(validInvestmentResult({ ...result, valor_atual: 'preço incorreto' }), false);
 });
 
 test('dados inválidos com HTTP 200 viram erro amigável de consulta', async () => {

@@ -8,8 +8,10 @@ import { InvestmentTransferError } from './investment-transfer';
 import { InvestmentTradeError } from './investment-trade';
 import { mapAccountError, type AccountErrorNotice } from './account-errors';
 
-import type { ComprovanteCompra, ContaInvestimento, DirecaoTransferencia, TransferenciaInvestimento } from './investment-types';
+import type { ComprovanteCompra, ContaInvestimento, DirecaoTransferencia, ResultadoInvestimento, TransferenciaInvestimento } from './investment-types';
 export type { ComprovanteCompra, ContaInvestimento, DirecaoTransferencia, TransferenciaInvestimento } from './investment-types';
+import { readQueryResponse } from './query-errors';
+import { validInvestmentResult } from './query-validation';
 import type { CotacaoAtivo } from '../supabase/functions/_shared/mercado-brapi';
 import type { InvestmentCategory } from './rotas';
 
@@ -53,7 +55,25 @@ export function InvestmentAccount({ principal, investimento, loading, token, cat
   const vendaDialog = useRef<HTMLDialogElement>(null);
   const [cotacaoVenda, setCotacaoVenda] = useState<CotacaoAtivo | null>(null);
   const [consultandoVenda, setConsultandoVenda] = useState(false);
+  const [resultado, setResultado] = useState<ResultadoInvestimento | null>(null);
+  const [consultandoResultado, setConsultandoResultado] = useState(false);
+  const [erroResultado, setErroResultado] = useState(false);
+  const [tentativaResultado, setTentativaResultado] = useState(0);
   const posicaoVenda = investimento?.posicoes.find(posicao => posicao.codigo_ativo === ativoParaVenda);
+  useEffect(() => {
+    if (!investimento) { setResultado(null); return; }
+    const controller = new AbortController();
+    const url = import.meta.env.VITE_SUPABASE_URL?.trim() || 'https://pzaakefnbhwlhatgzgea.supabase.co';
+    const chave = (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || '').trim();
+    setConsultandoResultado(true); setErroResultado(false); setResultado(null);
+    void fetch(`${url}/functions/v1/corretora/investimentos/resultado`, {
+      headers: { apikey: chave, Authorization: `Bearer ${token}` }, signal: controller.signal,
+    }).then(response => readQueryResponse<ResultadoInvestimento>(response, 'account', validInvestmentResult))
+      .then(dados => { if (!controller.signal.aborted) setResultado(dados); })
+      .catch(() => { if (!controller.signal.aborted) setErroResultado(true); })
+      .finally(() => { if (!controller.signal.aborted) setConsultandoResultado(false); });
+    return () => controller.abort();
+  }, [investimento, token, tentativaResultado]);
   useEffect(() => {
     if (!ativoParaVenda || categoria !== 'compradas') return;
     const controller = new AbortController();
@@ -143,6 +163,22 @@ export function InvestmentAccount({ principal, investimento, loading, token, cat
           <dd><strong>{loading ? '—' : formatarSaldo(acoes.toFixed(2), 'BRL')}</strong><span>{porcentagem(acoes)}%</span></dd>
         </div>
       </dl>
+    </section>
+    <section className="investment-result" aria-labelledby="investment-result-title" aria-busy={consultandoResultado}>
+      <div className="investment-result-heading"><div><h2 id="investment-result-title">Resultado do investimento</h2><p>Posições que você tem hoje, em reais</p></div>
+        <button type="button" onClick={() => setTentativaResultado(valor => valor + 1)} disabled={consultandoResultado || loading}><RefreshCw size={15} className={consultandoResultado ? 'account-spin' : ''} aria-hidden />Atualizar</button></div>
+      {consultandoResultado ? <p className="investment-result-state" role="status">Consultando cotações da carteira…</p>
+        : erroResultado ? <p className="investment-result-state" role="alert">Não foi possível consultar o valor atual. Tente atualizar.</p>
+          : resultado && <>
+            <dl className="investment-result-values">
+              <div><dt>Aplicado nos ativos</dt><dd>{formatarSaldo(resultado.investido, 'BRL')}</dd></div>
+              <div><dt>Valor atual estimado</dt><dd>{resultado.valor_atual === null ? 'Indisponível' : formatarSaldo(resultado.valor_atual, 'BRL')}</dd></div>
+              <div className={resultado.resultado?.startsWith('-') ? 'investment-result-negative' : 'investment-result-positive'}><dt>Resultado das posições</dt><dd>{resultado.resultado === null ? 'Indisponível' : <>{resultado.resultado.startsWith('-') ? '−' : '+'}{formatarSaldo(resultado.resultado.replace('-', ''), 'BRL')} {resultado.percentual !== null && <small>({resultado.percentual.replace('.', ',')}%)</small>}</>}</dd></div>
+              <div><dt>Total da conta com saldo disponível</dt><dd>{resultado.patrimonio_atual === null ? 'Indisponível' : formatarSaldo(resultado.patrimonio_atual, 'BRL')}</dd></div>
+            </dl>
+            {resultado.ativos_sem_cotacao.length > 0 ? <p className="investment-result-state">Cotação indisponível para {resultado.ativos_sem_cotacao.join(', ')}. O resultado completo depende desses preços.</p>
+              : <p className="investment-result-note">Estimativa pela cotação de referência{resultado.cotacao_em ? ` de ${new Date(resultado.cotacao_em).toLocaleString('pt-BR')}` : ''}. O resultado considera apenas as posições abertas; não inclui vendas anteriores, taxas ou impostos.</p>}
+          </>}
     </section>
     <button type="button" className="investment-positions-trigger" onClick={() => onCategoryChange('compradas')}>
       <span className="investment-positions-trigger-icon">

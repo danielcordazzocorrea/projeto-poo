@@ -36,6 +36,15 @@ export function validInvestmentAccount(value: unknown): boolean {
       && (transfer.direcao === 'PARA_PRINCIPAL' || transfer.direcao === 'PARA_INVESTIMENTOS')
       && date(transfer.cotacao_em) && (transfer.criada_em === undefined || date(transfer.criada_em)));
 }
+export function validInvestmentResult(value: unknown): boolean {
+  return object(value) && money(value.investido) && money(value.saldo_disponivel)
+    && (value.valor_atual === null || money(value.valor_atual))
+    && (value.resultado === null || (typeof value.resultado === 'string' && /^-?\d+\.\d{2}$/.test(value.resultado)))
+    && (value.percentual === null || (typeof value.percentual === 'string' && /^-?\d+\.\d{2}$/.test(value.percentual)))
+    && (value.patrimonio_atual === null || money(value.patrimonio_atual))
+    && date(value.cotacao_em) && typeof value.consultado_em === 'string' && date(value.consultado_em)
+    && Array.isArray(value.ativos_sem_cotacao) && value.ativos_sem_cotacao.every((codigo: unknown) => typeof codigo === 'string');
+}
 function asset(value: unknown): boolean {
   return object(value) && typeof value.codigo === 'string' && typeof value.nome === 'string'
     && ['ACAO', 'ETF', 'FII'].includes(String(value.tipo));

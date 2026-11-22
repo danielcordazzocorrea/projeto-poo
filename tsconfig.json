@@ -11,5 +11,5 @@
     "esModuleInterop": true,
     "skipLibCheck": true
   },
-  "include": ["supabase/functions/_shared/dominio.ts", "supabase/functions/_shared/servico.ts", "supabase/functions/_shared/investimentos.ts", "tests/**/*.ts"]
+  "include": ["supabase/functions/_shared/dominio.ts", "supabase/functions/_shared/servico.ts", "supabase/functions/_shared/investimentos.ts", "supabase/functions/_shared/escopo-assistente.ts", "supabase/functions/_shared/resultado-investimento.ts", "supabase/functions/_shared/custo-posicoes.ts", "tests/**/*.ts"]
 }

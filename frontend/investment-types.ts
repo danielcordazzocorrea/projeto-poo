@@ -19,6 +19,18 @@ export type ContaInvestimento = {
   transferencias: TransferenciaInvestimento[];
 };
 
+export type ResultadoInvestimento = {
+  investido: string;
+  valor_atual: string | null;
+  resultado: string | null;
+  percentual: string | null;
+  saldo_disponivel: string;
+  patrimonio_atual: string | null;
+  cotacao_em: string | null;
+  consultado_em: string;
+  ativos_sem_cotacao: string[];
+};
+
 export type ComprovanteCompra = {
   id: string;
   codigo_ativo: string;

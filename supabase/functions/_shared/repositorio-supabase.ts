@@ -9,6 +9,7 @@ import {
 } from './dominio.ts';
 import type { Cotacoes } from './cotacoes.ts';
 import { OrdemNegociacao } from './negociacao.ts';
+import { calcularCustoPosicoes, type OperacaoPosicao } from './custo-posicoes.ts';
 // A classe abaixo promete cumprir o contrato que o serviço espera.
 import type { RepositorioCorretora } from './servico.ts';
 import type { ComprovanteCompra, ContaInvestimento, DirecaoTransferencia, RepositorioInvestimentos, TransferenciaInvestimento } from './investimentos.ts';
@@ -236,7 +237,7 @@ export class RepositorioSupabase implements RepositorioCorretora, RepositorioInv
     const { data: principal, error: erroPrincipal } = await this.banco.from('contas').select('id').maybeSingle();
     verificarErro(erroPrincipal);
     if (!principal) throw new NaoEncontrado('Conta não encontrada.');
-    const [conta, posicoes, movimentos, compras] = await Promise.all([
+    const [conta, posicoes, movimentos, compras, vendas] = await Promise.all([
       this.banco.from('contas_investimento').select('saldo_centavos')
         .eq('conta_principal_id', principal.id).maybeSingle(),
       this.banco.from('posicoes_investimento').select('ativo_codigo,quantidade_micros')
@@ -244,25 +245,28 @@ export class RepositorioSupabase implements RepositorioCorretora, RepositorioInv
       this.banco.from('transferencias_investimento')
         .select('id,direcao,valor_origem_centavos,moeda_origem,valor_destino_centavos,moeda_destino,cotacao_em,criada_em')
         .eq('conta_principal_id', principal.id).order('criada_em', { ascending: false }).limit(50),
-      this.banco.from('compras_investimento').select('ativo_codigo,quantidade_micros,custo_centavos').eq('conta_principal_id', principal.id),
+      this.banco.from('compras_investimento').select('id,ativo_codigo,quantidade_micros,custo_centavos,criada_em').eq('conta_principal_id', principal.id),
+      this.banco.from('vendas_investimento').select('id,ativo_codigo,quantidade_micros,criada_em').eq('conta_principal_id', principal.id),
     ]);
     verificarErro(conta.error);
     verificarErro(posicoes.error);
     verificarErro(movimentos.error);
     verificarErro(compras.error);
+    verificarErro(vendas.error);
     if (!conta.data) throw new NaoEncontrado('Conta de investimentos não encontrada.');
-    const comprasPorAtivo = new Map<string, { quantidade: bigint; custo: bigint }>();
-    for (const compra of compras.data ?? []) {
-      const anterior = comprasPorAtivo.get(compra.ativo_codigo) ?? { quantidade: 0n, custo: 0n };
-      comprasPorAtivo.set(compra.ativo_codigo, {
-        quantidade: anterior.quantidade + BigInt(compra.quantidade_micros),
-        custo: anterior.custo + BigInt(compra.custo_centavos),
-      });
-    }
+    const operacoes: OperacaoPosicao[] = [
+      ...(compras.data ?? []).map(row => ({ id: row.id, tipo: 'COMPRA' as const, codigo: row.ativo_codigo,
+        quantidade_micros: row.quantidade_micros, custo_centavos: row.custo_centavos, criada_em: row.criada_em })),
+      ...(vendas.data ?? []).map(row => ({ id: row.id, tipo: 'VENDA' as const, codigo: row.ativo_codigo,
+        quantidade_micros: row.quantidade_micros, criada_em: row.criada_em })),
+    ];
+    const custosPorAtivo = calcularCustoPosicoes(operacoes);
     const custoAcoesEmCarteira = (posicoes.data ?? []).reduce((total, posicao) => {
-      const comprasDoAtivo = comprasPorAtivo.get(posicao.ativo_codigo);
-      if (!comprasDoAtivo || comprasDoAtivo.quantidade === 0n) return total;
-      return total + comprasDoAtivo.custo * BigInt(posicao.quantidade_micros) / comprasDoAtivo.quantidade;
+      const custo = custosPorAtivo.get(posicao.ativo_codigo);
+      if (!custo || custo.quantidade !== BigInt(posicao.quantidade_micros)) {
+        throw new FalhaDePersistencia('Posição de investimento inconsistente.');
+      }
+      return total + custo.custo;
     }, 0n);
     return {
       saldo: Dinheiro.doBanco(conta.data.saldo_centavos).formatar(), moeda: 'BRL',
@@ -270,9 +274,9 @@ export class RepositorioSupabase implements RepositorioCorretora, RepositorioInv
       posicoes: (posicoes.data ?? []).map(row => ({
         codigo_ativo: row.ativo_codigo,
         quantidade: Quantidade.doBanco(row.quantidade_micros).formatar(),
-        preco_medio_compra: comprasPorAtivo.get(row.ativo_codigo)?.quantidade
-          ? Dinheiro.doBanco((comprasPorAtivo.get(row.ativo_codigo)!.custo * 1000000n
-            / comprasPorAtivo.get(row.ativo_codigo)!.quantidade).toString()).formatar() : null,
+        preco_medio_compra: custosPorAtivo.get(row.ativo_codigo)?.quantidade
+          ? Dinheiro.doBanco((custosPorAtivo.get(row.ativo_codigo)!.custo * 1000000n
+            / custosPorAtivo.get(row.ativo_codigo)!.quantidade).toString()).formatar() : null,
       })),
       transferencias: (movimentos.data ?? []).map(row => ({
         id: row.id,

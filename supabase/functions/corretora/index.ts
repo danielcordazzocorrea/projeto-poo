@@ -5,6 +5,10 @@ import { Corretora } from '../_shared/servico.ts';
 import { Investimentos } from '../_shared/investimentos.ts';
 import { RepositorioSupabase } from '../_shared/repositorio-supabase.ts';
 import { FalhaDePersistencia, NaoEncontrado, RegraDeNegocio } from '../_shared/dominio.ts';
+import { conversarComAssistente } from '../_shared/assistente.ts';
+import { calcularResultadoInvestimento } from '../_shared/resultado-investimento.ts';
+import { MemoriaAssistente } from '../_shared/memoria-assistente.ts';
+import { lerPerguntaAssistente } from '../_shared/mensagem-assistente.ts';
 
 const mercado = new MercadoBrapi(Deno.env.get('BRAPI_TOKEN') ?? '');
 
@@ -45,6 +49,34 @@ Deno.serve(withSupabase({ auth: 'user' }, async (req, ctx) => {
     }
     if (req.method === 'GET' && caminho === '/investimentos/conta') {
       return json(200, await investimentos().consultarConta());
+    }
+    if (req.method === 'GET' && caminho === '/investimentos/resultado') {
+      return json(200, await calcularResultadoInvestimento(await investimentos().consultarConta(), mercado));
+    }
+    if ((req.method === 'GET' || req.method === 'DELETE') && caminho === '/assistente/historico') {
+      const usuarioId = ctx.userClaims?.id;
+      if (!usuarioId) throw new RegraDeNegocio('Sessão inválida. Entre novamente.');
+      const memoria = new MemoriaAssistente(ctx.supabase, ctx.supabaseAdmin, usuarioId);
+      if (req.method === 'GET') return json(200, { mensagens: await memoria.listar() });
+      await memoria.apagar();
+      return new Response(null, { status: 204 });
+    }
+    if (req.method === 'POST' && caminho === '/assistente') {
+      const usuarioId = ctx.userClaims?.id;
+      if (!usuarioId) throw new RegraDeNegocio('Sessão inválida. Entre novamente.');
+      try {
+        const pergunta = lerPerguntaAssistente(await lerJson(req));
+        const memoria = new MemoriaAssistente(ctx.supabase, ctx.supabaseAdmin, usuarioId);
+        const mensagens = [...await memoria.listar(11), { role: 'user' as const, content: pergunta }];
+        const resposta = await conversarComAssistente({ mensagens }, corretora, investimentos(),
+          usuarioId, mercado, ctx.supabase);
+        await memoria.salvar(pergunta, resposta.resposta);
+        return json(200, resposta);
+      } catch (erro) {
+        if (erro instanceof RegraDeNegocio || erro instanceof NaoEncontrado) throw erro;
+        console.error('Falha no assistente:', erro);
+        return json(503, { erro: 'Não consegui responder agora. Tente novamente em instantes.' });
+      }
     }
     if (req.method === 'POST' && caminho === '/investimentos/transferencias') {
       const dados = await lerJson(req);
