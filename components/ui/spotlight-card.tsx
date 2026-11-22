@@ -44,12 +44,20 @@ export function useSpotlightCards() {
       frame = 0;
       if (!pointer) return;
       const { element, x, y } = pointer;
+      const style = getComputedStyle(element);
+      // Em contêineres com rolagem, o pseudo-elemento termina no scrollport e
+      // desenha um canto falso antes do fim do conteúdo (como em modais altos).
+      if ((style.overflowY === 'auto' || style.overflowY === 'scroll')
+        && element.scrollHeight > element.clientHeight + 1) {
+        clear();
+        return;
+      }
       if (active !== element) {
         active?.removeAttribute('data-spotlight-active');
         active = element;
       }
       if (!marked.has(element)) {
-        if (getComputedStyle(element).position === 'static') element.setAttribute('data-spotlight-static', '');
+        if (style.position === 'static') element.setAttribute('data-spotlight-static', '');
         element.setAttribute('data-spotlight-card', '');
         marked.add(element);
       }
