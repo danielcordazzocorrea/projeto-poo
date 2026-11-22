@@ -95,10 +95,12 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
   const currencyOptions = useRef<HTMLFieldSetElement>(null);
   const [historyFilter, setHistoryFilter] = useState<TransactionFilter>('all');
   const [conversionSuccess, setConversionSuccess] = useState<{ saldoAnterior: string; moedaAnterior: TipoMoeda; recibo: ConversionReceipt } | null>(null);
+  const [purchaseSuccess, setPurchaseSuccess] = useState<ComprovanteCompra | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const previousArea = useRef(area);
   const successDialog = useRef<HTMLDialogElement>(null);
   const conversionSuccessDialog = useRef<HTMLDialogElement>(null);
+  const purchaseSuccessDialog = useRef<HTMLDialogElement>(null);
   const loadingDialog = useRef<HTMLDialogElement>(null);
   const operationLoading = sendingPix ? 'pix' : converting ? 'conversion' : null;
   useEffect(() => {
@@ -123,6 +125,9 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
     if (conversionSuccess && !conversionSuccessDialog.current?.open) conversionSuccessDialog.current?.showModal();
   }, [conversionSuccess]);
   useEffect(() => {
+    if (purchaseSuccess && !purchaseSuccessDialog.current?.open) purchaseSuccessDialog.current?.showModal();
+  }, [purchaseSuccess]);
+  useEffect(() => {
     if (operationLoading && !loadingDialog.current?.open) loadingDialog.current?.showModal();
     if (!operationLoading && loadingDialog.current?.open) loadingDialog.current.close();
   }, [operationLoading]);
@@ -141,6 +146,12 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
   const filteredTransactionHistory = (historyFilter === 'all' ? transactionHistory : transactionHistory
     .filter(transaction => historyFilter === 'pix' ? transaction.tipo.startsWith('PIX_') : historyFilter === 'stocks'
       ? transaction.tipo === 'COMPRA' || transaction.tipo === 'VENDA' : transaction.tipo === 'CONVERSAO')).slice(0, 10);
+
+  async function purchaseInvestmentWithSuccess(codigoAtivo: string, quantidade: string): Promise<ComprovanteCompra> {
+    const comprovante = await onInvestmentPurchase(codigoAtivo, quantidade);
+    setPurchaseSuccess(comprovante);
+    return comprovante;
+  }
 
   async function submitPix(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -288,7 +299,7 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
           </form>
           <p className="account-pix-note">O envio é imediato neste ambiente de demonstração. Confira a chave e o valor antes de confirmar.</p>
         </div> : <>
-          <InvestmentAccount principal={conta} investimento={investimento} loading={loading} token={session.access_token} category={route.category} onCategoryChange={category => navigate('investments', category)} onOperationError={showQueryError} onQueryError={showQueryError} onRefresh={onInvestmentRefresh} onTransfer={onInvestmentTransfer} onPurchase={onInvestmentPurchase} onSale={onInvestmentSale} />
+          <InvestmentAccount principal={conta} investimento={investimento} loading={loading} token={session.access_token} category={route.category} onCategoryChange={category => navigate('investments', category)} onOperationError={showQueryError} onQueryError={showQueryError} onRefresh={onInvestmentRefresh} onTransfer={onInvestmentTransfer} onPurchase={purchaseInvestmentWithSuccess} onSale={onInvestmentSale} />
         </>}
       </section>}
 
@@ -338,6 +349,21 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
           <div><span>Cotação consultada em</span><strong>{formatDateTimeBr(conversionSuccess.recibo.cotacaoEm)}</strong></div>
         </div>
         <button type="button" className="account-pix-success-close" onClick={() => conversionSuccessDialog.current?.close()}>Concluir</button>
+      </div>}
+    </dialog>
+    <dialog ref={purchaseSuccessDialog} className="account-pix-dialog" aria-labelledby="purchase-success-title" onClose={() => setPurchaseSuccess(null)}>
+      {purchaseSuccess && <div className="account-pix-dialog-content">
+        <span className="account-pix-success-icon"><Check size={30} strokeWidth={2.5} aria-hidden /></span>
+        <span className="account-pix-success-eyebrow">Compra concluída</span>
+        <h2 id="purchase-success-title">Ativo comprado com sucesso</h2>
+        <p className="account-pix-success-amount">{formatarSaldo(purchaseSuccess.total_pago, 'BRL')}</p>
+        <div className="account-pix-success-details">
+          <div><span>Ativo</span><strong>{purchaseSuccess.codigo_ativo}</strong></div>
+          <div><span>Quantidade</span><strong>{Number(purchaseSuccess.quantidade).toLocaleString('pt-BR', { maximumFractionDigits: 6 })}</strong></div>
+          <div><span>Preço por unidade</span><strong>{formatarSaldo(purchaseSuccess.preco_unitario, 'BRL')}</strong></div>
+          <div><span>Data e hora da compra</span><strong>{formatDateTimeBr(purchaseSuccess.criada_em)}</strong></div>
+        </div>
+        <button type="button" className="account-pix-success-close" onClick={() => purchaseSuccessDialog.current?.close()}>Concluir</button>
       </div>}
     </dialog>
     <dialog ref={loadingDialog} className="account-pix-dialog account-loading-dialog" aria-labelledby="operation-loading-title" onCancel={event => event.preventDefault()}>

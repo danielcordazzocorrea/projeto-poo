@@ -3,7 +3,7 @@ import { consultarHistoricoYahoo } from './historico-cliente';
 import { SaldoDisponivel } from './saldo-disponivel';
 import { PERIODOS_HISTORICO, type PeriodoHistorico } from '../supabase/functions/_shared/mercado-periodos';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { BarChart3, Check, Clock3, Search } from 'lucide-react';
+import { BarChart3, Clock3, Search } from 'lucide-react';
 import type { BuscaAtivos, CotacaoAtivo, HistoricoAtivo } from '../supabase/functions/_shared/mercado-brapi';
 import type { AccountErrorNotice } from './account-errors';
 import { queryErrorNotice, readQueryResponse } from './query-errors';
@@ -66,12 +66,6 @@ export function MercadoAtivos({ token, onPurchase, saldoInvestimentos, contaCarr
   const [quantidade, setQuantidade] = useState('1');
   const [comprando, setComprando] = useState(false);
   const purchaseQuantityInput = useRef<HTMLInputElement>(null);
-  const [compraConcluida, setCompraConcluida] = useState(false);
-  const [comprovante, setComprovante] = useState<ComprovanteCompra | null>(null);
-  const dialog = useRef<HTMLDialogElement>(null);
-  useEffect(() => {
-    if (comprovante && !dialog.current?.open) dialog.current?.showModal();
-  }, [comprovante]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -129,11 +123,9 @@ export function MercadoAtivos({ token, onPurchase, saldoInvestimentos, contaCarr
   async function comprar(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!cotacao || comprando || loading || !contaCarregada) return;
-    setComprando(true); setCompraConcluida(false);
+    setComprando(true);
     try {
-      const recibo = await onPurchase(cotacao.codigo, quantidade.trim().replace(',', '.'));
-      setComprovante(recibo);
-      setCompraConcluida(true);
+      await onPurchase(cotacao.codigo, quantidade.trim().replace(',', '.'));
     } catch (error) {
       const notice = error instanceof InvestmentTradeError ? error.notice : mapAccountError(error, { operation: 'purchase' });
       const recover = notice.action === 'edit-quantity' ? () => purchaseQuantityInput.current?.focus()
@@ -157,7 +149,7 @@ export function MercadoAtivos({ token, onPurchase, saldoInvestimentos, contaCarr
       <div className="market-search-input">
         <Search size={18} aria-hidden />
         <input ref={searchInput} id="market-search" type="search" value={busca} maxLength={80} placeholder="Ex.: PETR4 ou Petrobras" autoComplete="off"
-          onChange={event => { setBusca(event.target.value); setPagina(1); setTicker(null); setCotacao(null); setLista(null); setCompraConcluida(false); }} />
+          onChange={event => { setBusca(event.target.value); setPagina(1); setTicker(null); setCotacao(null); setLista(null); }} />
       </div>
       <p>Cotações de referência podem ter atraso de aproximadamente 30 minutos.</p>
     </div>
@@ -169,7 +161,7 @@ export function MercadoAtivos({ token, onPurchase, saldoInvestimentos, contaCarr
       <div className="market-section-title"><h4>Resultados</h4><span>Página {pagina}</span></div>
       {lista.ativos.length === 0 && <p className="market-state">Nenhum ativo compatível nesta página.</p>}
       <ul className="market-results">{lista.ativos.map(ativo => <li key={ativo.codigo}>
-        <button type="button" aria-pressed={ticker === ativo.codigo} onClick={() => { setTicker(ativo.codigo); setCompraConcluida(false); }}>
+        <button type="button" aria-pressed={ticker === ativo.codigo} onClick={() => setTicker(ativo.codigo)}>
           <span className="market-result-symbol">{ativo.codigo.slice(0, 1)}</span>
           <span className="market-result-main"><strong>{ativo.codigo}</strong><span>{ativo.nome}</span></span>
           <span className="market-result-type">{ativo.tipo}</span>
@@ -183,22 +175,6 @@ export function MercadoAtivos({ token, onPurchase, saldoInvestimentos, contaCarr
 
     {cotando && <p className="market-state" role="status">Consultando {ticker}…</p>}
     {erroCotacao && <button type="button" className="account-detail-refresh" onClick={() => setQuoteRetry(value => value + 1)}>Consultar cotação novamente</button>}
-    <dialog ref={dialog} className="account-pix-dialog" aria-labelledby="purchase-success-title" onClose={() => setComprovante(null)}>
-      {comprovante && <div className="account-pix-dialog-content">
-        <span className="account-pix-success-icon"><Check size={30} strokeWidth={2.5} aria-hidden /></span>
-        <span className="account-pix-success-eyebrow">Compra concluída</span>
-        <h2 id="purchase-success-title">Ativo comprado com sucesso</h2>
-        <p className="account-pix-success-amount">{preco(comprovante.total_pago)}</p>
-        <div className="account-pix-success-details">
-          <div><span>Ativo</span><strong>{comprovante.codigo_ativo}</strong></div>
-          <div><span>Quantidade</span><strong>{Number(comprovante.quantidade).toLocaleString('pt-BR', { maximumFractionDigits: 6 })}</strong></div>
-          <div><span>Preço por unidade</span><strong>{preco(comprovante.preco_unitario)}</strong></div>
-          <div><span>Data e hora da cotação</span><strong>{horario(comprovante.cotacao_em)}</strong></div>
-          <div><span>Data e hora da compra</span><strong>{horario(comprovante.criada_em)}</strong></div>
-        </div>
-        <button type="button" className="account-pix-success-close" onClick={() => dialog.current?.close()}>Concluir</button>
-      </div>}
-    </dialog>
     {ticker && <section className="market-quote-grid" aria-label="Cotação do ativo" aria-live="polite">
       {cotacao && <article className="market-quote-card market-price-card">
         <div className="market-card-heading"><span>Cotação atual</span><span className="market-live-indicator">Referência</span></div>
@@ -211,7 +187,6 @@ export function MercadoAtivos({ token, onPurchase, saldoInvestimentos, contaCarr
           <div><input ref={purchaseQuantityInput} id="market-quantity" type="text" inputMode="decimal" value={quantidade} onChange={event => aceitaEntradaDecimal(event.target.value, 6) && setQuantidade(event.target.value)} placeholder="1" required disabled={comprando || loading} />
             <button type="submit" disabled={comprando || loading || !contaCarregada}>{comprando ? 'Comprando…' : 'Comprar ativo'}</button></div>
         </form>
-        {compraConcluida && <span className="market-buy-success" role="status">Compra concluída. Sua carteira foi atualizada.</span>}
       </article>}
 
     {ticker && <section className="market-history-card market-quote-card" aria-label={`Evolução do preço de ${ticker}`} aria-busy={carregandoHistorico}>
