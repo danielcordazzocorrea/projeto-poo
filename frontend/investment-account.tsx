@@ -1,3 +1,4 @@
+import { t } from '@/frontend/idioma';
 import { aceitaEntradaDecimal } from './moeda';
 import { ValorInput } from './valor-input';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
@@ -141,18 +142,18 @@ export function InvestmentAccount({ principal, investimento, loading, token, cat
   }
 
   if (!categoria) return <div className="investment-account" aria-busy={loading}>
-    <section className="investment-categories" aria-label="Categorias de investimento">
+    <section className="investment-categories" aria-label={t("Categorias de investimento")}>
       <button type="button" className="investment-category" onClick={() => onCategoryChange('transferir')}>
-        <span className="investment-category-icon"><HandCoins size={27} strokeWidth={2.3} aria-hidden /></span><h2>Transferir dinheiro</h2>
+        <span className="investment-category-icon"><HandCoins size={27} strokeWidth={2.3} aria-hidden /></span><h2>{t("Transferir dinheiro")}</h2>
       </button>
       <button type="button" className="investment-category" onClick={() => onCategoryChange('acoes')}>
-        <span className="investment-category-icon"><GrowthHomeIcon /></span><h2>Renda variável</h2>
+        <span className="investment-category-icon"><GrowthHomeIcon /></span><h2>{t("Renda variável")}</h2>
       </button>
     </section>
     <section className="investment-portfolio" aria-labelledby="portfolio-title">
       <div className="investment-portfolio-heading">
-        <div><h2 id="portfolio-title">Carteira</h2><span>Total investido</span></div>
-        <strong>{loading ? 'Carregando…' : formatarSaldo(totalInvestido.toFixed(2), 'BRL')}</strong>
+        <div><h2 id="portfolio-title">{t("Carteira")}</h2><span>{t("Total investido")}</span></div>
+        <strong>{loading ? t("Carregando…") : formatarSaldo(totalInvestido.toFixed(2), 'BRL')}</strong>
       </div>
       <div className="investment-portfolio-bar" aria-hidden>
         <span style={{ width: `${porcentagem(rendaFixa)}%` }} />
@@ -160,26 +161,26 @@ export function InvestmentAccount({ principal, investimento, loading, token, cat
       </div>
       <dl className="investment-portfolio-breakdown">
         <div>
-          <dt><span className="investment-portfolio-marker investment-portfolio-marker-fixed" />Saldo disponível</dt>
+          <dt><span className="investment-portfolio-marker investment-portfolio-marker-fixed" />{t("Saldo disponível")}</dt>
           <dd><strong>{loading ? '—' : formatarSaldo(rendaFixa.toFixed(2), 'BRL')}</strong><span>{porcentagem(rendaFixa)}%</span></dd>
         </div>
         <div>
-          <dt><span className="investment-portfolio-marker investment-portfolio-marker-stocks" />Renda variável</dt>
+          <dt><span className="investment-portfolio-marker investment-portfolio-marker-stocks" />{t("Renda variável")}</dt>
           <dd><strong>{loading ? '—' : formatarSaldo(acoes.toFixed(2), 'BRL')}</strong><span>{porcentagem(acoes)}%</span></dd>
         </div>
       </dl>
     </section>
     <section className="investment-result" aria-labelledby="investment-result-title" aria-busy={consultandoResultado}>
-      <div className="investment-result-heading"><div><h2 id="investment-result-title">Resultado do investimento</h2><p>Posições que você tem hoje, em reais</p></div>
-        <button type="button" onClick={() => setTentativaResultado(valor => valor + 1)} disabled={consultandoResultado || loading}><RefreshCw size={15} className={consultandoResultado ? 'account-spin' : ''} aria-hidden />Atualizar</button></div>
-      {consultandoResultado ? <p className="investment-result-state" role="status">Consultando cotações da carteira…</p>
-        : erroResultado ? <p className="investment-result-state" role="alert">Não foi possível consultar o valor atual. Tente atualizar.</p>
+      <div className="investment-result-heading"><div><h2 id="investment-result-title">{t("Resultado do investimento")}</h2><p>{t("Posições que você tem hoje, em reais")}</p></div>
+        <button type="button" onClick={() => setTentativaResultado(valor => valor + 1)} disabled={consultandoResultado || loading}><RefreshCw size={15} className={consultandoResultado ? 'account-spin' : ''} aria-hidden />{t("Atualizar")}</button></div>
+      {consultandoResultado ? <p className="investment-result-state" role="status">{t("Consultando cotações da carteira…")}</p>
+        : erroResultado ? <p className="investment-result-state" role="alert">{t("Não foi possível consultar o valor atual. Tente atualizar.")}</p>
           : resultado && <>
             <dl className="investment-result-values">
-              <div><dt>Aplicado nos ativos</dt><dd>{formatarSaldo(resultado.investido, 'BRL')}</dd></div>
-              <div><dt>Valor atual estimado</dt><dd>{resultado.valor_atual === null ? 'Indisponível' : formatarSaldo(resultado.valor_atual, 'BRL')}</dd></div>
-              <div className={resultado.resultado?.startsWith('-') ? 'investment-result-negative' : 'investment-result-positive'}><dt>Resultado das posições</dt><dd>{resultado.resultado === null ? 'Indisponível' : <>{resultado.resultado.startsWith('-') ? '−' : '+'}{formatarSaldo(resultado.resultado.replace('-', ''), 'BRL')} {resultado.percentual !== null && <small>({resultado.percentual.replace('.', ',')}%)</small>}</>}</dd></div>
-              <div><dt>Total da conta com saldo disponível</dt><dd>{resultado.patrimonio_atual === null ? 'Indisponível' : formatarSaldo(resultado.patrimonio_atual, 'BRL')}</dd></div>
+              <div><dt>{t("Aplicado nos ativos")}</dt><dd>{formatarSaldo(resultado.investido, 'BRL')}</dd></div>
+              <div><dt>{t("Valor atual estimado")}</dt><dd>{resultado.valor_atual === null ? t("Indisponível") : formatarSaldo(resultado.valor_atual, 'BRL')}</dd></div>
+              <div className={resultado.resultado?.startsWith('-') ? 'investment-result-negative' : 'investment-result-positive'}><dt>{t("Resultado das posições")}</dt><dd>{resultado.resultado === null ? t("Indisponível") : <>{resultado.resultado.startsWith('-') ? '−' : '+'}{formatarSaldo(resultado.resultado.replace('-', ''), 'BRL')} {resultado.percentual !== null && <small>({resultado.percentual.replace('.', ',')}%)</small>}</>}</dd></div>
+              <div><dt>{t("Total da conta com saldo disponível")}</dt><dd>{resultado.patrimonio_atual === null ? t("Indisponível") : formatarSaldo(resultado.patrimonio_atual, 'BRL')}</dd></div>
             </dl>
             {resultado.ativos_sem_cotacao.length > 0 ? <p className="investment-result-state">Cotação indisponível para {resultado.ativos_sem_cotacao.join(', ')}. O resultado completo depende desses preços.</p>
               : <p className="investment-result-note">Estimativa pela cotação de referência{resultado.cotacao_em ? ` de ${new Date(resultado.cotacao_em).toLocaleString('pt-BR')}` : ''}. O resultado considera apenas as posições abertas; não inclui vendas anteriores, taxas ou impostos.</p>}
@@ -191,7 +192,7 @@ export function InvestmentAccount({ principal, investimento, loading, token, cat
           <path d="M4 5h16M4 10h12M4 15h16M4 20h12" />
         </svg>
       </span>
-      <span><strong>Ver ações compradas</strong><small>{investimento?.posicoes.length ?? 0} {investimento?.posicoes.length === 1 ? 'ativo na carteira' : 'ativos na carteira'}</small></span>
+      <span><strong>{t("Ver ações compradas")}</strong><small>{investimento?.posicoes.length ?? 0} {investimento?.posicoes.length === 1 ? t("ativo na carteira") : t("ativos na carteira")}</small></span>
       <ChevronRight size={21} aria-hidden />
     </button>
   </div>;
@@ -199,56 +200,56 @@ export function InvestmentAccount({ principal, investimento, loading, token, cat
   if (categoria === 'transferir') {
     const moedaOrigem = direcao === 'PARA_INVESTIMENTOS' ? principal?.moeda_saldo ?? 'BRL' : 'BRL';
     return <section className="investment-selected-content investment-fixed-income-content" aria-busy={loading || sending}>
-      <button type="button" className="account-back" onClick={() => onCategoryChange(null)}><ArrowLeft size={17} aria-hidden />Voltar às categorias</button>
-      <h2>Transferir dinheiro</h2>
+      <button type="button" className="account-back" onClick={() => onCategoryChange(null)}><ArrowLeft size={17} aria-hidden />{t("Voltar às categorias")}</button>
+      <h2>{t("Transferir dinheiro")}</h2>
       <div className="investment-account">
-        <p className="account-detail-intro">Sua conta de investimentos tem saldo próprio em reais. Transfira entre ela e sua conta principal para organizar seu dinheiro simulado.</p>
+        <p className="account-detail-intro">{t("Sua conta de investimentos tem saldo próprio em reais. Transfira entre ela e sua conta principal para organizar seu dinheiro simulado.")}</p>
         <div className="investment-balances">
-          <div><span>Conta principal · {principal?.moeda_saldo ?? 'BRL'}</span><strong>{principal ? formatarSaldo(principal.saldo, principal.moeda_saldo) : 'Carregando…'}</strong></div>
-          <div><span>Conta de investimentos · BRL</span><strong>{investimento ? formatarSaldo(investimento.saldo, 'BRL') : 'Carregando…'}</strong></div>
+          <div><span>Conta principal · {principal?.moeda_saldo ?? 'BRL'}</span><strong>{principal ? formatarSaldo(principal.saldo, principal.moeda_saldo) : t("Carregando…")}</strong></div>
+          <div><span>{t("Conta de investimentos · BRL")}</span><strong>{investimento ? formatarSaldo(investimento.saldo, 'BRL') : t("Carregando…")}</strong></div>
         </div>
         <form className="account-pix-form investment-transfer-form" onSubmit={event => void submit(event)}>
-          <h2>Transferir entre contas</h2>
-          <div className="investment-directions" role="group" aria-label="Direção da transferência">
-            <button type="button" className={direcao === 'PARA_INVESTIMENTOS' ? 'is-selected' : ''} aria-pressed={direcao === 'PARA_INVESTIMENTOS'} onClick={() => { setDirecao('PARA_INVESTIMENTOS'); setReceipt(null); }}><ArrowDownToLine size={17} aria-hidden />Para investimentos</button>
-            <button type="button" className={direcao === 'PARA_PRINCIPAL' ? 'is-selected' : ''} aria-pressed={direcao === 'PARA_PRINCIPAL'} onClick={() => { setDirecao('PARA_PRINCIPAL'); setReceipt(null); }}><ArrowUpFromLine size={17} aria-hidden />Para conta principal</button>
+          <h2>{t("Transferir entre contas")}</h2>
+          <div className="investment-directions" role="group" aria-label={t("Direção da transferência")}>
+            <button type="button" className={direcao === 'PARA_INVESTIMENTOS' ? 'is-selected' : ''} aria-pressed={direcao === 'PARA_INVESTIMENTOS'} onClick={() => { setDirecao('PARA_INVESTIMENTOS'); setReceipt(null); }}><ArrowDownToLine size={17} aria-hidden />{t("Para investimentos")}</button>
+            <button type="button" className={direcao === 'PARA_PRINCIPAL' ? 'is-selected' : ''} aria-pressed={direcao === 'PARA_PRINCIPAL'} onClick={() => { setDirecao('PARA_PRINCIPAL'); setReceipt(null); }}><ArrowUpFromLine size={17} aria-hidden />{t("Para conta principal")}</button>
           </div>
-          <label htmlFor="investment-value">Valor em {moedaOrigem}</label>
+          <label htmlFor="investment-value">{t("Valor em")} {moedaOrigem}</label>
           <ValorInput ref={valueInput} id="investment-value" value={valor} onValueChange={setValor} placeholder="0,00" required disabled={loading || sending || !principal || !investimento} />
           {principal?.moeda_saldo !== 'BRL' && <p className="account-pix-note">A conversão entre {principal?.moeda_saldo} e BRL é automática nesta transferência. O valor convertido será mostrado no comprovante.</p>}
-          <button type="submit" className="account-pix-submit" disabled={loading || sending || !principal || !investimento}>{sending && <RefreshCw size={16} className="account-spin" aria-hidden />}{sending ? 'Transferindo…' : 'Confirmar transferência'}</button>
+          <button type="submit" className="account-pix-submit" disabled={loading || sending || !principal || !investimento}>{sending && <RefreshCw size={16} className="account-spin" aria-hidden />}{sending ? t("Transferindo…") : t("Confirmar transferência")}</button>
         </form>
-        {receipt && <div className="investment-receipt" role="status"><strong>Transferência concluída</strong><span>{formatarSaldo(receipt.valor_origem, receipt.moeda_origem)} → {formatarSaldo(receipt.valor_destino, receipt.moeda_destino)}</span>{receipt.cotacao_em && <small>Cotação consultada em {new Date(receipt.cotacao_em).toLocaleString('pt-BR')}</small>}</div>}
-        <button type="button" className="account-detail-refresh" onClick={onRefresh} disabled={loading || sending}><RefreshCw size={16} className={loading ? 'account-spin' : ''} aria-hidden />{loading ? 'Atualizando…' : 'Atualizar saldos'}</button>
+        {receipt && <div className="investment-receipt" role="status"><strong>{t("Transferência concluída")}</strong><span>{formatarSaldo(receipt.valor_origem, receipt.moeda_origem)} → {formatarSaldo(receipt.valor_destino, receipt.moeda_destino)}</span>{receipt.cotacao_em && <small>{t("Cotação consultada em")} {new Date(receipt.cotacao_em).toLocaleString('pt-BR')}</small>}</div>}
+        <button type="button" className="account-detail-refresh" onClick={onRefresh} disabled={loading || sending}><RefreshCw size={16} className={loading ? 'account-spin' : ''} aria-hidden />{loading ? t("Atualizando…") : t("Atualizar saldos")}</button>
       </div>
       <dialog ref={transferSuccessDialog} className="account-pix-dialog" aria-labelledby="investment-transfer-success-title">
         {receipt && <div className="account-pix-dialog-content">
           <span className="account-pix-success-icon"><Check size={30} strokeWidth={2.5} aria-hidden /></span>
-          <span className="account-pix-success-eyebrow">Transferência concluída</span>
-          <h2 id="investment-transfer-success-title">Dinheiro transferido com sucesso</h2>
+          <span className="account-pix-success-eyebrow">{t("Transferência concluída")}</span>
+          <h2 id="investment-transfer-success-title">{t("Dinheiro transferido com sucesso")}</h2>
           <p className="account-pix-success-amount">{formatarSaldo(receipt.valor_destino, receipt.moeda_destino)}</p>
           <div className="account-pix-success-details">
-            <div><span>Destino</span><strong>{receipt.direcao === 'PARA_INVESTIMENTOS' ? 'Conta de investimentos' : 'Conta principal'}</strong></div>
-            <div><span>Valor enviado</span><strong>{formatarSaldo(receipt.valor_origem, receipt.moeda_origem)}</strong></div>
-            <div><span>Valor recebido</span><strong>{formatarSaldo(receipt.valor_destino, receipt.moeda_destino)}</strong></div>
-            {receipt.cotacao_em && <div><span>Cotação consultada em</span><strong>{new Date(receipt.cotacao_em).toLocaleString('pt-BR')}</strong></div>}
+            <div><span>{t("Destino")}</span><strong>{receipt.direcao === 'PARA_INVESTIMENTOS' ? t("Conta de investimentos") : t("Conta principal")}</strong></div>
+            <div><span>{t("Valor enviado")}</span><strong>{formatarSaldo(receipt.valor_origem, receipt.moeda_origem)}</strong></div>
+            <div><span>{t("Valor recebido")}</span><strong>{formatarSaldo(receipt.valor_destino, receipt.moeda_destino)}</strong></div>
+            {receipt.cotacao_em && <div><span>{t("Cotação consultada em")}</span><strong>{new Date(receipt.cotacao_em).toLocaleString('pt-BR')}</strong></div>}
           </div>
-          <button type="button" className="account-pix-success-close" onClick={() => transferSuccessDialog.current?.close()}>Concluir</button>
+          <button type="button" className="account-pix-success-close" onClick={() => transferSuccessDialog.current?.close()}>{t("Concluir")}</button>
         </div>}
       </dialog>
     </section>;
   }
 
   if (categoria === 'compradas') return <section className="investment-selected-content" aria-busy={loading}>
-    <button type="button" className="account-back" onClick={() => onCategoryChange(null)}><ArrowLeft size={17} aria-hidden />Voltar às categorias</button>
-    <h2>Ações compradas</h2>
-    <p className="account-detail-intro">Confira os ativos que já fazem parte da sua carteira.</p>
-    {!investimento?.posicoes.length ? <p className="investment-positions-empty">Você ainda não comprou ações, BDRs ou ETFs.</p> : <ul className="investment-positions-list" aria-label="Ativos comprados">
+    <button type="button" className="account-back" onClick={() => onCategoryChange(null)}><ArrowLeft size={17} aria-hidden />{t("Voltar às categorias")}</button>
+    <h2>{t("Ações compradas")}</h2>
+    <p className="account-detail-intro">{t("Confira os ativos que já fazem parte da sua carteira.")}</p>
+    {!investimento?.posicoes.length ? <p className="investment-positions-empty">{t("Você ainda não comprou ações, BDRs ou ETFs.")}</p> : <ul className="investment-positions-list" aria-label={t("Ativos comprados")}>
       {investimento.posicoes.map(posicao => <li key={posicao.codigo_ativo}>
         <span className="investment-position-symbol">{posicao.codigo_ativo.slice(0, 1)}</span>
         <strong>{posicao.codigo_ativo}</strong>
         <span>{Number(posicao.quantidade).toLocaleString('pt-BR', { maximumFractionDigits: 6 })} unidades</span>
-        <button type="button" className="investment-sell-toggle" onClick={() => { setAtivoParaVenda(posicao.codigo_ativo); setQuantidadeVenda(''); }}>Vender</button>
+        <button type="button" className="investment-sell-toggle" onClick={() => { setAtivoParaVenda(posicao.codigo_ativo); setQuantidadeVenda(''); }}>{t("Vender")}</button>
       </li>)}
     </ul>}
     <dialog ref={vendaDialog} className="account-pix-dialog" aria-labelledby="sell-dialog-title"
@@ -256,40 +257,40 @@ export function InvestmentAccount({ principal, investimento, loading, token, cat
       onClose={() => { setAtivoParaVenda(null); setCotacaoVenda(null); setVendaConcluida(null); }}>
       {vendaConcluida ? <div className="account-pix-dialog-content">
         <span className="account-pix-success-icon"><Check size={30} strokeWidth={2.5} aria-hidden /></span>
-        <span className="account-pix-success-eyebrow">Venda concluída</span>
-        <h2 id="sell-dialog-title">Ativo vendido com sucesso</h2>
+        <span className="account-pix-success-eyebrow">{t("Venda concluída")}</span>
+        <h2 id="sell-dialog-title">{t("Ativo vendido com sucesso")}</h2>
         <div className="account-pix-success-details">
-          <div><span>Ativo</span><strong>{vendaConcluida.codigo}</strong></div>
-          <div><span>Quantidade vendida</span><strong>{Number(vendaConcluida.quantidade).toLocaleString('pt-BR', { maximumFractionDigits: 6 })}</strong></div>
+          <div><span>{t("Ativo")}</span><strong>{vendaConcluida.codigo}</strong></div>
+          <div><span>{t("Quantidade vendida")}</span><strong>{Number(vendaConcluida.quantidade).toLocaleString('pt-BR', { maximumFractionDigits: 6 })}</strong></div>
         </div>
-        <p className="account-pix-note">O valor da venda foi creditado na sua conta de investimentos. Sua carteira foi atualizada.</p>
-        <button type="button" className="account-pix-success-close" onClick={() => vendaDialog.current?.close()}>Concluir</button>
+        <p className="account-pix-note">{t("O valor da venda foi creditado na sua conta de investimentos. Sua carteira foi atualizada.")}</p>
+        <button type="button" className="account-pix-success-close" onClick={() => vendaDialog.current?.close()}>{t("Concluir")}</button>
       </div> : <div className="account-pix-dialog-content">
         <span className="account-pix-success-icon"><ArrowUpFromLine size={30} aria-hidden /></span>
-        <span className="account-pix-success-eyebrow">Venda de ativo</span>
-        <h2 id="sell-dialog-title">Vender {ativoParaVenda}</h2>
+        <span className="account-pix-success-eyebrow">{t("Venda de ativo")}</span>
+        <h2 id="sell-dialog-title">{t("Vender")} {ativoParaVenda}</h2>
         <div className="account-pix-success-details">
-          <div><span>Preço atual por unidade</span><strong>{consultandoVenda ? 'Consultando cotação…' : cotacaoVenda ? formatarSaldo(cotacaoVenda.preco_brl, 'BRL') : 'Indisponível'}</strong></div>
-          <div><span>Preço médio de compra por unidade</span><strong>{posicaoVenda?.preco_medio_compra ? formatarSaldo(posicaoVenda.preco_medio_compra, 'BRL') : 'Não informado'}</strong></div>
-          <div><span>Quantidade disponível</span><strong>{Number(posicaoVenda?.quantidade ?? '0').toLocaleString('pt-BR', { maximumFractionDigits: 6 })}</strong></div>
-          {cotacaoVenda && <div><span>Data e hora da cotação</span><strong>{cotacaoVenda.cotacao_em ? new Date(cotacaoVenda.cotacao_em).toLocaleString('pt-BR', { timeZoneName: 'short' }) : 'Não informado pelo provedor'}</strong></div>}
+          <div><span>{t("Preço atual por unidade")}</span><strong>{consultandoVenda ? t("Consultando cotação…") : cotacaoVenda ? formatarSaldo(cotacaoVenda.preco_brl, 'BRL') : t("Indisponível")}</strong></div>
+          <div><span>{t("Preço médio de compra por unidade")}</span><strong>{posicaoVenda?.preco_medio_compra ? formatarSaldo(posicaoVenda.preco_medio_compra, 'BRL') : t("Não informado")}</strong></div>
+          <div><span>{t("Quantidade disponível")}</span><strong>{Number(posicaoVenda?.quantidade ?? '0').toLocaleString('pt-BR', { maximumFractionDigits: 6 })}</strong></div>
+          {cotacaoVenda && <div><span>{t("Data e hora da cotação")}</span><strong>{cotacaoVenda.cotacao_em ? new Date(cotacaoVenda.cotacao_em).toLocaleString('pt-BR', { timeZoneName: 'short' }) : 'Não informado pelo provedor'}</strong></div>}
         </div>
         <form className="account-pix-form" onSubmit={event => { if (ativoParaVenda) void vender(event, ativoParaVenda); else event.preventDefault(); }}>
-          <label htmlFor="sell-dialog-quantity">Qual quantidade você quer vender?</label>
+          <label htmlFor="sell-dialog-quantity">{t("Qual quantidade você quer vender?")}</label>
           <input ref={saleQuantityInput} id="sell-dialog-quantity" type="text" inputMode="decimal" value={quantidadeVenda} onChange={event => aceitaEntradaDecimal(event.target.value, 6) && setQuantidadeVenda(event.target.value)} placeholder="0" required disabled={vendendo || loading || consultandoVenda} />
           {erroCotacaoVenda && <p className="investment-sale-error" role="alert">{erroCotacaoVenda}</p>}
-          <p className="account-pix-note">O valor será creditado na sua conta de investimentos pela cotação consultada na confirmação.</p>
-          <button type="submit" className="account-pix-success-close" disabled={vendendo || loading || consultandoVenda || !cotacaoVenda || !quantidadeVenda.trim()}>{vendendo ? 'Vendendo…' : 'Confirmar venda'}</button>
-          <button type="button" className="account-back" disabled={vendendo} onClick={() => vendaDialog.current?.close()}>Cancelar</button>
+          <p className="account-pix-note">{t("O valor será creditado na sua conta de investimentos pela cotação consultada na confirmação.")}</p>
+          <button type="submit" className="account-pix-success-close" disabled={vendendo || loading || consultandoVenda || !cotacaoVenda || !quantidadeVenda.trim()}>{vendendo ? t("Vendendo…") : t("Confirmar venda")}</button>
+          <button type="button" className="account-back" disabled={vendendo} onClick={() => vendaDialog.current?.close()}>{t("Cancelar")}</button>
         </form>
       </div>}
     </dialog>
   </section>;
 
   return <section className="investment-selected-content investment-variable-income-content" aria-busy={loading}>
-    <button type="button" className="account-back" onClick={() => onCategoryChange(null)}><ArrowLeft size={17} aria-hidden />Voltar às categorias</button>
-    <h2>Ações, BDRs, EFTs</h2><MercadoAtivos onQueryError={onQueryError} onTradeError={onOperationError} onRefresh={onRefresh} loading={loading} token={token} onPurchase={onPurchase} onPurchaseSuccess={onPurchaseSuccess}
-      saldoInvestimentos={investimento ? formatarSaldo(investimento.saldo, 'BRL') : 'Carregando…'}
+    <button type="button" className="account-back" onClick={() => onCategoryChange(null)}><ArrowLeft size={17} aria-hidden />{t("Voltar às categorias")}</button>
+    <h2>{t("Ações, BDRs, EFTs")}</h2><MercadoAtivos onQueryError={onQueryError} onTradeError={onOperationError} onRefresh={onRefresh} loading={loading} token={token} onPurchase={onPurchase} onPurchaseSuccess={onPurchaseSuccess}
+      saldoInvestimentos={investimento ? formatarSaldo(investimento.saldo, 'BRL') : t("Carregando…")}
       saldoInvestimentosValor={investimento?.saldo ?? null}
       contaCarregada={Boolean(investimento) && !loading} />
   </section>;

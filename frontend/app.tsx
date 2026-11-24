@@ -1,3 +1,4 @@
+import { t, useIdioma } from '@/frontend/idioma';
 import type { ComprovanteCompra } from './investment-account';
 import { useEffect, useRef, useState } from 'react';
 import { createClient, type Session, type SupabaseClient } from '@supabase/supabase-js';
@@ -24,6 +25,11 @@ const configurado = chave.startsWith('sb_publishable_') && !chave.includes('COLE
 const supabase: SupabaseClient | null = configurado ? createClient(url, chave) : null;
 
 export default function App() {
+  const idioma = useIdioma();
+  useEffect(() => {
+    document.documentElement.lang = idioma;
+    document.title = 'tivvo · ' + t('Acesso à conta');
+  }, [idioma]);
   useSpotlightCards();
   const [theme, setTheme] = useState<Theme>(readSavedTheme);
   const [mode, setMode] = useState<'login' | 'signup'>(() => window.location.pathname === '/cadastro' ? 'signup' : 'login');
@@ -170,21 +176,21 @@ export default function App() {
     try {
       const nextSession = await submitCredentials(supabase, mode, values, window.location.origin);
       if (nextSession) setSession(nextSession);
-      else setNotice({ text: 'Cadastro enviado — confira sua caixa de entrada para confirmar o e-mail antes de entrar', kind: 'ok' });
+      else setNotice({ text: t("Cadastro enviado — confira sua caixa de entrada para confirmar o e-mail antes de entrar"), kind: 'ok' });
     } catch (error) {
-      setNotice({ text: error instanceof Error ? error.message : 'Não foi possível concluir o envio — tente novamente', kind: 'erro' });
+      setNotice({ text: error instanceof Error ? error.message : t("Não foi possível concluir o envio — tente novamente"), kind: 'erro' });
     }
   }
-  async function logout(): Promise<void> { if (!supabase) return; const { error } = await supabase.auth.signOut(); if (!error) { window.history.replaceState(null, '', '/'); setMode('login'); } setNotice(error ? { text: error.message, kind: 'erro' } : { text: 'Você saiu da sua conta', kind: 'ok' }); }
+  async function logout(): Promise<void> { if (!supabase) return; const { error } = await supabase.auth.signOut(); if (!error) { window.history.replaceState(null, '', '/'); setMode('login'); } setNotice(error ? { text: error.message, kind: 'erro' } : { text: t("Você saiu da sua conta"), kind: 'ok' }); }
 
   if (session) return <AccountHome key={session.user.id} theme={theme} onThemeChange={setTheme} session={session} conta={conta} investimento={investimento} loading={loadingAccount} notice={notice} accountError={accountError} onDismissAccountError={() => setAccountError(null)} onRefresh={() => void loadAccount(session)} onInvestmentRefresh={() => void loadAccount(session)} onPixTransfer={transferPix} onConvertBalance={convertBalance} onInvestmentTransfer={transferInvestment} onInvestmentPurchase={purchaseInvestment} onInvestmentSale={sellInvestment} onLogout={() => void logout()} />;
   const signingUp = mode === 'signup';
   return <SmokeLogin
     theme={theme}
     brand="tivvo"
-    title={signingUp ? <>Comece pela ti<span className="text-[var(--accent)]">vv</span>o</> : <>Que bom ter você na ti<span className="text-[var(--accent)]">vv</span>o</>}
-    subtitle={signingUp ? 'Crie sua conta para explorar investimentos simulados com saldo inicial zero' : ''}
-    submitLabel={signingUp ? 'Criar conta' : 'Entrar'}
+    title={signingUp ? <>{t("Comece pela ti")}<span className="text-[var(--accent)]">vv</span>o</> : <>{t("Que bom ter você na ti")}<span className="text-[var(--accent)]">vv</span>o</>}
+    subtitle={signingUp ? t("Crie sua conta para explorar investimentos simulados com saldo inicial zero") : ''}
+    submitLabel={signingUp ? t("Criar conta") : t("Entrar")}
     mode={mode}
     disabled={!configurado}
     notice={!configurado ? { text: CONFIGURATION_NOTICE, kind: 'info' } : notice}

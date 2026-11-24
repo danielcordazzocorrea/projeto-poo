@@ -1,3 +1,4 @@
+import { t } from '@/frontend/idioma';
 import { LiveOrb as Orb } from '@/components/ui/live-orb';
 import type { Theme } from '@/lib/theme';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
@@ -122,38 +123,38 @@ export function LiveOrb({ theme, token, onPixTransfer }: {
       onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); close(); } }}>
       <header className="mascot-chat-header">
         <span className="mascot-chat-icon"><MessageCircle size={20} aria-hidden /></span>
-        <div><h2 id="tivvo-chat-title">Converse com a tivvo</h2><p>Assistente da sua conta simulada</p></div>
+        <div><h2 id="tivvo-chat-title">{t("Converse com a tivvo")}</h2><p>{t("Assistente da sua conta simulada")}</p></div>
         <div className="mascot-chat-actions">
-          <button type="button" onClick={() => void clearHistory()} aria-label="Apagar conversa" title="Apagar conversa"
+          <button type="button" onClick={() => void clearHistory()} aria-label={t("Apagar conversa")} title={t("Apagar conversa")}
             disabled={busy || confirming || loadingHistory || !messages.length}><Trash2 size={17} aria-hidden /></button>
-          <button type="button" onClick={close} aria-label="Fechar chat"><X size={19} aria-hidden /></button>
+          <button type="button" onClick={close} aria-label={t("Fechar chat")}><X size={19} aria-hidden /></button>
         </div>
       </header>
-      <div className="mascot-chat-messages" role="log" aria-label="Mensagens do chat" aria-live="polite">
-        <p className="mascot-chat-message mascot-chat-message-assistant">Olá! Posso consultar seu saldo, histórico e investimentos, ou preparar um Pix para você confirmar.</p>
+      <div className="mascot-chat-messages" role="log" aria-label={t("Mensagens do chat")} aria-live="polite">
+        <p className="mascot-chat-message mascot-chat-message-assistant">{t("Olá! Posso consultar seu saldo, histórico e investimentos, ou preparar um Pix para você confirmar.")}</p>
         {messages.map((message, index) => <div key={index} className={`mascot-chat-message mascot-chat-message-${message.role}`}>
-          <span className="sr-only">{message.role === 'user' ? 'Você: ' : 'Assistente: '}</span>{message.content}
+          <span className="sr-only">{message.role === 'user' ? t("Você: ") : t("Assistente: ")}</span>{message.content}
           {message.pix && <div className="mascot-chat-pix">
-            <strong>Pix simulado · {formatarSaldo(message.pix.valor, message.pix.moeda)}</strong>
-            <span>Para {message.pix.chave_destino}</span>
+            <strong>{t("Pix simulado ·")} {formatarSaldo(message.pix.valor, message.pix.moeda)}</strong>
+            <span>{t("Para")} {message.pix.chave_destino}</span>
             <button type="button" disabled={message.sent || busy || confirming} onClick={() => void confirmPix(index, message.pix!)}>
-              {message.sent ? 'Pix enviado' : confirming ? 'Enviando…' : 'Confirmar envio do Pix'}
+              {message.sent ? t("Pix enviado") : confirming ? t("Enviando…") : t("Confirmar envio do Pix")}
             </button>
           </div>}
         </div>)}
-        {loadingHistory && <p className="mascot-chat-message mascot-chat-message-assistant" role="status">Carregando sua conversa…</p>}
-        {historyError && <div className="mascot-chat-history-error" role="alert">Não consegui carregar a conversa. <button type="button" onClick={() => void loadHistory()}>Tentar novamente</button></div>}
-        {busy && <p className="mascot-chat-message mascot-chat-message-assistant" role="status">Consultando sua conta…</p>}
+        {loadingHistory && <p className="mascot-chat-message mascot-chat-message-assistant" role="status">{t("Carregando sua conversa…")}</p>}
+        {historyError && <div className="mascot-chat-history-error" role="alert">{t("Não consegui carregar a conversa.")} <button type="button" onClick={() => void loadHistory()}>{t("Tentar novamente")}</button></div>}
+        {busy && <p className="mascot-chat-message mascot-chat-message-assistant" role="status">{t("Consultando sua conta…")}</p>}
         <div ref={end} />
       </div>
-      <p className="mascot-chat-status">Perguntas e respostas salvas na sua conta. Rascunhos de Pix não ficam ativos após recarregar.</p>
+      <p className="mascot-chat-status">{t("Perguntas e respostas salvas na sua conta. Rascunhos de Pix não ficam ativos após recarregar.")}</p>
       <form className="mascot-chat-composer" onSubmit={event => void send(event)}>
-        <label className="sr-only" htmlFor="tivvo-chat-question">Sua pergunta</label>
-        <input ref={input} id="tivvo-chat-question" value={question} onChange={event => setQuestion(event.target.value)} maxLength={2000} placeholder="Pergunte sobre sua conta…" autoComplete="off" disabled={busy || confirming || loadingHistory || historyError} />
-        <button type="submit" disabled={!question.trim() || busy || confirming || loadingHistory || historyError} aria-label="Enviar mensagem"><Send size={18} aria-hidden /></button>
+        <label className="sr-only" htmlFor="tivvo-chat-question">{t("Sua pergunta")}</label>
+        <input ref={input} id="tivvo-chat-question" value={question} onChange={event => setQuestion(event.target.value)} maxLength={2000} placeholder={t("Pergunte sobre sua conta…")} autoComplete="off" disabled={busy || confirming || loadingHistory || historyError} />
+        <button type="submit" disabled={!question.trim() || busy || confirming || loadingHistory || historyError} aria-label={t("Enviar mensagem")}><Send size={18} aria-hidden /></button>
       </form>
     </section>}
-    <button ref={trigger} type="button" className="live-orb-trigger" aria-label={open ? 'Fechar chat da tivvo' : 'Abrir chat da tivvo'}
+    <button ref={trigger} type="button" className="live-orb-trigger" aria-label={open ? t("Fechar chat da tivvo") : t("Abrir chat da tivvo")}
       aria-expanded={open} aria-controls="tivvo-chat" aria-haspopup="dialog" onClick={() => open ? close() : setOpen(true)}>
       <span aria-hidden><Orb className="live-orb-character" variant="webgl" theme={theme}
         colors={[...orbColors[theme].clouds]} eyeColor={orbColors[theme].eyes} /></span>

@@ -1,3 +1,4 @@
+import { t, useIdioma } from '@/frontend/idioma';
 import * as React from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -11,8 +12,6 @@ export type CalendarProps = {
   className?: string;
 };
 
-const MONTHS = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 const EASE_OUT: [number, number, number, number] = [0.23, 1, 0.32, 1];
 
 function startOfDay(date: Date): Date { return new Date(date.getFullYear(), date.getMonth(), date.getDate()); }
@@ -32,6 +31,9 @@ function monthGrid(month: Date): Date[] {
 }
 
 export const Calendar = React.forwardRef<HTMLDivElement, CalendarProps>(({ selected, defaultMonth, onSelect, disabled, className }, ref) => {
+  const idioma = useIdioma();
+  const meses = Array.from({ length: 12 }, (_, mes) => new Date(2024, mes, 1).toLocaleString(idioma, { month: 'long' }));
+  const dias = Array.from({ length: 7 }, (_, dia) => new Date(2024, 0, 7 + dia).toLocaleString(idioma, { weekday: 'short' }));
   const reducedMotion = useReducedMotion();
   const [month, setMonth] = React.useState(() => new Date((defaultMonth ?? selected ?? new Date()).getFullYear(), (defaultMonth ?? selected ?? new Date()).getMonth(), 1));
   const [view, setView] = React.useState<'days' | 'months' | 'years'>('days');
@@ -59,19 +61,19 @@ export const Calendar = React.forwardRef<HTMLDivElement, CalendarProps>(({ selec
 
   return <div ref={ref} className={cn('w-[min(300px,calc(100vw-3rem))] select-none rounded-2xl border border-[#30372e] bg-[#121812] p-3 text-[#ecede8] shadow-2xl shadow-black/30', className)}>
     <div className="mb-2 flex items-center justify-between gap-1">
-      <button type="button" aria-label="Mês anterior" onClick={() => moveMonth(-1)} className="grid size-8 place-items-center rounded-lg text-[#a2b1a6] transition hover:bg-[#253726] hover:text-[#ecede8] focus-visible:outline-2 focus-visible:outline-[#9dff3a]"><ChevronLeft size={17} /></button>
+      <button type="button" aria-label={t("Mês anterior")} onClick={() => moveMonth(-1)} className="grid size-8 place-items-center rounded-lg text-[#a2b1a6] transition hover:bg-[#253726] hover:text-[#ecede8] focus-visible:outline-2 focus-visible:outline-[#9dff3a]"><ChevronLeft size={17} /></button>
       <div className="flex items-center gap-1 text-[13px] font-medium">
-        <button type="button" onClick={() => setView('months')} className="rounded-lg px-2 py-1 transition hover:bg-[#253726] focus-visible:outline-2 focus-visible:outline-[#9dff3a]">{MONTHS[month.getMonth()]}</button>
+        <button type="button" onClick={() => setView('months')} className="rounded-lg px-2 py-1 transition hover:bg-[#253726] focus-visible:outline-2 focus-visible:outline-[#9dff3a]">{meses[month.getMonth()]}</button>
         <button type="button" onClick={() => { setYearAnchor(month.getFullYear()); setView('years'); }} className="rounded-lg px-2 py-1 tabular-nums transition hover:bg-[#253726] focus-visible:outline-2 focus-visible:outline-[#9dff3a]">{month.getFullYear()}</button>
       </div>
-      <button type="button" aria-label="Próximo mês" onClick={() => moveMonth(1)} className="grid size-8 place-items-center rounded-lg text-[#a2b1a6] transition hover:bg-[#253726] hover:text-[#ecede8] focus-visible:outline-2 focus-visible:outline-[#9dff3a]"><ChevronRight size={17} /></button>
+      <button type="button" aria-label={t("Próximo mês")} onClick={() => moveMonth(1)} className="grid size-8 place-items-center rounded-lg text-[#a2b1a6] transition hover:bg-[#253726] hover:text-[#ecede8] focus-visible:outline-2 focus-visible:outline-[#9dff3a]"><ChevronRight size={17} /></button>
     </div>
 
     <div className="relative overflow-hidden">
       <AnimatePresence mode="wait" initial={false} custom={direction}>
         {view === 'days' && <motion.div key={`${month.getFullYear()}-${month.getMonth()}`} custom={direction} initial={reducedMotion ? { opacity: 0 } : { opacity: 0, x: direction * 12 }} animate={{ opacity: 1, x: 0 }} exit={reducedMotion ? { opacity: 0 } : { opacity: 0, x: direction * -12 }} transition={{ duration: reducedMotion ? 0.12 : 0.18, ease: EASE_OUT }}>
-          <div className="mb-1 grid grid-cols-7">{WEEKDAYS.map(day => <span key={day} className="grid h-7 place-items-center text-[10px] font-medium text-[#a2b1a6]">{day}</span>)}</div>
-          <div role="grid" aria-label={`${MONTHS[month.getMonth()]} de ${month.getFullYear()}`} className="grid grid-cols-7 gap-y-0.5">
+          <div className="mb-1 grid grid-cols-7">{dias.map(day => <span key={day} className="grid h-7 place-items-center text-[10px] font-medium text-[#a2b1a6]">{day}</span>)}</div>
+          <div role="grid" aria-label={`${meses[month.getMonth()]} de ${month.getFullYear()}`} className="grid grid-cols-7 gap-y-0.5">
             {days.map(day => {
               const unavailable = disabled?.(day) ?? false;
               const outside = !isSameMonth(day, month);
@@ -83,7 +85,7 @@ export const Calendar = React.forwardRef<HTMLDivElement, CalendarProps>(({ selec
         </motion.div>}
 
         {view === 'months' && <motion.div key="months" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: reducedMotion ? 0.12 : 0.16, ease: EASE_OUT }} className="grid grid-cols-3 gap-1 py-1">
-          {MONTHS.map((name, index) => <button key={name} type="button" onClick={() => chooseMonth(index)} className={cn('h-10 rounded-lg text-[13px] transition hover:bg-[#253726] focus-visible:outline-2 focus-visible:outline-[#9dff3a]', index === month.getMonth() && 'bg-[#9dff3a] font-medium text-[#0c0d0c]')}>{name.slice(0, 3)}</button>)}
+          {meses.map((name, index) => <button key={name} type="button" onClick={() => chooseMonth(index)} className={cn('h-10 rounded-lg text-[13px] transition hover:bg-[#253726] focus-visible:outline-2 focus-visible:outline-[#9dff3a]', index === month.getMonth() && 'bg-[#9dff3a] font-medium text-[#0c0d0c]')}>{name.slice(0, 3)}</button>)}
         </motion.div>}
 
         {view === 'years' && <motion.div key="years" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: reducedMotion ? 0.12 : 0.16, ease: EASE_OUT }}>

@@ -1,3 +1,4 @@
+import { t } from '@/frontend/idioma';
 import { aceitaEntradaDecimal } from './moeda';
 import { consultarHistoricoYahoo } from './historico-cliente';
 import { SaldoDisponivel } from './saldo-disponivel';
@@ -181,47 +182,47 @@ export function MercadoAtivos({ token, onPurchase, onPurchaseSuccess, saldoInves
     <dialog ref={reviewDialog} className="account-pix-dialog" aria-labelledby="purchase-review-title"
       onCancel={event => { if (comprando) event.preventDefault(); }} onClose={() => setRevisaoCompra(null)}>
       {revisaoCompra && <div className="account-pix-dialog-content">
-        <span className="account-pix-success-eyebrow">Revise antes de comprar</span>
+        <span className="account-pix-success-eyebrow">{t("Revise antes de comprar")}</span>
         <h2 id="purchase-review-title">Confirmar compra de {revisaoCompra.codigo}?</h2>
         <p className="account-pix-success-amount">{preco(revisaoCompra.total)}</p>
         <div className="account-pix-success-details">
-          <div><span>Quantidade</span><strong>{Number(revisaoCompra.quantidade).toLocaleString('pt-BR', { maximumFractionDigits: 6 })}</strong></div>
-          <div><span>Preço por unidade</span><strong>{preco(revisaoCompra.precoUnitario)}</strong></div>
-          <div><span>Saldo disponível</span><strong>{preco(revisaoCompra.saldoAntes)}</strong></div>
-          <div><span>Saldo após a compra</span><strong>{preco(revisaoCompra.saldoDepois)}</strong></div>
-          <div><span>Cotação consultada em</span><strong>{horario(revisaoCompra.cotacaoEm)}</strong></div>
+          <div><span>{t("Quantidade")}</span><strong>{Number(revisaoCompra.quantidade).toLocaleString('pt-BR', { maximumFractionDigits: 6 })}</strong></div>
+          <div><span>{t("Preço por unidade")}</span><strong>{preco(revisaoCompra.precoUnitario)}</strong></div>
+          <div><span>{t("Saldo disponível")}</span><strong>{preco(revisaoCompra.saldoAntes)}</strong></div>
+          <div><span>{t("Saldo após a compra")}</span><strong>{preco(revisaoCompra.saldoDepois)}</strong></div>
+          <div><span>{t("Cotação consultada em")}</span><strong>{horario(revisaoCompra.cotacaoEm)}</strong></div>
         </div>
-        <p className="account-pix-note">A compra só será enviada após sua confirmação. Se a cotação mudar, você precisará revisar o novo preço.</p>
+        <p className="account-pix-note">{t("A compra só será enviada após sua confirmação. Se a cotação mudar, você precisará revisar o novo preço.")}</p>
         <button type="button" className="account-pix-success-close" disabled={comprando || loading}
-          onClick={() => void confirmarCompra()}>{comprando ? 'Comprando…' : 'Confirmar compra'}</button>
-        <button type="button" className="account-back" disabled={comprando} onClick={() => reviewDialog.current?.close()}>Cancelar</button>
+          onClick={() => void confirmarCompra()}>{comprando ? t("Comprando…") : t("Confirmar compra")}</button>
+        <button type="button" className="account-back" disabled={comprando} onClick={() => reviewDialog.current?.close()}>{t("Cancelar")}</button>
       </div>}
     </dialog>
     <header className="market-heading">
       <div>
-        <p className="market-kicker">Mercado</p>
-        <h3>Encontre ativos para acompanhar</h3>
-        <p>Pesquise as ações, EFTs e FIIs pelo nome ou ticker.</p>
+        <p className="market-kicker">{t("Mercado")}</p>
+        <h3>{t("Encontre ativos para acompanhar")}</h3>
+        <p>{t("Pesquise as ações, EFTs e FIIs pelo nome ou ticker.")}</p>
       </div>
       <span className="market-heading-icon"><BarChart3 size={24} aria-hidden /></span>
     </header>
 
     <div className="market-search-panel">
-      <label htmlFor="market-search">Nome ou ticker</label>
+      <label htmlFor="market-search">{t("Nome ou ticker")}</label>
       <div className="market-search-input">
         <Search size={18} aria-hidden />
         <input ref={searchInput} id="market-search" type="search" value={busca} maxLength={80} placeholder="Ex.: PETR4 ou Petrobras" autoComplete="off" disabled={conferindoCompra || comprando}
           onChange={event => { setBusca(event.target.value); setPagina(1); setTicker(null); setCotacao(null); setLista(null); }} />
       </div>
-      <p>Cotações de referência podem ter atraso de aproximadamente 30 minutos.</p>
+      <p>{t("Cotações de referência podem ter atraso de aproximadamente 30 minutos.")}</p>
     </div>
 
-    {busca.trim().length < 2 && <p className="market-search-hint">Digite pelo menos 2 caracteres para buscar ativos.</p>}
-    {buscando && <p className="market-state" role="status">Buscando ativos…</p>}
-    {erroBusca && <button type="button" className="account-detail-refresh" onClick={() => setSearchRetry(value => value + 1)}>Buscar novamente</button>}
-    {lista && <section className="market-search-results" aria-label="Resultados da busca">
-      <div className="market-section-title"><h4>Resultados</h4><span>Página {pagina}</span></div>
-      {lista.ativos.length === 0 && <p className="market-state">Nenhum ativo compatível nesta página.</p>}
+    {busca.trim().length < 2 && <p className="market-search-hint">{t("Digite pelo menos 2 caracteres para buscar ativos.")}</p>}
+    {buscando && <p className="market-state" role="status">{t("Buscando ativos…")}</p>}
+    {erroBusca && <button type="button" className="account-detail-refresh" onClick={() => setSearchRetry(value => value + 1)}>{t("Buscar novamente")}</button>}
+    {lista && <section className="market-search-results" aria-label={t("Resultados da busca")}>
+      <div className="market-section-title"><h4>{t("Resultados")}</h4><span>Página {pagina}</span></div>
+      {lista.ativos.length === 0 && <p className="market-state">{t("Nenhum ativo compatível nesta página.")}</p>}
       <ul className="market-results">{lista.ativos.map(ativo => <li key={ativo.codigo}>
         <button type="button" aria-pressed={ticker === ativo.codigo} disabled={conferindoCompra || comprando} onClick={() => setTicker(ativo.codigo)}>
           <span className="market-result-symbol">{ativo.codigo.slice(0, 1)}</span>
@@ -229,32 +230,32 @@ export function MercadoAtivos({ token, onPurchase, onPurchaseSuccess, saldoInves
           <span className="market-result-type">{ativo.tipo}</span>
         </button>
       </li>)}</ul>
-      <nav className="market-pagination" aria-label="Páginas de ativos">
-        <button type="button" disabled={pagina <= 1 || buscando} onClick={() => setPagina(valor => valor - 1)}>Anterior</button>
-        <button type="button" disabled={!lista.tem_proxima || buscando} onClick={() => setPagina(valor => valor + 1)}>Próxima</button>
+      <nav className="market-pagination" aria-label={t("Páginas de ativos")}>
+        <button type="button" disabled={pagina <= 1 || buscando} onClick={() => setPagina(valor => valor - 1)}>{t("Anterior")}</button>
+        <button type="button" disabled={!lista.tem_proxima || buscando} onClick={() => setPagina(valor => valor + 1)}>{t("Próxima")}</button>
       </nav>
     </section>}
 
     {cotando && <p className="market-state" role="status">Consultando {ticker}…</p>}
-    {erroCotacao && <button type="button" className="account-detail-refresh" onClick={() => setQuoteRetry(value => value + 1)}>Consultar cotação novamente</button>}
-    {ticker && <section className="market-quote-grid" aria-label="Cotação do ativo" aria-live="polite">
+    {erroCotacao && <button type="button" className="account-detail-refresh" onClick={() => setQuoteRetry(value => value + 1)}>{t("Consultar cotação novamente")}</button>}
+    {ticker && <section className="market-quote-grid" aria-label={t("Cotação do ativo")} aria-live="polite">
       {cotacao && <article className="market-quote-card market-price-card">
-        <div className="market-card-heading"><span>Cotação atual</span><span className="market-live-indicator">Referência</span></div>
+        <div className="market-card-heading"><span>{t("Cotação atual")}</span><span className="market-live-indicator">{t("Referência")}</span></div>
         <div className="market-asset-title"><span>{cotacao.codigo}</span><h4>{cotacao.nome}</h4></div>
         <strong className="market-price">{preco(cotacao.preco_brl)}</strong>
         <p><Clock3 size={14} aria-hidden />{horario(cotacao.cotacao_em)}</p>
         <SaldoDisponivel className="market-main-balance" rotulo="Saldo da conta de investimentos" saldo={saldoInvestimentos} />
         <form className="market-buy-form" onSubmit={event => void revisarCompra(event)}>
-          <label htmlFor="market-quantity">Quantidade</label>
+          <label htmlFor="market-quantity">{t("Quantidade")}</label>
           <div><input ref={purchaseQuantityInput} id="market-quantity" type="text" inputMode="decimal" value={quantidade} onChange={event => aceitaEntradaDecimal(event.target.value, 6) && setQuantidade(event.target.value)} placeholder="1" required disabled={conferindoCompra || comprando || loading} />
-            <button type="submit" disabled={conferindoCompra || comprando || loading || !contaCarregada}>{conferindoCompra ? 'Conferindo…' : 'Comprar ativo'}</button></div>
+            <button type="submit" disabled={conferindoCompra || comprando || loading || !contaCarregada}>{conferindoCompra ? t("Conferindo…") : t("Comprar ativo")}</button></div>
         </form>
       </article>}
 
     {ticker && <section className="market-history-card market-quote-card" aria-label={`Evolução do preço de ${ticker}`} aria-busy={carregandoHistorico}>
       <div className="market-history-heading"><h3>Evolução do preço · {ticker}</h3><span>{PERIODOS_HISTORICO[periodoGrafico].descricao}</span></div>
       <div className="market-history-layout">
-      <div className="market-history-periods" role="group" aria-label="Período do gráfico">
+      <div className="market-history-periods" role="group" aria-label={t("Período do gráfico")}>
         {(Object.keys(PERIODOS_HISTORICO) as PeriodoHistorico[]).filter(periodo => periodo !== '3mo').map(periodo => {
           return <button key={periodo} type="button" aria-pressed={periodoGrafico === periodo}
             aria-label={PERIODOS_HISTORICO[periodo].descricao}
@@ -271,9 +272,9 @@ export function MercadoAtivos({ token, onPurchase, onPurchaseSuccess, saldoInves
       </div>
       <div className="market-history-content">
       <p className="market-history-note">Histórico: Yahoo Finance{testeYahoo ? ' (servidor local de teste)' : ''}. Busca e cotação: brapi. A cobertura varia por ativo e período; os preços podem diferir entre as fontes.</p>
-      {carregandoHistorico && <p role="status">Carregando histórico…</p>}
+      {carregandoHistorico && <p role="status">{t("Carregando histórico…")}</p>}
       {erroHistorico && <div role="alert"><p>Não foi possível carregar o gráfico. {erroHistorico}</p>
-        <button type="button" onClick={() => setTentativaHistorico(valor => valor + 1)}>Tentar novamente</button>
+        <button type="button" onClick={() => setTentativaHistorico(valor => valor + 1)}>{t("Tentar novamente")}</button>
       </div>}
       {historico?.codigo === ticker && historico.periodo === periodoGrafico && !carregandoHistorico && !erroHistorico && <GraficoAtivo key={`${ticker}:${periodoGrafico}:${historico.consultado_em}`} historico={historico} />}
       </div>
@@ -281,11 +282,11 @@ export function MercadoAtivos({ token, onPurchase, onPurchaseSuccess, saldoInves
     </section>}
 
       {cotacao && <article className="market-quote-card market-details-card">
-        <div className="market-card-heading"><span>Dados da consulta</span><span>brapi</span></div>
+        <div className="market-card-heading"><span>{t("Dados da consulta")}</span><span>brapi</span></div>
         <dl>
-          <div><dt>Tipo de ativo</dt><dd>{cotacao.tipo}</dd></div>
-          <div><dt>Consultado em</dt><dd>{horario(cotacao.consultado_em)}</dd></div>
-          <div><dt>Moeda</dt><dd>Real brasileiro</dd></div>
+          <div><dt>{t("Tipo de ativo")}</dt><dd>{cotacao.tipo}</dd></div>
+          <div><dt>{t("Consultado em")}</dt><dd>{horario(cotacao.consultado_em)}</dd></div>
+          <div><dt>{t("Moeda")}</dt><dd>{t("Real brasileiro")}</dd></div>
         </dl>
       </article>}
     </section>}

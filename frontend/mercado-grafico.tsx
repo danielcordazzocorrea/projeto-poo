@@ -1,3 +1,4 @@
+import { t } from '@/frontend/idioma';
 import { useState } from 'react';
 import type { HistoricoAtivo } from '../supabase/functions/_shared/mercado-brapi';
 import { PERIODOS_HISTORICO } from '../supabase/functions/_shared/mercado-periodos';
@@ -11,7 +12,7 @@ const intervalos = { '5m': '5 minutos', '60m': '1 hora', '1d': '1 dia', '1wk': '
 export function GraficoAtivo({ historico }: { historico: HistoricoAtivo }) {
   const [selecionado, setSelecionado] = useState<number | null>(null);
   const pontos = historico.pontos;
-  if (pontos.length === 0) return <p role="status">Sem histórico disponível para este ativo no período selecionado.</p>;
+  if (pontos.length === 0) return <p role="status">{t("Sem histórico disponível para este ativo no período selecionado.")}</p>;
   const valores = pontos.map(ponto => Number(ponto.preco_brl));
   const minimo = Math.min(...valores);
   const maximo = Math.max(...valores);

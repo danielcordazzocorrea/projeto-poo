@@ -1,3 +1,4 @@
+import { t, SeletorIdioma } from '@/frontend/idioma';
 /** Authentication screen with a full-page shader and a dark form panel. */
 'use client';
 
@@ -37,16 +38,16 @@ export type SmokeLoginProps = {
 
 const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 const birthDateError = (value: string) => {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return 'Data de nascimento inválida.';
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return t("Data de nascimento inválida.");
   const [year, month, day] = value.split('-').map(Number);
-  if (year === undefined || month === undefined || day === undefined) return 'Data de nascimento inválida.';
+  if (year === undefined || month === undefined || day === undefined) return t("Data de nascimento inválida.");
   const birthDate = new Date(year, month - 1, day);
   const today = new Date();
-  if (birthDate.getFullYear() !== year || birthDate.getMonth() !== month - 1 || birthDate.getDate() !== day || birthDate > today) return 'Data de nascimento inválida.';
+  if (birthDate.getFullYear() !== year || birthDate.getMonth() !== month - 1 || birthDate.getDate() !== day || birthDate > today) return t("Data de nascimento inválida.");
   const hadBirthday = today.getMonth() + 1 > month || (today.getMonth() + 1 === month && today.getDate() >= day);
   const age = today.getFullYear() - year - (hadBirthday ? 0 : 1);
-  if (age < 18) return 'Data de nascimento inválida, menor de 18 anos.';
-  return age >= 120 ? 'Data de nascimento inválida.' : '';
+  if (age < 18) return t("Data de nascimento inválida, menor de 18 anos.");
+  return age >= 120 ? t("Data de nascimento inválida.") : '';
 };
 const THEMES: Record<Theme, Record<string, string>> = {
   light: { '--bg': '#efede7', '--paper': '#f7f6f2', '--sheet': '#e6e3db', '--ink': '#141513', '--muted': '#6f716b', '--line': '#dcd9d0', '--field': '#fbfaf7', '--accent': '#3f8f00', '--btn': '#141513', '--btn-ink': '#f7f6f2' },
@@ -109,7 +110,7 @@ function BirthDatePicker({ value, onChange, invalid }: { value: string; onChange
       inputMode="numeric"
       autoComplete="bday"
       placeholder="dd/mm/aaaa"
-      aria-label="Data de nascimento, dia/mês/ano"
+      aria-label={t("Data de nascimento, dia/mês/ano")}
       maxLength={10}
       value={typedDate}
       onChange={event => {
@@ -123,10 +124,10 @@ function BirthDatePicker({ value, onChange, invalid }: { value: string; onChange
       onBlur={() => { if (selected) setTypedDate(formatBirthDate(value)); }}
       className={cn(fieldBaseClass, 'pr-12')}
     />
-    <button type="button" aria-label="Abrir calendário de nascimento" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(value => !value)} className="absolute right-1.5 top-1 grid size-9 place-items-center rounded-[10px] focus-visible:outline-2 focus-visible:outline-[var(--accent)]">
+    <button type="button" aria-label={t("Abrir calendário de nascimento")} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(value => !value)} className="absolute right-1.5 top-1 grid size-9 place-items-center rounded-[10px] focus-visible:outline-2 focus-visible:outline-[var(--accent)]">
       <CalendarDays className="size-[18px] text-[var(--muted)]" aria-hidden />
     </button>
-    {open && <div role="dialog" aria-label="Selecionar data de nascimento" className="absolute left-0 top-[calc(100%+8px)] z-20">
+    {open && <div role="dialog" aria-label={t("Selecionar data de nascimento")} className="absolute left-0 top-[calc(100%+8px)] z-20">
       <Calendar defaultMonth={initialMonth} selected={selected} disabled={isUnavailableBirthDate} onSelect={date => {
         const nextValue = date ? dateValue(date) : '';
         onChange(nextValue);
@@ -174,16 +175,16 @@ export function SmokeLogin({
       if (element.id === 'birth-date') {
         const error = birthDateError(birthDate);
         if (error) {
-          showFieldError(element, element.value ? error : 'Preencha este campo.');
+          showFieldError(element, element.value ? error : t("Preencha este campo."));
           return;
         }
       }
       if (element.required && !element.value.trim()) {
-        showFieldError(element, 'Preencha este campo.');
+        showFieldError(element, t("Preencha este campo."));
         return;
       }
       if (!element.validity.valid || (element.minLength > 0 && element.value.length < element.minLength)) {
-        showFieldError(element, element.type === 'email' ? 'Informe um e-mail válido.' : `Use pelo menos ${element.minLength} caracteres.`);
+        showFieldError(element, element.type === 'email' ? t("Informe um e-mail válido.") : `Use pelo menos ${element.minLength} caracteres.`);
         return;
       }
     }
@@ -200,7 +201,7 @@ export function SmokeLogin({
     const passwordConfirmation = String(data.get('passwordConfirmation') ?? '');
     if (mode === 'signup' && password !== passwordConfirmation) {
       const field = event.currentTarget.elements.namedItem('passwordConfirmation');
-      if (field instanceof HTMLInputElement) showFieldError(field, 'As senhas não conferem.');
+      if (field instanceof HTMLInputElement) showFieldError(field, t("As senhas não conferem."));
       return;
     }
     setFormError(null);
@@ -220,17 +221,18 @@ export function SmokeLogin({
           <div className="flex h-full flex-col text-white">
             <motion.header {...rise(0)} className="login-brand-nav">
               <span className="text-[23px] font-semibold tracking-[-0.07em] sm:text-[25px]">{brand === 'tivvo' ? <>ti<span className="text-[#9dff3a]">vv</span>o</> : brand}</span>
-              <nav aria-label="Sobre a tivvo"><AboutTivvo /></nav>
+              <nav aria-label={t("Sobre a tivvo")}><AboutTivvo /></nav>
+              <SeletorIdioma />
             </motion.header>
             <motion.div {...rise(1)} className="flex max-w-[31rem] flex-1 flex-col justify-center py-6 md:py-12">
-              <p className="text-[clamp(1.9rem,4vw,4.25rem)] font-medium leading-[1.04] tracking-[-0.065em]">O próximo passo <span className="text-[#9dff3a]">é seu</span></p>
-              <p className="mt-3 hidden max-w-[25rem] text-sm leading-relaxed text-white/80 sm:block lg:text-base">Na tivvo, você acompanha sua conta e descobre novas possibilidades em uma experiência simples</p>
+              <p className="text-[clamp(1.9rem,4vw,4.25rem)] font-medium leading-[1.04] tracking-[-0.065em]">{t("O próximo passo")} <span className="text-[#9dff3a]">{t("é seu")}</span></p>
+              <p className="mt-3 hidden max-w-[25rem] text-sm leading-relaxed text-white/80 sm:block lg:text-base">{t("Na tivvo, você acompanha sua conta e descobre novas possibilidades em uma experiência simples")}</p>
             </motion.div>
-            <motion.p {...rise(2)} className="hidden border-t border-white/20 pt-4 text-xs text-white/70 md:block">Ambiente de demonstração · Valores e investimentos simulados</motion.p>
+            <motion.p {...rise(2)} className="hidden border-t border-white/20 pt-4 text-xs text-white/70 md:block">{t("Ambiente de demonstração · Valores e investimentos simulados")}</motion.p>
           </div>
       </section>
 
-      <section className="login-form-panel" data-theme="dark" style={{ ...THEMES.dark, colorScheme: 'dark' } as CSSProperties} aria-label={mode === 'signup' ? 'Criar conta' : 'Entrar na conta'}>
+      <section className="login-form-panel" data-theme="dark" style={{ ...THEMES.dark, colorScheme: 'dark' } as CSSProperties} aria-label={mode === 'signup' ? t("Criar conta") : t("Entrar na conta")}>
         <div className="w-full">
           <motion.h1 {...rise(2)} className="text-[30px] font-semibold leading-none tracking-[-0.045em] sm:text-[34px]">{title}</motion.h1>
           {subtitle && <motion.p {...rise(3)} className="mt-2 text-[14px] text-[var(--muted)] sm:text-[15px]">{subtitle}</motion.p>}
@@ -239,7 +241,7 @@ export function SmokeLogin({
           }} className="mt-6 space-y-3">
             {mode === 'signup' && <motion.div {...rise(4)} key="name" className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
-                <Label htmlFor="first-name">Primeiro nome</Label>
+                <Label htmlFor="first-name">{t("Primeiro nome")}</Label>
                 <input
                   id="first-name"
                   {...errorProps('first-name')}
@@ -248,31 +250,31 @@ export function SmokeLogin({
                   required
                   maxLength={80}
                   autoComplete="given-name"
-                  placeholder="Primeiro nome"
+                  placeholder={t("Primeiro nome")}
                   className={fieldClass}
                 />
               </div>
               <div>
-                <Label htmlFor="last-name">Sobrenome</Label>
-                <input id="last-name" {...errorProps('last-name')} name="lastName" type="text" required maxLength={80} autoComplete="family-name" placeholder="Sobrenome" className={fieldClass} />
+                <Label htmlFor="last-name">{t("Sobrenome")}</Label>
+                <input id="last-name" {...errorProps('last-name')} name="lastName" type="text" required maxLength={80} autoComplete="family-name" placeholder={t("Sobrenome")} className={fieldClass} />
               </div>
             </motion.div>}
             {mode === 'signup' && <motion.div {...rise(5)} key="birth-date" className="relative z-30">
-              <Label htmlFor="birth-date">Data de nascimento</Label>
+              <Label htmlFor="birth-date">{t("Data de nascimento")}</Label>
               <BirthDatePicker value={birthDate} invalid={invalidField === 'birth-date'} onChange={value => { setBirthDate(value); if (invalidField === 'birth-date') { setFormError(null); setInvalidField(null); } }} />
             </motion.div>}
             <motion.div {...rise(4)} key={`email-${mode}`}>
-              <Label htmlFor="email">E-mail</Label>
+              <Label htmlFor="email">{t("E-mail")}</Label>
               <input id="email" {...errorProps('email')} name="email" type="email" required autoComplete="email" placeholder="voce@exemplo.com" className={fieldClass} />
             </motion.div>
             <motion.div {...rise(5)} key={`password-${mode}`}>
-              <div className="flex items-baseline justify-between"><Label htmlFor="password">Senha</Label><a href={forgotPasswordHref} className="text-[12px] text-[var(--muted)] hover:text-[var(--ink)]">Esqueceu?</a></div>
-              <div className="relative"><input id="password" {...errorProps('password')} name="password" type={showPassword ? 'text' : 'password'} required minLength={6} autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} placeholder={mode === 'signup' ? 'Mínimo de 6 caracteres' : '••••••••'} className={cn(fieldClass, 'pr-12')} />
-                <button type="button" onClick={() => setShowPassword(value => !value)} aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'} className="absolute right-1.5 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-[10px] text-[var(--muted)] hover:text-[var(--ink)] focus-visible:outline-2 focus-visible:outline-[var(--accent)]">{showPassword ? <EyeOff className="size-[18px]" /> : <Eye className="size-[18px]" />}</button>
+              <div className="flex items-baseline justify-between"><Label htmlFor="password">{t("Senha")}</Label><a href={forgotPasswordHref} className="text-[12px] text-[var(--muted)] hover:text-[var(--ink)]">{t("Esqueceu?")}</a></div>
+              <div className="relative"><input id="password" {...errorProps('password')} name="password" type={showPassword ? 'text' : 'password'} required minLength={6} autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} placeholder={mode === 'signup' ? t("Mínimo de 6 caracteres") : '••••••••'} className={cn(fieldClass, 'pr-12')} />
+                <button type="button" onClick={() => setShowPassword(value => !value)} aria-label={showPassword ? t("Ocultar senha") : t("Mostrar senha")} className="absolute right-1.5 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-[10px] text-[var(--muted)] hover:text-[var(--ink)] focus-visible:outline-2 focus-visible:outline-[var(--accent)]">{showPassword ? <EyeOff className="size-[18px]" /> : <Eye className="size-[18px]" />}</button>
               </div>
             </motion.div>
             {mode === 'signup' && <motion.div {...rise(6)} key="password-confirmation">
-              <Label htmlFor="password-confirmation">Confirme sua senha</Label>
+              <Label htmlFor="password-confirmation">{t("Confirme sua senha")}</Label>
               <input
                 id="password-confirmation"
                 {...errorProps('password-confirmation')}
@@ -281,16 +283,16 @@ export function SmokeLogin({
                 required
                 minLength={6}
                 autoComplete="new-password"
-                placeholder="Digite a senha novamente"
+                placeholder={t("Digite a senha novamente")}
                 className={fieldClass}
               />
             </motion.div>}
-            <motion.div {...rise(6)} className="pt-1"><button type="submit" disabled={disabled || busy} aria-busy={busy} aria-describedby={notice || formError ? 'auth-notice' : undefined} className="group flex h-11 w-full items-center justify-center gap-2 rounded-[14px] bg-[var(--btn)] text-[15px] font-medium text-[var(--btn-ink)] shadow-[0_10px_24px_-12px_rgb(0_0_0/0.5)] transition hover:brightness-110 active:scale-[0.985] disabled:opacity-75 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]">{busy ? <><LoaderCircle aria-hidden className="size-[18px] animate-spin" />{mode === 'signup' ? 'Criando conta...' : 'Entrando...'}</> : <>{submitLabel}<ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" /></>}</button></motion.div>
+            <motion.div {...rise(6)} className="pt-1"><button type="submit" disabled={disabled || busy} aria-busy={busy} aria-describedby={notice || formError ? 'auth-notice' : undefined} className="group flex h-11 w-full items-center justify-center gap-2 rounded-[14px] bg-[var(--btn)] text-[15px] font-medium text-[var(--btn-ink)] shadow-[0_10px_24px_-12px_rgb(0_0_0/0.5)] transition hover:brightness-110 active:scale-[0.985] disabled:opacity-75 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]">{busy ? <><LoaderCircle aria-hidden className="size-[18px] animate-spin" />{mode === 'signup' ? t("Criando conta...") : t("Entrando...")}</> : <>{submitLabel}<ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" /></>}</button></motion.div>
             <div className={mode === 'signup' ? 'signup-notice-space' : undefined}>
               {(formError || notice) && <p id="auth-notice" role={formError || notice?.kind === 'erro' ? 'alert' : 'status'} className="rounded-xl border border-[var(--line)] bg-[var(--field)] p-3 text-sm text-[var(--ink)]">{formError ?? notice?.text}</p>}
             </div>
           </form>
-          <motion.p {...rise(7)} className="mt-6 text-center text-[13px] text-[var(--muted)]">{mode === 'signup' ? 'Já tem uma conta? ' : 'Ainda não tem conta? '}{onSignUpClick ? <button type="button" disabled={busy} onClick={onSignUpClick} className="font-medium text-[var(--ink)] underline-offset-4 hover:underline disabled:opacity-50">{mode === 'signup' ? 'Entrar' : 'Crie uma conta'}</button> : <a href={signUpHref} className="font-medium text-[var(--ink)] underline-offset-4 hover:underline">Crie uma conta</a>}</motion.p>
+          <motion.p {...rise(7)} className="mt-6 text-center text-[13px] text-[var(--muted)]">{mode === 'signup' ? t("Já tem uma conta? ") : t("Ainda não tem conta? ")}{onSignUpClick ? <button type="button" disabled={busy} onClick={onSignUpClick} className="font-medium text-[var(--ink)] underline-offset-4 hover:underline disabled:opacity-50">{mode === 'signup' ? t("Entrar") : t("Crie uma conta")}</button> : <a href={signUpHref} className="font-medium text-[var(--ink)] underline-offset-4 hover:underline">{t("Crie uma conta")}</a>}</motion.p>
           {footer && <motion.div {...rise(8)} className="mt-6 text-center text-[12px] text-[var(--muted)]">{footer}</motion.div>}
         </div>
       </section>

@@ -650,3 +650,57 @@ dialog::-webkit-scrollbar, dialog *::-webkit-scrollbar {
   max-width: 100%;
   overflow-wrap: anywhere;
 }
+
+.language-selector {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-inline-size: 0;
+  margin: 0;
+  padding: 3px 4px;
+  border: 1px solid var(--account-line, #ffffff38);
+  border-radius: 999px;
+  background: #142019;
+  color: #ecede8;
+}
+.language-selector > svg {
+  margin-inline: 6px 4px;
+  opacity: .8;
+}
+.language-selector label {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 2.1rem;
+  height: 2rem;
+  cursor: pointer;
+}
+.language-selector input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+.language-selector span {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  font-size: .7rem;
+  font-weight: 650;
+  letter-spacing: .045em;
+}
+.language-selector label:hover span { background: color-mix(in srgb, currentColor 10%, transparent); }
+.language-selector input:checked + span { background: #9dff3a; color: #15200f; }
+[data-theme="light"] .language-selector input:checked + span {
+  background: #327044;
+  color: #fff;
+}
+.language-selector input:focus-visible + span { outline: 2px solid currentColor; outline-offset: 2px; }
+@media (forced-colors: active) {
+  .language-selector input:checked + span { outline: 2px solid Highlight; }
+}
+.login-brand-nav, .account-topbar-inner, .account-user { flex-wrap: wrap; }
