@@ -127,7 +127,7 @@ function BirthDatePicker({ value, onChange, invalid }: { value: string; onChange
     <button type="button" aria-label={t("Abrir calendário de nascimento")} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(value => !value)} className="absolute right-1.5 top-1 grid size-9 place-items-center rounded-[10px] focus-visible:outline-2 focus-visible:outline-[var(--accent)]">
       <CalendarDays className="size-[18px] text-[var(--muted)]" aria-hidden />
     </button>
-    {open && <div role="dialog" aria-label={t("Selecionar data de nascimento")} className="absolute left-0 top-[calc(100%+8px)] z-20">
+    {open && <div role="dialog" aria-label={t("Selecionar data de nascimento")} className="birth-date-popover absolute left-0 top-[calc(100%+8px)] z-20">
       <Calendar defaultMonth={initialMonth} selected={selected} disabled={isUnavailableBirthDate} onSelect={date => {
         const nextValue = date ? dateValue(date) : '';
         onChange(nextValue);
@@ -158,9 +158,9 @@ export function SmokeLogin({
   const [birthDate, setBirthDate] = useState('');
   const reducedMotion = useReducedMotion();
   const rise = (index: number) => ({
-    initial: reducedMotion ? { opacity: 0 } : { opacity: 0, y: 10, filter: 'blur(10px)' },
+    initial: reducedMotion ? false as const : { opacity: 0, y: 10, filter: 'blur(10px)' },
     animate: { opacity: 1, y: 0, filter: 'blur(0px)' },
-    transition: { duration: 0.7, delay: 0.1 + index * 0.06, ease: [0.22, 1, 0.36, 1] as const },
+    transition: { duration: reducedMotion ? 0 : 0.7, delay: reducedMotion ? 0 : 0.1 + index * 0.06, ease: [0.22, 1, 0.36, 1] as const },
   });
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -217,13 +217,13 @@ export function SmokeLogin({
         <AnoAI className="absolute inset-0 size-full" />
         <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(9,20,14,.55)_0%,rgba(9,20,14,.12)_60%,rgba(9,20,14,.2)_100%)]" />
       </div>
-      <section className="login-intro">
-          <div className="flex h-full flex-col text-white">
-            <motion.header {...rise(0)} className="login-brand-nav">
+      <motion.header {...rise(0)} className="login-brand-nav text-white">
               <span className="text-[23px] font-semibold tracking-[-0.07em] sm:text-[25px]">{brand === 'tivvo' ? <>ti<span className="text-[#9dff3a]">vv</span>o</> : brand}</span>
               <nav aria-label={t("Sobre a tivvo")}><AboutTivvo /></nav>
               <SeletorIdioma />
-            </motion.header>
+      </motion.header>
+      <section className="login-intro">
+          <div className="flex h-full flex-col text-white">
             <motion.div {...rise(1)} className="flex max-w-[31rem] flex-1 flex-col justify-center py-6 md:py-12">
               <p className="text-[clamp(1.9rem,4vw,4.25rem)] font-medium leading-[1.04] tracking-[-0.065em]">{t("O próximo passo")} <span className="text-[#9dff3a]">{t("é seu")}</span></p>
               <p className="mt-3 hidden max-w-[25rem] text-sm leading-relaxed text-white/80 sm:block lg:text-base">{t("Na tivvo, você acompanha sua conta e descobre novas possibilidades em uma experiência simples")}</p>

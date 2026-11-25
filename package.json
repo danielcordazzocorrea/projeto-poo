@@ -10,9 +10,11 @@
     "dev:edge": "npx supabase functions serve corretora --env-file supabase/.env.local",
     "build:front": "tsc -p tsconfig.frontend.json && vite build --outDir web-dist",
     "test": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && npm run build && node --test --experimental-test-isolation=none dist/tests/*.test.js",
-    "test:edge": "deno test supabase/tests"
+    "test:edge": "deno test supabase/tests",
+    "test:responsive": "playwright test"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.1",
     "@tailwindcss/vite": "^4.3.5",
     "@types/node": "^22.0.0",
     "@types/react": "^19.3.0",

@@ -22,6 +22,7 @@ const cards = [
   '.account-pix-dialog',
   '.tivvo-about',
   '.mascot-chat',
+  '.language-selector-menu',
 ].join(',');
 
 /** One shared pointer listener, including cards mounted after navigation. */

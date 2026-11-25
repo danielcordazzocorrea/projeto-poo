@@ -8,10 +8,14 @@
   --error-dialog-icon-bg: #402320;
   --error-dialog-icon-ink: #ff8a80;
   width: min(440px, calc(100% - 32px));
+  min-width: 0;
+  max-width: calc(100% - 32px);
+  max-height: calc(100vh - 32px);
   max-height: calc(100dvh - 32px);
   margin: auto;
   padding: 0;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   overscroll-behavior: contain;
   border: 1px solid var(--error-dialog-line);
   border-radius: 24px;
@@ -46,7 +50,7 @@
 
 .error-dialog::backdrop { background: #07120caa; backdrop-filter: blur(5px); }
 .error-dialog[open] { animation: error-dialog-arrive .2s ease-out; }
-.error-dialog-content { padding: 32px; }
+.error-dialog-content { min-width: 0; padding: clamp(20px, 6vw, 32px); }
 .error-dialog-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
 .error-dialog-icon { display: grid; place-items: center; flex: none; width: 64px; height: 64px; border-radius: 20px; background: var(--error-dialog-icon-bg); color: var(--error-dialog-icon-ink); }
 .error-dialog-close { display: grid; place-items: center; width: 44px; height: 44px; flex: none; border: 0; border-radius: 12px; background: transparent; color: var(--error-dialog-muted); cursor: pointer; }
@@ -54,9 +58,9 @@
 .error-dialog h2 { margin: 0; font-size: 26px; font-weight: 600; letter-spacing: -.7px; line-height: 1.2; overflow-wrap: anywhere; }
 .error-dialog-description { margin: 16px 0 0; color: var(--error-dialog-muted); font-size: 15px; line-height: 1.65; overflow-wrap: anywhere; }
 .error-dialog-details { display: grid; gap: 16px; margin: 24px 0 0; padding: 20px 0; border-block: 1px solid var(--error-dialog-line); }
-.error-dialog-details > div { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px 16px; font-size: 14px; }
+.error-dialog-details > div { display: flex; min-width: 0; justify-content: space-between; flex-wrap: wrap; gap: 6px 16px; font-size: 14px; }
 .error-dialog-details dt { color: var(--error-dialog-muted); }
-.error-dialog-details dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.error-dialog-details dd { min-width: 0; max-width: 100%; margin: 0; font-weight: 600; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
 .error-dialog-action { width: 100%; min-height: 44px; margin-top: 28px; padding: 13px 20px; border: 0; border-radius: 10px; background: var(--error-dialog-accent); color: var(--error-dialog-accent-ink); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
 .error-dialog-action:hover { filter: brightness(1.08); }
 .error-dialog button:focus-visible { outline: 3px solid var(--error-dialog-accent); outline-offset: 4px; }
@@ -67,7 +71,6 @@
 }
 
 @media (max-width: 480px) {
-  .error-dialog-content { padding: 24px; }
   .error-dialog h2 { font-size: 24px; }
 }
 

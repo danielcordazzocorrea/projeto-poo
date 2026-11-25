@@ -40,7 +40,7 @@ type AccountHomeProps = {
 
 const destinations = [
   { id: 'investments', title: 'Investimentos', description: 'Seu espaço para acompanhar ativos e construir sua carteira simulada', action: 'Explorar investimentos' },
-  { id: 'pix', title: 'Pix', description: 'Um lugar para suas transferências e chaves', action: 'Conhecer a área Pix' },
+  { id: 'pix', title: 'Pix', description: 'Um lugar para suas transferências e chaves', action: 'Acessar Pix' },
   { id: 'currencies', title: 'Moedas', description: 'Converta seu saldo entre real, dólar e euro com cotação atualizada', action: 'Converter saldo' },
   { id: 'history', title: 'Histórico de transações', description: 'Acompanhe conversões de moeda e Pix enviados ou recebidos', action: 'Ver histórico' },
 ] as const;
@@ -136,7 +136,7 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
   const created = new Date(session.user.created_at);
   const createdLabel = Number.isNaN(created.getTime()) ? t("Não informado") : created.toLocaleDateString('pt-BR');
   const selected = destinations.find(item => item.id === area);
-  const areaTitle = area === 'profile' ? t("Meus dados") : t(selected?.title ?? '');
+  const areaTitle = area === 'profile' ? t("Meu perfil") : t(selected?.title ?? '');
   const savedName: unknown = session.user.user_metadata?.first_name;
   const firstName = typeof savedName === 'string' ? savedName.trim().split(/\s+/)[0] : '';
   const savedLastName: unknown = session.user.user_metadata?.last_name;
@@ -206,16 +206,15 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
         </div>
         <div className="account-user">
           <SeletorIdioma />
-          <button className="account-profile-link" type="button" onClick={() => navigate('profile')} aria-current={area === 'profile' ? 'page' : undefined}><UserRound size={17} aria-hidden /><span>{t("Meus dados")}</span></button>
+          <button className="account-profile-link" type="button" onClick={() => navigate('profile')} aria-label={t("Meu perfil")} data-tooltip={t("Meu perfil")} aria-current={area === 'profile' ? 'page' : undefined}><UserRound size={17} aria-hidden /></button>
           <button
             className="account-theme-toggle"
             type="button"
             onClick={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')}
             aria-label={theme === 'dark' ? t("Alternar para modo claro") : t("Alternar para modo escuro")}
-            title={theme === 'dark' ? t("Alternar para modo claro") : t("Alternar para modo escuro")}
+            data-tooltip={theme === 'dark' ? t("Alternar para modo claro") : t("Alternar para modo escuro")}
           >
             {theme === 'dark' ? <Moon size={17} aria-hidden /> : <Sun size={17} aria-hidden />}
-            <span>{theme === 'dark' ? t("Escuro") : t("Claro")}</span>
           </button>
           <button className="account-logout" type="button" onClick={onLogout}><LogOut size={17} aria-hidden />{t("Sair")}</button>
         </div>
@@ -227,7 +226,7 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
 
       {area === 'home' ? <>
         <section className="account-overview" aria-labelledby="home-title">
-          <div className="account-greeting"><span className="account-tag"><span />{t("Sua conta, conectada")}</span><h1 id="home-title" ref={heading} tabIndex={-1}>{firstName ? `${t("Olá,")} ${firstName}!` : t("Olá!")}</h1><p>{t("Escolha o que você quer fazer hoje")}</p></div>
+          <div className="account-greeting"><span className="account-tag"><span />{t("Sua vida financeira, conectada")}</span><h1 id="home-title" ref={heading} tabIndex={-1}>{firstName ? `${t("Olá,")} ${firstName}!` : t("Olá!")}</h1><p>{t("Acompanhe e gerencie seu patrimônio")}</p></div>
           <div className="account-balance" aria-busy={loading}>
             <div className="account-balance-label"><span>{t("Saldo disponível simulado ·")} {conta?.moeda_saldo ?? 'BRL'}</span><button type="button" onClick={() => setBalanceVisible(value => !value)} aria-label={balanceVisible ? t("Ocultar saldo") : t("Mostrar saldo")} aria-pressed={!balanceVisible}>{balanceVisible ? <Eye size={19} /> : <EyeOff size={19} />}</button></div>
             <p className="account-balance-value" aria-live="polite">{!balanceVisible ? '••••••' : loading ? t("Carregando…") : balance}</p>
@@ -235,7 +234,7 @@ export function AccountHome({ theme, onThemeChange, session, conta, investimento
           </div>
         </section>
         <section className="account-options" aria-labelledby="options-title">
-          <div className="account-section-heading"><h2 id="options-title">{t("Sua conta, por aqui")}</h2><span>{t("O que você precisa, em um lugar")}</span></div>
+          <div className="account-section-heading"><h2 id="options-title">{t("Visão geral da sua conta")}</h2><span>{t("Tudo em um só lugar")}</span></div>
           <div className="account-destinations">{destinations.map(({ id, title, description, action }) => <button key={id} type="button" className={`account-destination account-destination-${id}`} onClick={() => navigate(id)}>
             <span className="account-destination-top"><span className="account-option-icon">{id === 'pix' ? <PixLogo /> : id === 'currencies' ? <ArrowRightLeft size={26} strokeWidth={1.6} aria-hidden /> : id === 'investments' ? <ChartNoAxesCombined size={26} strokeWidth={1.6} aria-hidden /> : <History size={26} strokeWidth={1.6} aria-hidden />}</span><ArrowUpRight size={20} aria-hidden /></span>
             <h3>{t(title)}</h3><p>{t(description)}</p><span className="account-destination-action">{t(action)}</span>

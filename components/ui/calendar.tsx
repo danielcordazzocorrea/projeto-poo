@@ -59,7 +59,7 @@ export const Calendar = React.forwardRef<HTMLDivElement, CalendarProps>(({ selec
     setView('months');
   }
 
-  return <div ref={ref} className={cn('w-[min(300px,calc(100vw-3rem))] select-none rounded-2xl border border-[#30372e] bg-[#121812] p-3 text-[#ecede8] shadow-2xl shadow-black/30', className)}>
+  return <div ref={ref} className={cn('tivvo-calendar w-full min-w-0 select-none rounded-2xl border border-[#30372e] bg-[#121812] p-3 text-[#ecede8] shadow-2xl shadow-black/30', className)}>
     <div className="mb-2 flex items-center justify-between gap-1">
       <button type="button" aria-label={t("Mês anterior")} onClick={() => moveMonth(-1)} className="grid size-8 place-items-center rounded-lg text-[#a2b1a6] transition hover:bg-[#253726] hover:text-[#ecede8] focus-visible:outline-2 focus-visible:outline-[#9dff3a]"><ChevronLeft size={17} /></button>
       <div className="flex items-center gap-1 text-[13px] font-medium">
